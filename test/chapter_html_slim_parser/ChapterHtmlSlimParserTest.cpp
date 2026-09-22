@@ -1,4 +1,3 @@
-#include <Epub.h>
 #include <Epub/Page.h>
 #include <GfxRenderer.h>
 #include <gtest/gtest.h>
@@ -12,6 +11,8 @@
 #include "Epub/parsers/ChapterHtmlSlimParser.h"
 #undef private
 #undef class
+
+#include <Epub.h>
 
 namespace {
 
@@ -71,6 +72,33 @@ TEST_P(ChapterHtmlSlimParserTest, KeepsCssVerticalAlignAndInternalLinkMetadata) 
 
 INSTANTIATE_TEST_SUITE_P(CssVerticalAlign, ChapterHtmlSlimParserTest,
                          ::testing::Values("vertical-align: super", "vertical-align: sub"));
+
+TEST_F(ChapterHtmlSlimParserTest, PreservesEmptyInlinePaddingBeforeDialogueText) {
+  parser.cssParser->rulesBySelector_[".spacey"] = CssParser::parseInlineStyle("padding-left: 2em");
+  ChapterHtmlSlimParser::characterData(&parser, "EERO:", 5);
+  const XML_Char* attributes[] = {"class", "spacey", nullptr};
+  ChapterHtmlSlimParser::startElement(&parser, "span", attributes);
+  ChapterHtmlSlimParser::endElement(&parser, "span");
+  ChapterHtmlSlimParser::characterData(&parser, "Kappusiwai!", 11);
+  parser.flushPartWordBuffer();
+
+  ASSERT_EQ(parser.currentTextBlock->words.size(), 2u);
+  EXPECT_EQ(parser.currentTextBlock->words[0], "EERO:");
+  EXPECT_EQ(parser.currentTextBlock->words[1], "Kappusiwai!");
+  ASSERT_EQ(parser.currentTextBlock->inlinePaddings.size(), 1u);
+  EXPECT_EQ(parser.currentTextBlock->inlinePaddings[0].wordIndex, 1u);
+  EXPECT_EQ(parser.currentTextBlock->inlinePaddings[0].pixels, 24);
+  EXPECT_TRUE(parser.currentTextBlock->wordContinues[1]);
+
+  std::shared_ptr<TextBlock> renderedLine;
+  ASSERT_TRUE(parser.currentTextBlock->layoutAndExtractLines(
+      renderer, 0, 480,
+      [&renderedLine](std::shared_ptr<TextBlock> line, uint32_t, uint32_t) { renderedLine = std::move(line); }));
+  ASSERT_NE(renderedLine, nullptr);
+  ASSERT_EQ(renderedLine->wordCount(), 2u);
+  EXPECT_EQ(renderedLine->wordXpos(0), 0);
+  EXPECT_EQ(renderedLine->wordXpos(1), 24);
+}
 
 TEST_F(ChapterHtmlSlimParserTest, UsesOptimizerImageDimensionsWithoutReadingTheCompressedImage) {
   epub.optimizerImageAvailable = true;

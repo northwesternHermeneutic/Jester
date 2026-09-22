@@ -59,6 +59,8 @@ class ChapterHtmlSlimParser {
   uint32_t partWordVisibleOffset = 0;
   uint32_t visibleTextOffset = 0;
   uint32_t partWordReferenceOffset = 0;
+  int16_t partWordInlinePadding = 0;
+  int16_t pendingInlinePadding = 0;
   uint32_t referenceTextOffset = 0;
   bool referenceTextStarted = false;
   bool referenceWhitespacePending = false;
@@ -254,6 +256,7 @@ class ChapterHtmlSlimParser {
   void addPendingPublisherPageMarker(const char* label);
   void attachPendingPublisherPageMarkers(int yPos);
   void flushPartWordBuffer();
+  void queueInlinePadding(const CssStyle& cssStyle);
   void flushLongTextRunIfNeeded(bool force = false);
   size_t bufferedWordsBeforeLayoutLimit() const;
   uint16_t textRunBytesBeforeLayoutLimit() const;

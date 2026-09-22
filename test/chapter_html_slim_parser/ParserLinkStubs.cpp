@@ -7,6 +7,8 @@
 #include <Epub/tables/CompactTableLayout.h>
 #include <GfxRenderer.h>
 
+#include <algorithm>
+
 std::vector<Hyphenator::BreakInfo> Hyphenator::breakOffsets(const std::string&, bool) { return {}; }
 
 namespace BidiUtils {
@@ -19,11 +21,17 @@ bool computeVisualWordOrder(const std::vector<std::string>& words, bool, std::ve
 }
 }  // namespace BidiUtils
 
-TextBlock::TextBlock(const std::vector<std::string>&, const std::vector<int16_t>&,
+TextBlock::TextBlock(const std::vector<std::string>& words, const std::vector<int16_t>& wordXpos,
                      const std::vector<EpdFontFamily::Style>&, const std::vector<uint8_t>&,
                      const std::vector<uint16_t>&, const std::vector<uint16_t>&, const std::vector<uint8_t>&,
                      const std::vector<bool>&, const BlockStyle& blockStyle, std::vector<std::string> rubyTexts)
-    : blockStyle(blockStyle), rubyTexts(std::move(rubyTexts)) {}
+    : blockStyle(blockStyle), numWords(static_cast<uint16_t>(words.size())), rubyTexts(std::move(rubyTexts)) {
+  if (wordXpos.empty()) return;
+  arena = std::make_unique<uint8_t[]>(wordXpos.size() * sizeof(int16_t));
+  auto* positions = reinterpret_cast<int16_t*>(arena.get());
+  std::copy(wordXpos.begin(), wordXpos.end(), positions);
+  xposArr = positions;
+}
 bool TextBlock::hasRuby() const { return false; }
 
 bool ImageDecoderFactory::isFormatSupported(const std::string& path) { return path.ends_with(".jpg"); }
