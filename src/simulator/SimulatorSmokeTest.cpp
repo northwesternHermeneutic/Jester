@@ -271,6 +271,86 @@ class SimulatorSmokeTest {
         SETTINGS.tapToHideStatusBar) {
       fail("Reader controls settings round-trip mismatch");
     }
+
+    constexpr char CROSSINK_SETTINGS_FILE_BAK[] = "/.crosspoint/crossink-settings.json.bak";
+    constexpr char LEGACY_SETTINGS_FILE_JSON[] = "/.crosspoint/settings.json";
+    const char* const crossInkSettingsPath = CrossPointSettings::getFilePath();
+    const bool hadCrossInkSettings = Storage.exists(crossInkSettingsPath);
+    const String savedCrossInkSettings = hadCrossInkSettings ? Storage.readFile(crossInkSettingsPath) : String();
+    const bool hadCrossInkSettingsBackup = Storage.exists(CROSSINK_SETTINGS_FILE_BAK);
+    const String savedCrossInkSettingsBackup =
+        hadCrossInkSettingsBackup ? Storage.readFile(CROSSINK_SETTINGS_FILE_BAK) : String();
+    const bool hadLegacySettings = Storage.exists(LEGACY_SETTINGS_FILE_JSON);
+    const String savedLegacySettings = hadLegacySettings ? Storage.readFile(LEGACY_SETTINGS_FILE_JSON) : String();
+
+    JsonDocument crossInkSettings;
+    crossInkSettings["touchReaderControls"] = CrossPointSettings::TOUCH_READER_ON;
+    crossInkSettings["pageTurnGesture"] = CrossPointSettings::TAP_ONLY;
+    crossInkSettings["previousPageGesture"] = CrossPointSettings::SWIPE_ONLY;
+    crossInkSettings["disableReaderTouchscreen"] = 0;
+    String crossInkJson;
+    serializeJson(crossInkSettings, crossInkJson);
+
+    JsonDocument crossPointSettings;
+    crossPointSettings["touchReaderControls"] = 2;
+    crossPointSettings["disableReaderTouchscreen"] = 1;
+    String crossPointJson;
+    serializeJson(crossPointSettings, crossPointJson);
+
+    if (!Storage.writeFile(crossInkSettingsPath, crossInkJson) ||
+        !Storage.writeFile(LEGACY_SETTINGS_FILE_JSON, crossPointJson)) {
+      fail("Could not write settings migration test fixture");
+    }
+    SETTINGS.disableReaderTouchscreen = 1;
+    SETTINGS.pageTurnGesture = CrossPointSettings::PAGE_TURN_GESTURE_DISABLED;
+    SETTINGS.previousPageGesture = CrossPointSettings::PAGE_TURN_GESTURE_DISABLED;
+    if (!SETTINGS.loadFromFile() || SETTINGS.disableReaderTouchscreen ||
+        SETTINGS.pageTurnGesture != CrossPointSettings::TAP_ONLY ||
+        SETTINGS.previousPageGesture != CrossPointSettings::SWIPE_ONLY) {
+      fail("CrossInk settings file did not take precedence over CrossPoint settings");
+    }
+
+    // A corrupt CrossInk file still blocks the foreign fallback. It is safer
+    // to leave settings unchanged than to silently import CrossPoint values.
+    if (!Storage.writeFile(crossInkSettingsPath, "{")) fail("Could not corrupt CrossInk settings test fixture");
+    if (SETTINGS.loadFromFile() || SETTINGS.disableReaderTouchscreen ||
+        SETTINGS.pageTurnGesture != CrossPointSettings::TAP_ONLY ||
+        SETTINGS.previousPageGesture != CrossPointSettings::SWIPE_ONLY) {
+      fail("Corrupt CrossInk settings fell through to CrossPoint settings");
+    }
+
+    // An interrupted atomic replacement leaves the CrossInk backup as the
+    // sole namespaced file. Recover it before considering CrossPoint's file.
+    if (!Storage.writeFile(CROSSINK_SETTINGS_FILE_BAK, crossInkJson) || !Storage.remove(crossInkSettingsPath)) {
+      fail("Could not create interrupted CrossInk settings fixture");
+    }
+    SETTINGS.disableReaderTouchscreen = 1;
+    SETTINGS.pageTurnGesture = CrossPointSettings::PAGE_TURN_GESTURE_DISABLED;
+    SETTINGS.previousPageGesture = CrossPointSettings::PAGE_TURN_GESTURE_DISABLED;
+    if (!SETTINGS.loadFromFile() || SETTINGS.disableReaderTouchscreen ||
+        SETTINGS.pageTurnGesture != CrossPointSettings::TAP_ONLY ||
+        SETTINGS.previousPageGesture != CrossPointSettings::SWIPE_ONLY || !Storage.exists(crossInkSettingsPath) ||
+        Storage.exists(CROSSINK_SETTINGS_FILE_BAK)) {
+      fail("Interrupted CrossInk settings save did not recover before CrossPoint import");
+    }
+
+    if (hadCrossInkSettings) {
+      if (!Storage.writeFile(crossInkSettingsPath, savedCrossInkSettings)) fail("Could not restore CrossInk settings");
+    } else if (Storage.exists(crossInkSettingsPath) && !Storage.remove(crossInkSettingsPath)) {
+      fail("Could not remove CrossInk settings test fixture");
+    }
+    if (hadCrossInkSettingsBackup) {
+      if (!Storage.writeFile(CROSSINK_SETTINGS_FILE_BAK, savedCrossInkSettingsBackup)) {
+        fail("Could not restore CrossInk settings backup");
+      }
+    } else if (Storage.exists(CROSSINK_SETTINGS_FILE_BAK) && !Storage.remove(CROSSINK_SETTINGS_FILE_BAK)) {
+      fail("Could not remove CrossInk settings backup fixture");
+    }
+    if (hadLegacySettings) {
+      if (!Storage.writeFile(LEGACY_SETTINGS_FILE_JSON, savedLegacySettings)) fail("Could not restore legacy settings");
+    } else if (Storage.exists(LEGACY_SETTINGS_FILE_JSON) && !Storage.remove(LEGACY_SETTINGS_FILE_JSON)) {
+      fail("Could not remove legacy settings test fixture");
+    }
     SETTINGS.fromJson(original.as<JsonVariantConst>());
   }
 

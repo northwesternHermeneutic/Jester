@@ -761,15 +761,13 @@ bool CrossPointSettings::saveToFile() const {
   std::lock_guard<std::mutex> lock(storeMutex);
   JsonDocument doc;
   toJson(doc);
-  return PersistableStoreBase::writeDocToFile(SETTINGS_FILE_JSON, doc);
+  return PersistableStoreBase::writeDocToFileAtomically(SETTINGS_FILE_JSON, doc);
 }
 
 bool CrossPointSettings::loadFromFile() {
   enum class JsonLoadStatus : uint8_t { MissingOrEmpty, Loaded, Failed };
 
   auto loadJsonSettings = [this](const char* path, bool migrateToCurrentPath) -> JsonLoadStatus {
-    if (!Storage.exists(path)) return JsonLoadStatus::MissingOrEmpty;
-
     JsonDocument doc;
     if (PersistableStoreBase::readDocFromFile(path, doc)) {
       bool result = false;
