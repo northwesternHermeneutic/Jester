@@ -46,7 +46,7 @@ class LibraryActivity final : public Activity {
   bool pendingCacheDeletedFeedback = false;
   unsigned long cacheDeletedFeedbackShowTime = 0;
   std::string query;
-  // Only searches allocate one u16 per indexed book (at most 8 KiB), fallibly.
+  // Searches and file-type filters allocate one u16 per visible source book, fallibly.
   std::unique_ptr<uint16_t[]> filtered;
   uint16_t filteredCount = 0;
   uint16_t recentRows[RecentBooksStore::MAX_RECENT_BOOKS]{};

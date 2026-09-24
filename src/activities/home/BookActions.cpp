@@ -159,13 +159,11 @@ bool toggleBookCompleted(const std::string& fullPath, const std::string& display
   std::string cachePath;
   std::string title;
   std::string author;
-  std::string thumbPath;
   if (isEpub) {
     epub.setupCacheDir();
     cachePath = epub.getCachePath();
     title = epub.getTitle();
     author = epub.getAuthor();
-    thumbPath = epub.getThumbBmpPath();
   } else {
     if (!xtc.load()) {
       return false;
@@ -174,7 +172,6 @@ bool toggleBookCompleted(const std::string& fullPath, const std::string& display
     cachePath = xtc.getCachePath();
     title = xtc.getTitle();
     author = xtc.getAuthor();
-    thumbPath = xtc.getThumbBmpPath();
   }
 
   BookReadingStats stats = BookReadingStats::load(cachePath);
@@ -197,13 +194,9 @@ bool toggleBookCompleted(const std::string& fullPath, const std::string& display
   stats.save(cachePath);
   globalStats.save();
 
-  if (SETTINGS.removeReadBooksFromRecents) {
-    if (completed) {
-      RECENT_BOOKS.removeByPath(fullPath);
-    } else {
-      RECENT_BOOKS.addOrUpdateBook(fullPath, title, author, thumbPath);
-    }
-  }
+  // Changing completion status does not open a book. The reader adds it to
+  // recents if it is opened again after being marked unfinished.
+  if (SETTINGS.removeReadBooksFromRecents && completed) RECENT_BOOKS.removeByPath(fullPath);
 
   if (isEpub && completed && SETTINGS.moveFinishedToReadFolder && fullPath.rfind("/Read/", 0) != 0) {
     const std::string oldCachePath = epub.getCachePath();

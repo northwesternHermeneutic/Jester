@@ -95,9 +95,10 @@ fallbacks. CLX1 version 2 adds a first-name author permutation; older Library
 indexes rebuild automatically when Library opens.
 
 **Date Added** uses the file modification time captured by the index, with its
-first-seen sequence breaking ties. **Recently Read** places the saved reading
-history first (up to 18 books), followed by books without history in date order.
-Reversing that sort reverses each section; it keeps books with history together.
+first-seen sequence breaking ties. **Recently Opened** shows only books in the
+saved reading history (up to 18 books), newest first. Reversing that sort shows
+the same books oldest first. Marking a book unfinished does not add it to
+reading history; opening it does.
 Search matches words in the title and author and retains the selected sort.
 The sort method and direction are saved when changed. The Library Settings icon
 opens a compact/expanded list toggle and independent visibility switches for

@@ -156,14 +156,18 @@ bool LibraryActivity::hasActiveFilter() const {
          !SETTINGS.libraryShowMarkdown;
 }
 
-int LibraryActivity::rowCount() const { return hasActiveFilter() ? filteredCount : index.bookCount(); }
+int LibraryActivity::rowCount() const {
+  if (hasActiveFilter()) return filteredCount;
+  if (sort == Sort::RecentlyRead) return static_cast<int>(recentCount);
+  return index.bookCount();
+}
 
 uint16_t LibraryActivity::ordinalForRow(const int row) {
   if (row < 0 || row >= rowCount()) return UINT16_MAX;
   if (hasActiveFilter()) return filtered ? filtered[row] : UINT16_MAX;
   uint16_t indexRow = static_cast<uint16_t>(row);
   if (sort == Sort::RecentlyRead) {
-    indexRow = library::recentShelfRow(indexRow, index.bookCount(), recentRows, recentCount, descending);
+    indexRow = library::recentHistoryRow(indexRow, index.bookCount(), recentRows, recentCount, descending);
   }
   return index.ordinalForRow(indexOrder(), indexRow);
 }
@@ -185,7 +189,9 @@ void LibraryActivity::applyFilter() {
   filterFailed = false;
   filtered.reset();
   if (!hasActiveFilter() || !index.isOpen() || index.bookCount() == 0) return;
-  filtered = makeUniqueNoThrow<uint16_t[]>(index.bookCount());
+  const uint16_t sourceCount = sort == Sort::RecentlyRead ? static_cast<uint16_t>(recentCount) : index.bookCount();
+  if (sourceCount == 0) return;
+  filtered = makeUniqueNoThrow<uint16_t[]>(sourceCount);
   if (!filtered) {
     LOG_ERR("LIB", "Cannot allocate Library search results");
     filterFailed = true;
@@ -207,10 +213,10 @@ void LibraryActivity::applyFilter() {
   name.reserve(UINT8_MAX);
   combined.reserve(2 * UINT8_MAX + 1);
   folded.reserve(2 * UINT8_MAX + 1);
-  for (uint16_t row = 0; row < index.bookCount(); ++row) {
-    const uint16_t indexRow = sort == Sort::RecentlyRead
-                                  ? library::recentShelfRow(row, index.bookCount(), recentRows, recentCount, descending)
-                                  : row;
+  for (uint16_t row = 0; row < sourceCount; ++row) {
+    const uint16_t indexRow = sort == Sort::RecentlyRead ? library::recentHistoryRow(row, index.bookCount(), recentRows,
+                                                                                     recentCount, descending)
+                                                         : row;
     const uint16_t ordinal = index.ordinalForRow(indexOrder(), indexRow);
     library::ClixRecord record{};
     if (ordinal == UINT16_MAX || !index.readRecord(ordinal, record) || !index.readName(record, name)) {
@@ -585,8 +591,12 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
   if (rowCount() == 0) {
     if (!scanFailed && !filterFailed) {
-      screen.centeredText(hasActiveFilter() ? tr(STR_LIBRARY_NO_RESULTS) : tr(STR_LIBRARY_EMPTY),
-                          screen.theme().bodyText);
+      const char* message = tr(STR_LIBRARY_EMPTY);
+      if (hasActiveFilter())
+        message = tr(STR_LIBRARY_NO_RESULTS);
+      else if (sort == Sort::RecentlyRead && index.bookCount() > 0)
+        message = tr(STR_NO_RECENT_BOOKS);
+      screen.centeredText(message, screen.theme().bodyText);
     }
     return;
   }
