@@ -25,8 +25,7 @@
 #include "home/FileBrowserActivity.h"
 #include "home/HomeActivity.h"
 #include "home/RecentBookProgress.h"
-#include "home/RecentBooksActivity.h"
-#include "home/RecentBooksGridActivity.h"
+#include "library/LibraryActivity.h"
 #include "network/CrossPointWebServerActivity.h"
 #include "network/NearbyBookTransferActivity.h"
 #include "network/NearbyStatsSyncActivity.h"
@@ -675,12 +674,13 @@ void ActivityManager::goToFileBrowser(std::string path) {
   replaceActivity(std::make_unique<FileBrowserActivity>(renderer, mappedInput, std::move(path)));
 }
 
-void ActivityManager::goToRecentBooks() {
-  if (SETTINGS.recentBooksView == CrossPointSettings::RECENT_BOOKS_GRID) {
-    replaceActivity(std::make_unique<RecentBooksGridActivity>(renderer, mappedInput));
-  } else {
-    replaceActivity(std::make_unique<RecentBooksActivity>(renderer, mappedInput));
+void ActivityManager::goToLibrary() {
+  auto library = makeUniqueNoThrow<LibraryActivity>(renderer, mappedInput);
+  if (!library) {
+    LOG_ERR("ACT", "Cannot allocate Library activity");
+    return;
   }
+  replaceActivity(std::move(library));
 }
 
 void ActivityManager::goToBrowser() {
@@ -785,8 +785,8 @@ void ActivityManager::goHome(HomeMenuItem initialMenuItem, const HalDisplay::Ref
     const auto& activityName = currentActivity->name;
     if (activityName == "FileBrowser") {
       initialMenuItem = HomeMenuItem::FILE_BROWSER;
-    } else if (activityName == "RecentBooks") {
-      initialMenuItem = HomeMenuItem::RECENTS;
+    } else if (activityName == "Library") {
+      initialMenuItem = HomeMenuItem::LIBRARY;
     } else if (activityName == "OpdsBookBrowser") {
       initialMenuItem = HomeMenuItem::OPDS_BROWSER;
     } else if (activityName == "CrossPointWebServer") {

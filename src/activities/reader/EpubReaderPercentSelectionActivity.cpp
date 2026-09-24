@@ -274,7 +274,7 @@ void EpubReaderPercentSelectionActivity::loop() {
   }
 
   // A long-press Confirm already fired this press: swallow input until it's physically
-  // released (same hold-to-act pattern used elsewhere in this codebase, e.g. RecentBooksActivity).
+  // released so the next press starts cleanly.
   if (confirmLongPressFired) {
     if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
       confirmLongPressFired = false;

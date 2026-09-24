@@ -21,7 +21,8 @@ The main data directory is `.crosspoint` on the SD card. It stores render caches
 ├── settings.bin.bak        # Legacy binary settings file after migration, if present
 ├── state.json              # Last-opened book and sleep/session state
 ├── state.bin.bak           # Legacy binary state file after migration, if present
-├── recent.json             # Recent books list
+├── recent.json             # Reading history for Home and Library
+├── library.idx             # Library titles, authors, paths and sort indexes
 ├── recent.bin.bak          # Legacy binary recent-books file after migration, if present
 ├── wifi.json               # Saved Wi-Fi networks
 ├── opds.json               # Saved OPDS servers
@@ -83,3 +84,35 @@ All-time reading stats can also be backed up outside `.crosspoint` in:
 ```
 
 For binary file layout details, see [File Formats](./file-formats.md).
+
+## Library
+
+Library replaces the Recent Books screen. It reconciles the SD card on entry and
+through the refresh icon in the Library header, reusing metadata for unchanged books.
+**Settings > Display > Use Book Metadata** selects embedded EPUB titles and
+authors; disabling it uses filenames. TXT, Markdown and XTC files use filename
+fallbacks. CLX1 version 2 adds a first-name author permutation; older Library
+indexes rebuild automatically when Library opens.
+
+**Date Added** uses the file modification time captured by the index, with its
+first-seen sequence breaking ties. **Recently Read** places the saved reading
+history first (up to 18 books), followed by books without history in date order.
+Reversing that sort reverses each section; it keeps books with history together.
+Search matches words in the title and author and retains the selected sort.
+The sort method and direction are saved when changed. The Library Settings icon
+opens a compact/expanded list toggle and independent visibility switches for
+EPUB, XTC/XTCH, TXT, and Markdown files. Expanded Title and Author sorts show
+alphabetic headings; hidden file types remain indexed and can be shown again
+without a rescan. Markdown books open as plain text in the TXT reader.
+Expanded is the default for new Library preferences; a saved Compact choice remains respected.
+Author (Last Name) sorts by the final word of the displayed author, while
+Author (First Name) sorts by the displayed name from its beginning.
+Series metadata and series sorting are not part of this UI change.
+
+On button devices, Up from the first book reaches sort direction, sort method,
+settings, search, and refresh. Confirm activates the selected control; holding Confirm on
+a book opens its actions. On touch devices, tap the header icons or sort controls
+directly and hold a book row for its actions. The sort method opens a modal list.
+
+The Lyra Carousel snapshot cache advances to version 7 so cached home menus
+regenerate with the Library label and landmark icon. No manual EPUB cache reset is required.

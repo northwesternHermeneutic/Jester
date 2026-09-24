@@ -120,6 +120,10 @@ class HalFile : public Print {
   size_t size();
   size_t fileSize();
   uint64_t fileSize64();
+  // Packed FAT modification date/time (date << 16 | time), or 0 when the
+  // filesystem has no timestamp for this entry. Used by the Library index as
+  // a "Recent" tiebreaker/fallback ordering; see FsDateTime for the bit layout.
+  uint32_t modificationTime();
   bool seek(size_t pos);
   bool seek64(uint64_t pos);
   bool seekCur(int64_t offset);

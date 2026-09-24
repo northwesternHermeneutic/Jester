@@ -441,6 +441,15 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
     }
   }
 
+  // Library-local choices stay out of the resident settings catalog and Web Settings.
+  doc["librarySortMethod"] = librarySortMethod;
+  doc["librarySortDescending"] = librarySortDescending;
+  doc["libraryListExpanded"] = libraryListExpanded;
+  doc["libraryShowEpub"] = libraryShowEpub;
+  doc["libraryShowXtc"] = libraryShowXtc;
+  doc["libraryShowTxt"] = libraryShowTxt;
+  doc["libraryShowMarkdown"] = libraryShowMarkdown;
+
   doc["frontButtonBack"] = frontButtonBack;
   doc["frontButtonConfirm"] = frontButtonConfirm;
   doc["frontButtonLeft"] = frontButtonLeft;
@@ -570,6 +579,22 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
     }
     this->*(info.valuePtr) = value;
   }
+
+  const auto readLibraryChoice = [&](const char* key, uint8_t& choice, const int optionCount) {
+    const int stored = doc[key] | static_cast<int>(choice);
+    if (stored < 0 || stored >= optionCount) {
+      needsResave = true;
+      return;
+    }
+    choice = static_cast<uint8_t>(stored);
+  };
+  readLibraryChoice("librarySortMethod", librarySortMethod, 5);
+  readLibraryChoice("librarySortDescending", librarySortDescending, 2);
+  readLibraryChoice("libraryListExpanded", libraryListExpanded, 2);
+  readLibraryChoice("libraryShowEpub", libraryShowEpub, 2);
+  readLibraryChoice("libraryShowXtc", libraryShowXtc, 2);
+  readLibraryChoice("libraryShowTxt", libraryShowTxt, 2);
+  readLibraryChoice("libraryShowMarkdown", libraryShowMarkdown, 2);
 
   // Only the generic-file fallback imports CrossPoint's combined touch mode.
   // Explicit CrossInk gesture keys identify a CrossInk document, even at the old path.

@@ -21,6 +21,13 @@ std::string utf8ComposeNfc(const std::string& in);
 // Uncomposed bytes (including malformed UTF-8) are preserved unchanged.
 void utf8ComposeNfcInPlace(char* buffer);
 
+// The base letter a precomposed codepoint decomposes to, or 0 when there is
+// none ("e-acute" -> "e", but "o-slash" -> 0: it is a letter in its own right,
+// not o-with-stroke). Lives here rather than in a caller because the compose
+// table is a multi-KB static array: a second includer would be a second copy
+// in flash.
+uint32_t utf8DecomposedBase(uint32_t cp);
+
 // Returns true when text contains at least one Unicode letter/number-like
 // codepoint that can be sent to dictionary lookup. Punctuation, symbols,
 // whitespace, and combining marks do not count by themselves.

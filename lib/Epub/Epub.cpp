@@ -551,7 +551,7 @@ bool Epub::findContentOpfFile(std::string* contentOpfFile) const {
 }
 
 bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const bool writeSpineEntries,
-                           const bool collectCssFiles) {
+                           const bool collectCssFiles, const bool metadataOnly) {
   std::string contentOpfFilePath;
   if (!findContentOpfFile(&contentOpfFilePath)) {
     LOG_ERR("EBP", "Could not find content.opf in zip");
@@ -567,7 +567,7 @@ bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const 
   }
 
   ContentOpfParser opfParser(getCachePath(), getBasePath(), contentOpfSize,
-                             writeSpineEntries ? bookMetadataCache.get() : nullptr, collectCssFiles);
+                             writeSpineEntries ? bookMetadataCache.get() : nullptr, collectCssFiles, metadataOnly);
   if (!opfParser.setup()) {
     LOG_ERR("EBP", "Could not setup content.opf parser");
     if (opfParser.failedForLowMemory()) {
@@ -576,7 +576,11 @@ bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const 
     return false;
   }
 
-  if (!readItemContentsToStream(contentOpfFilePath, opfParser, 1024)) {
+  // metadataOnly's allowEarlyStop lets the stream stop decompressing once the
+  // parser has left </metadata>, well before the manifest/spine/guide of a
+  // large content.opf; readItemContentsToStream() reports that as a short
+  // write rather than a full success, so it is not itself a read failure here.
+  if (!readItemContentsToStream(contentOpfFilePath, opfParser, 1024, metadataOnly)) {
     LOG_ERR("EBP", "Could not read content.opf");
     if (opfParser.failedForLowMemory()) {
       lastLoadFailure = OpenFailure::OutOfMemory;
@@ -589,6 +593,14 @@ bool Epub::parseContentOpf(BookMetadataCache::BookMetadata& bookMetadata, const 
   bookMetadata.title = utf8ComposeNfc(opfParser.title);
   bookMetadata.author = opfParser.author;
   bookMetadata.language = opfParser.language;
+
+  if (metadataOnly) {
+    // Nothing below is populated: the parser stopped at </metadata>, before
+    // the manifest that would carry the cover item and TOC/guide references.
+    LOG_DBG("EBP", "Successfully parsed package metadata");
+    return true;
+  }
+
   bookMetadata.coverItemHref = opfParser.coverItemHref;
 
   // Guide-based cover fallback: if no cover found via metadata/properties,
@@ -1095,6 +1107,40 @@ bool Epub::load(const bool buildIfMissing, const bool skipLoadingCss, const XLoc
   }
 
   lastLoadFailure = OpenFailure::None;
+  return true;
+}
+
+bool Epub::loadMetadata(std::string& title, std::string& author, const bool allowCachedMetadata) {
+  title.clear();
+  author.clear();
+
+  // A book already opened by the reader (or a prior library scan with
+  // metadata reading on) has a full cache on disk; reuse it rather than
+  // re-parsing the zip. Deliberately a LOCAL reader, not this->bookMetadataCache:
+  // that member is tied to the full load()/spine lifecycle and must not be
+  // partially populated by a metadata-only read.
+  if (allowCachedMetadata) {
+    auto metadataCache = makeUniqueNoThrow<BookMetadataCache>(cachePath);
+    if (metadataCache && metadataCache->load()) {
+      title = metadataCache->coreMetadata.title;
+      author = metadataCache->coreMetadata.author;
+      return true;
+    }
+    if (!metadataCache) {
+      LOG_ERR("EBP", "Could not allocate metadata cache reader");
+    }
+  } else if (!clearCache()) {
+    LOG_ERR("EBP", "Could not invalidate stale metadata cache");
+    return false;
+  }
+
+  BookMetadataCache::BookMetadata metadata;
+  const bool loaded =
+      parseContentOpf(metadata, /*writeSpineEntries=*/false, /*collectCssFiles=*/false, /*metadataOnly=*/true);
+  if (!loaded) return false;
+
+  title = std::move(metadata.title);
+  author = std::move(metadata.author);
   return true;
 }
 
