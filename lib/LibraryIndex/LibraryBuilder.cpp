@@ -40,6 +40,7 @@ constexpr size_t STAGE_METADATA_BYTES = 128;
 constexpr size_t FOLDER_PATH_BYTES = 255;
 struct StagedEntry {
   ClixRecord record;
+  uint32_t creationTime;
   uint64_t pathHash;
   char name[STAGE_NAME_BYTES];
   // Cleaned source spelling from this book. The spelling actually shown
@@ -287,6 +288,7 @@ struct WalkState {
   uint16_t activeDedupCount = 0;
   bool dedupDegraded = false;
   bool failed = false;
+  bool creationTimesUnchanged = true;
   bool readMetadata = false;
   LibraryIndexFile* previous = nullptr;
   BuildStats* stats = nullptr;
@@ -321,7 +323,7 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
 // Nothing about a book's surroundings names its author: no directory-as-author
 // inference lives here, only the filename-as-title fallback.
 [[gnu::noinline]] bool stageRecord(WalkState& st, const std::string& name, const uint32_t fileSize,
-                                   const uint16_t folderId, const std::string& fullPath,
+                                   const uint16_t folderId, const std::string& fullPath, const uint32_t creationTime,
                                    const uint32_t modificationTime) {
   StagedEntry& entry = *st.stagedEntry;
   memset(&entry, 0, sizeof(entry));
@@ -336,6 +338,7 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
   bool authorFromBook = false;
 
   entry.pathHash = clixPathHash(fullPath.data(), fullPath.size());
+  entry.creationTime = creationTime;
   const int priorIndex = findPrior(st, entry.pathHash);
 
   const bool extractionExpected = st.readMetadata && FsHelpers::hasEpubExtension(name);
@@ -343,6 +346,14 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
   bool reuseMetadata = false;
   ClixRecord priorRecord{};
   if (priorIndex >= 0) {
+    if (st.previous->header().formatVersion >= 5) {
+      uint32_t priorCreationTime = 0;
+      if (!st.previous->readCreationTime(priorOrdinal(st.prior[priorIndex]), priorCreationTime)) {
+        st.failed = true;
+        return false;
+      }
+      if (priorCreationTime != creationTime) st.creationTimesUnchanged = false;
+    }
     if (!st.previous->readRecord(priorOrdinal(st.prior[priorIndex]), priorRecord)) {
       st.failed = true;
       return false;
@@ -522,6 +533,7 @@ void walk(WalkState& st, const std::string& path, const int depth) {
     entry.getName(st.nameBuf, NAME_BUF_SIZE);
     const bool isDir = entry.isDirectory();
     const uint32_t size = isDir ? 0 : static_cast<uint32_t>(entry.fileSize());
+    const uint32_t creationTime = isDir ? 0 : entry.creationTime();
     const uint32_t modificationTime = isDir ? 0 : entry.modificationTime();
     entry.close();
 
@@ -603,7 +615,7 @@ void walk(WalkState& st, const std::string& path, const int depth) {
       st.folderId++;
       folderEmitted = true;
     }
-    if (!stageRecord(st, name, size, myFolderId, joinLibraryPath(path, name), modificationTime)) break;
+    if (!stageRecord(st, name, size, myFolderId, joinLibraryPath(path, name), creationTime, modificationTime)) break;
   }
   // openNextFile() returning falsy is ambiguous between "reached the end of
   // the directory" and an SdFat allocation/iteration error partway through.
@@ -957,32 +969,32 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
 
   // --- arrival order -------------------------------------------------------
   //
-  // Primary key is the file's modification time, so the "Recent" shelf reflects
-  // when a book actually landed on the card rather than when a rebuild happened
-  // to discover it. firstSeen breaks ties (and carries books whose filesystem
-  // reports no time): it comes from the PREVIOUS index, so it is no longer a
+  // Primary key is the file's creation time. firstSeen breaks ties and orders
+  // books without a timestamp. It comes from the PREVIOUS index, so it is no longer a
   // dense sequence in walk order — a rebuild reuses each book's original number
   // and only hands out new ones for books it has never seen. The arrival order
   // has to be SORTED rather than assumed, or "Recent" silently degrades into
   // "the order the card enumerates in" — exactly the bug reconciliation exists
   // to prevent.
+  bool arrivalDegraded = false;
   if (rankable) {
     for (uint16_t i = 0; i < n; i++) arrivalOrder[i] = i;
     if (n > 1) {
       // Fallible and non-fatal: without the array the sort still runs on
       // firstSeen alone, which is the pre-timestamp behaviour.
-      auto mtimes = makeUniqueNoThrow<uint32_t[]>(n);
-      if (mtimes) {
+      auto creationTimes = makeUniqueNoThrow<uint32_t[]>(n);
+      if (creationTimes) {
         for (uint16_t i = 0; i < n; i++) {
           serviceBuilder(serviceUnits);
-          if (!readStageAt(static_cast<uint64_t>(order[i]) * STAGE_STRIDE + offsetof(ClixRecord, modificationTime),
-                           &mtimes[i], sizeof(mtimes[i]))) {
-            mtimes.reset();
+          if (!readStageAt(static_cast<uint64_t>(order[i]) * STAGE_STRIDE + offsetof(StagedEntry, creationTime),
+                           &creationTimes[i], sizeof(creationTimes[i]))) {
+            creationTimes.reset();
             break;
           }
         }
       } else {
-        LOG_ERR("LIBIDX", "OOM: %u-byte mtime array, arrival falls back to firstSeen",
+        arrivalDegraded = true;
+        LOG_ERR("LIBIDX", "OOM: %u-byte creation-time array, arrival falls back to firstSeen",
                 static_cast<unsigned>(n * sizeof(uint32_t)));
       }
       if (ioFailed) {
@@ -990,8 +1002,8 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
       } else {
         delay(1);
         std::sort(arrivalOrder.get(), arrivalOrder.get() + n,
-                  [order, resolvedFirstSeen, mt = mtimes.get()](const uint16_t a, const uint16_t b) {
-                    if (mt && mt[a] != mt[b]) return mt[a] < mt[b];
+                  [order, resolvedFirstSeen, times = creationTimes.get()](const uint16_t a, const uint16_t b) {
+                    if (times && times[a] != times[b]) return times[a] < times[b];
                     const uint16_t aSeen = resolvedFirstSeen[order[a]];
                     const uint16_t bSeen = resolvedFirstSeen[order[b]];
                     return aSeen < bSeen || (aSeen == bSeen && a < b);
@@ -1154,6 +1166,15 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
   };
   emitMetadataOrder(offsetof(StagedEntry, seriesLen), offsetof(StagedEntry, series));
   emitMetadataOrder(offsetof(StagedEntry, genreLen), offsetof(StagedEntry, genre));
+  // One timestamp per title-ordered record; no change to the 128-byte record.
+  for (uint16_t i = 0; i < n; i++) {
+    serviceBuilder(serviceUnits);
+    uint32_t creationTime = 0;
+    if (!readStageAt(static_cast<uint64_t>(order[i]) * STAGE_STRIDE + offsetof(StagedEntry, creationTime),
+                     &creationTime, sizeof(creationTime)))
+      break;
+    put(&creationTime, sizeof(creationTime));
+  }
   padTo(header.nameStart);
 
   uint32_t blobWritten = 0;
@@ -1187,8 +1208,9 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
   const uint32_t written = static_cast<uint32_t>(outBuffer.position());
   if (!outBuffer.flush()) ioFailed = true;
 
-  header.flags =
-      (stats.ranksDegraded ? CLIX_FLAG_RANKS_DEGRADED : 0) | (stats.dedupDegraded ? CLIX_FLAG_DEDUP_DEGRADED : 0);
+  header.flags = (stats.ranksDegraded ? CLIX_FLAG_RANKS_DEGRADED : 0) |
+                 (stats.dedupDegraded ? CLIX_FLAG_DEDUP_DEGRADED : 0) |
+                 (arrivalDegraded ? CLIX_FLAG_ARRIVAL_DEGRADED : 0);
 
   if (!out.seekSet(0)) {
     ioFailed = true;
@@ -1342,8 +1364,10 @@ bool buildLibraryIndex(const char* rootPath, BuildStats& stats, const bool readM
 
   if (previous.isOpen() && previous.header().formatVersion == CLIX_FORMAT_VERSION &&
       previous.header().foldVersion == CLIX_FOLD_VERSION && st.books == priorCount && st.reused == priorCount &&
-      stats.metadataReused == priorCount && st.unreadableSkipped == 0 && !st.dedupDegraded &&
-      (previous.header().flags & (CLIX_FLAG_RANKS_DEGRADED | CLIX_FLAG_DEDUP_DEGRADED)) == 0) {
+      stats.metadataReused == priorCount && st.creationTimesUnchanged && st.unreadableSkipped == 0 &&
+      !st.dedupDegraded &&
+      (previous.header().flags & (CLIX_FLAG_RANKS_DEGRADED | CLIX_FLAG_DEDUP_DEGRADED | CLIX_FLAG_ARRIVAL_DEGRADED)) ==
+          0) {
     previous.close();
     Storage.remove(STAGE_PATH);
     Storage.remove(folderStagePath.c_str());

@@ -12,6 +12,7 @@ namespace fake {
 struct Node {
   bool directory = false;
   uint32_t time = 1;
+  uint32_t created = 1;
   std::vector<uint8_t> bytes;
 };
 
@@ -75,6 +76,7 @@ inline void resetIoCounters() {
 inline void add(const std::string& path, const std::string& bytes = "book", const uint32_t time = 1) {
   auto node = std::make_shared<Node>();
   node->time = time;
+  node->created = time;
   node->bytes.assign(bytes.begin(), bytes.end());
   files[path] = node;
   std::string parent = path.substr(0, path.find_last_of('/'));
@@ -149,6 +151,7 @@ class HalFile {
     return name.size();
   }
   uint32_t modificationTime() const { return node ? node->time : 0; }
+  uint32_t creationTime() const { return node ? node->created : 0; }
   uint64_t fileSize64() const { return node ? node->bytes.size() : 0; }
   size_t fileSize() const { return static_cast<size_t>(fileSize64()); }
   size_t position() const { return pos; }

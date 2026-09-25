@@ -17,8 +17,8 @@
 namespace library {
 
 enum class SortOrder : uint8_t {
-  // "Recent" orders by file modification time (arrival on the card), oldest
-  // first in Asc; firstSeen breaks ties for filesystems without timestamps.
+  // "Recent" orders by file creation time, oldest first in Asc; firstSeen
+  // breaks ties and orders files without creation timestamps.
   RecentAsc,
   RecentDesc,
   TitleAsc,
@@ -79,6 +79,9 @@ class LibraryIndexFile {
   bool recentRowsFor(const BookIdentity* books, size_t count, uint16_t* outRows);
 
   bool readRecord(uint16_t ordinal, ClixRecord& out);
+  // V5 creation timestamp in the title-ordered side array. Zero means the
+  // filesystem provided no creation time. Older versions have no such array.
+  bool readCreationTime(uint16_t ordinal, uint32_t& out);
   // Persisted complete-path fingerprint used by rebuild reconciliation.
   bool readPathHash(const ClixRecord& record, uint64_t& out);
 

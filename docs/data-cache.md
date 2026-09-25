@@ -94,8 +94,12 @@ authors; disabling it uses filenames. TXT, Markdown and XTC files use filename
 fallbacks. CLX1 version 2 adds a first-name author permutation; older Library
 indexes rebuild automatically when Library opens.
 
-**Date Added** uses the file modification time captured by the index, with its
-first-seen sequence breaking ties. **Recently Opened** shows only books in the
+**Date Added** uses the file creation time captured by the index. Its
+first-seen sequence breaks ties and orders books without a creation time among
+themselves; those books appear before dated books in ascending order.
+The creation time is the filesystem's best available estimate of when a file
+arrived on the card; some copy tools may preserve the original timestamp.
+**Recently Opened** shows only books in the
 saved reading history (up to 18 books), newest first. Reversing that sort shows
 the same books oldest first. Marking a book unfinished does not add it to
 reading history; opening it does.

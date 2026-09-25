@@ -195,6 +195,12 @@ bool LibraryIndexFile::readRecord(const uint16_t ordinal, ClixRecord& out) {
   return true;
 }
 
+bool LibraryIndexFile::readCreationTime(const uint16_t ordinal, uint32_t& out) {
+  out = 0;
+  if (!opened || head.formatVersion < 5 || ordinal >= head.bookCount) return false;
+  return readAt(creationTimeOffset(head, ordinal), &out, sizeof(out));
+}
+
 bool LibraryIndexFile::readName(const ClixRecord& record, std::string& out) {
   out.clear();
   if (!opened || record.nameLen == 0) return false;

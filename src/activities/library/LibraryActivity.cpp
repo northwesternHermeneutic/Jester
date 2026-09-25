@@ -91,8 +91,7 @@ bool LibraryActivity::rebuildIndex(const bool showScanning) {
       scanFailed = true;
     } else {
       LOG_INF("LIB", "Using previous Library index until rebuild succeeds");
-      if (index.header().formatVersion < library::CLIX_FORMAT_VERSION &&
-          (sort == Sort::Series || sort == Sort::Genre)) {
+      if (index.header().formatVersion < 4 && (sort == Sort::Series || sort == Sort::Genre)) {
         sort = Sort::Title;
         descending = false;
       }
@@ -327,7 +326,7 @@ void LibraryActivity::openSortPicker() {
     applyFilter();
     resetViewport();
   });
-  if (index.isOpen() && index.header().formatVersion < library::CLIX_FORMAT_VERSION)
+  if (index.isOpen() && index.header().formatVersion < 4)
     sortPopup.setDisabledOptions({false, false, false, false, false, true, true});
   requestUpdate();
 }
@@ -572,8 +571,12 @@ bool LibraryActivity::metadataGroupForRow(const int row, std::string& out) {
 
 uint16_t LibraryActivity::dateGroupForRow(const int row) {
   library::ClixRecord record{};
-  if (!index.readRecord(ordinalForRow(row), record)) return 0;
-  const uint16_t date = static_cast<uint16_t>(record.modificationTime >> 16);
+  const uint16_t ordinal = ordinalForRow(row);
+  if (!index.readRecord(ordinal, record)) return 0;
+  // A failed v5 upgrade may leave a v4 index temporarily visible.
+  uint32_t timestamp = record.modificationTime;
+  if (index.header().formatVersion >= 5 && !index.readCreationTime(ordinal, timestamp)) return 0;
+  const uint16_t date = static_cast<uint16_t>(timestamp >> 16);
   const uint8_t month = static_cast<uint8_t>((date >> 5) & 15u);
   const uint8_t day = static_cast<uint8_t>(date & 31u);
   return month >= 1 && month <= 12 && day >= 1 && day <= 31 ? date : 0;
@@ -623,7 +626,7 @@ void LibraryActivity::buildSortHeader(UiApp::ScreenType& screen) {
   button.state = showSelection && selection == 3 ? fui::StateSelected : fui::StateNormal;
   screen.button(button, method);
   button.label = nullptr;
-  button.icon = fui::bitmapFromIcon(descending ? icon_arrow_down_wide_narrow_32 : icon_arrow_up_wide_narrow_32);
+  button.icon = fui::bitmapFromIcon(descending ? icon_arrow_down_wide_narrow_32 : icon_arrow_up_narrow_wide_32);
   button.state = showSelection && selection == 4 ? fui::StateSelected : fui::StateNormal;
   screen.button(button, direction);
   const int16_t split = static_cast<int16_t>((method.right() + direction.x) / 2);

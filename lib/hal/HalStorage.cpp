@@ -454,6 +454,14 @@ size_t HalFile::getName(char* name, size_t len) { HAL_FILE_WRAPPED_CALL(getName,
 size_t HalFile::size() { HAL_FILE_FORWARD_CALL(size, ); }              // already thread-safe, no need to wrap
 size_t HalFile::fileSize() { HAL_FILE_FORWARD_CALL(fileSize, ); }      // already thread-safe, no need to wrap
 uint64_t HalFile::fileSize64() { HAL_FILE_FORWARD_CALL(fileSize, ); }  // already thread-safe, no need to wrap
+uint32_t HalFile::creationTime() {
+  HalStorage::StorageLock lock;
+  assert(impl != nullptr);
+  uint16_t date = 0;
+  uint16_t time = 0;
+  if (!impl->file.getCreateDateTime(&date, &time) || date == 0) return 0;
+  return (static_cast<uint32_t>(date) << 16) | time;
+}
 uint32_t HalFile::modificationTime() {
   HalStorage::StorageLock lock;
   assert(impl != nullptr);

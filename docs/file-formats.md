@@ -49,6 +49,20 @@ struct ImageFolderIndexRecord {
 
 ## `/.crosspoint/library.idx`
 
+### Version 5
+
+Date Added now uses the filesystem creation timestamp. A title-ordered array of
+`uint32_t` packed FAT creation date/times follows the five `uint16_t` sort
+permutations and precedes the aligned name section. A zero value means the
+creation timestamp is unavailable; `firstSeen` orders books with equal or
+missing timestamps, and zero sorts before dated values in ascending order. The
+128-byte book record still stores modification time
+separately for EPUB metadata freshness. Version 4 indexes rebuild on the next
+Library scan, retaining metadata and `firstSeen` values from the old index.
+Header flag bit 2 marks an arrival order that fell back to `firstSeen` because
+sorting by creation time ran out of memory; the next scan retries it. Version 4
+uses only bits 0 and 1, so its flags remain valid during reconciliation.
+
 ### Version 4
 
 Two more `uint16_t` permutations follow arrival order: series order and genre
@@ -89,7 +103,8 @@ Every section starts on a 512-byte boundary. Records are a fixed 128 bytes
 each, so record `k` always lives at `recordStart + 128*k` with no offset table
 to load first, and 32 records exactly fill a 4096-byte scan buffer. Five
 `uint16_t` permutation arrays (surname, first name, arrival, series, then genre
-order) let those sorts page without re-sorting on every open;
+order) and one `uint32_t` creation-time array let those sorts page without
+re-sorting on every open;
 Title order needs no permutation because the record section is already
 title-sorted.
 
@@ -102,16 +117,16 @@ reconciliation instead: `openForReconciliation()` accepts stale sort/search
 keys so each book's `firstSeen` arrival order survives across the rebuild
 even though its fold and permutations are regenerated.
 
-CrossInk's format version is `4`; older indexes rebuild automatically. Versions
-2 and 3 can be read for reconciliation so arrival history survives. The fold
-version remains `1`.
+CrossInk's format version is `5`; older indexes rebuild automatically. Versions
+2, 3, and 4 can be read for reconciliation so arrival history survives. The fold
+version is `2`.
 
 ```c++
 struct ClixHeader {            // 64 bytes, padded to the first 512-byte sector
     char magic[4];              // "CLX1"
-    u8 formatVersion;           // 4
-    u8 foldVersion;             // 1
-    u8 flags;                   // bit0: ranks degraded, bit1: dedup degraded
+    u8 formatVersion;           // 5
+    u8 foldVersion;             // 2
+    u8 flags;                   // bit0: ranks degraded, bit1: dedup degraded, bit2: arrival degraded
     u8 metadataEnabled;         // 0 or 1
     u16 bookCount;
     u16 folderCount;

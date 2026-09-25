@@ -316,7 +316,7 @@ TEST_F(LibraryBuilderTest, VersionThreeIndexReusesMetadataDuringSortUpgrade) {
   ASSERT_TRUE(recordAtPath(before, "/a.epub", original));
   before.close();
 
-  // Two-book v3 and v4 indexes have the same aligned nameStart. The v3
+  // Two-book v3 and v5 indexes have the same aligned nameStart. The v3
   // permutation section ends early, leaving padding before the name blob.
   fake::files[INDEX]->bytes[offsetof(ClixHeader, formatVersion)] = 3;
   fake::parses = 0;
@@ -381,6 +381,34 @@ TEST_F(LibraryBuilderTest, OldFoldVersionRebuildsTitleKeysWithoutReparsingBooks)
   EXPECT_EQ(std::string(rebuilt.fold, rebuilt.foldLen), "the iliad");
   EXPECT_EQ(foldedGroupInitial(std::string_view(rebuilt.fold, rebuilt.foldLen)), static_cast<uint32_t>('t'));
   EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
+}
+
+TEST_F(LibraryBuilderTest, VersionFourIndexKeepsFirstSeenAndMetadataDuringCreationTimeUpgrade) {
+  initial();
+  LibraryIndexFile before;
+  ASSERT_TRUE(before.open(INDEX));
+  ClixRecord original{};
+  ASSERT_TRUE(recordAtPath(before, "/a.epub", original));
+  before.close();
+
+  // For two books, the v4 and v5 side arrays fit before the same aligned
+  // name section. This models an old index without changing its record data.
+  fake::files[INDEX]->bytes[offsetof(ClixHeader, formatVersion)] = 4;
+  fake::files[INDEX]->bytes[offsetof(ClixHeader, foldVersion)] = 1;
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+  EXPECT_EQ(stats.metadataReused, 2);
+  EXPECT_TRUE(stats.indexReplaced);
+
+  LibraryIndexFile after;
+  ASSERT_TRUE(after.open(INDEX));
+  EXPECT_EQ(after.header().formatVersion, CLIX_FORMAT_VERSION);
+  EXPECT_EQ(after.header().foldVersion, CLIX_FOLD_VERSION);
+  ClixRecord rebuilt{};
+  ASSERT_TRUE(recordAtPath(after, "/a.epub", rebuilt));
+  EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
+  EXPECT_EQ(rebuilt.modificationTime, original.modificationTime);
 }
 
 TEST_F(LibraryBuilderTest, InterruptedUpgradeRestoresVersionThreeBackup) {
@@ -583,11 +611,13 @@ TEST_F(LibraryBuilderTest, EqualBasenamesInDifferentFoldersReconcileIndependentl
   EXPECT_EQ(stats.metadataReused, 3);
 }
 
-TEST_F(LibraryBuilderTest, ArrivalOrderFollowsModificationTimeOverDiscoveryOrder) {
-  // a and b exist with the default time; c lands with an older timestamp and d
-  // with the newest, so file times, not walk or firstSeen order, decide.
-  fake::add("/c.epub", "book c", /*time=*/0);
-  fake::add("/d.epub", "book d", /*time=*/9);
+TEST_F(LibraryBuilderTest, DateAddedUsesCreationTimeRatherThanModificationTime) {
+  // Modification dates point in the opposite direction. Books with equal
+  // creation times retain their first-seen order.
+  fake::add("/c.epub", "book c", /*time=*/9);
+  fake::add("/d.epub", "book d", /*time=*/0);
+  fake::files["/c.epub"]->created = 0;
+  fake::files["/d.epub"]->created = 9;
   ASSERT_TRUE(buildLibraryIndex("/", stats, true));
 
   LibraryIndexFile index;
@@ -597,6 +627,71 @@ TEST_F(LibraryBuilderTest, ArrivalOrderFollowsModificationTimeOverDiscoveryOrder
   EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 2), "/b.epub");
   EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 3), "/d.epub");
   EXPECT_EQ(pathAt(index, SortOrder::RecentDesc, 0), "/d.epub");
+  uint32_t created = 0;
+  EXPECT_TRUE(index.readCreationTime(index.ordinalForRow(SortOrder::RecentAsc, 0), created));
+  EXPECT_EQ(created, 0u);
+}
+
+TEST_F(LibraryBuilderTest, MissingCreationTimesFallBackToFirstSeenAcrossRebuilds) {
+  fake::files["/a.epub"]->created = 0;
+  fake::files["/b.epub"]->created = 0;
+  initial();
+  fake::add("/c.epub", "book c", /*time=*/100);
+  fake::files["/c.epub"]->created = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 0), "/a.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 1), "/b.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 2), "/c.epub");
+}
+
+TEST_F(LibraryBuilderTest, CreationTimeChangeUpdatesOrderWithoutReparsingMetadata) {
+  initial();
+  fake::files["/a.epub"]->created = 2;
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+  EXPECT_EQ(stats.metadataReused, 2);
+  EXPECT_TRUE(stats.indexReplaced);
+
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 0), "/b.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 1), "/a.epub");
+  uint32_t created = 0;
+  ASSERT_TRUE(index.readCreationTime(index.ordinalForRow(SortOrder::RecentAsc, 1), created));
+  EXPECT_EQ(created, 2u);
+}
+
+TEST_F(LibraryBuilderTest, CreationSortAllocationFailureRetriesOnNextScan) {
+  bool foundArrivalFallback = false;
+  // Find the fallible creation-time array without coupling this test to the
+  // exact allocation order of the other builder phases.
+  for (int failAt = 0; failAt < 32 && !foundArrivalFallback; failAt++) {
+    fake::reset();
+    fake::add("/a.txt");
+    fake::add("/b.txt");
+    fake::files["/a.txt"]->created = 9;
+    fake::files["/b.txt"]->created = 1;
+    fake::failAlloc = failAt;
+    if (!buildLibraryIndex("/", stats, false)) continue;
+
+    LibraryIndexFile index;
+    ASSERT_TRUE(index.open(INDEX));
+    foundArrivalFallback = (index.header().flags & CLIX_FLAG_ARRIVAL_DEGRADED) != 0;
+    if (!foundArrivalFallback) continue;
+    EXPECT_FALSE(stats.ranksDegraded);
+    EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 0), "/a.txt");
+    index.close();
+
+    ASSERT_TRUE(buildLibraryIndex("/", stats, false));
+    EXPECT_TRUE(stats.indexReplaced);
+    ASSERT_TRUE(index.open(INDEX));
+    EXPECT_EQ(index.header().flags & CLIX_FLAG_ARRIVAL_DEGRADED, 0);
+    EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 0), "/b.txt");
+  }
+  EXPECT_TRUE(foundArrivalFallback);
 }
 
 TEST_F(LibraryBuilderTest, AddedRemovedMovedAndRenamedBooksKeepArrivalOrder) {
