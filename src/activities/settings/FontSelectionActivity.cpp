@@ -216,6 +216,21 @@ void FontSelectionActivity::loop() {
 
 void FontSelectionActivity::handleSelection() {
   const auto& font = fonts_[selectedIndex_];
+  const bool sameBuiltin =
+      font.isBuiltin && originalSdFontFamilyName_[0] == '\0' && font.settingIndex == originalFontFamily_;
+  const bool sameSdFamily = !font.isBuiltin && registry_ &&
+                            registry_->getFamilies()[font.settingIndex - CrossPointSettings::BUILTIN_FONT_COUNT].name ==
+                                originalSdFontFamilyName_;
+  if (sameBuiltin || sameSdFamily) {
+    // Previewing another family and choosing the original one is still a no-op.
+    // Avoid snapping its existing size to the closest available size.
+    SETTINGS.fontFamily = originalFontFamily_;
+    strncpy(SETTINGS.sdFontFamilyName, originalSdFontFamilyName_, sizeof(SETTINGS.sdFontFamilyName) - 1);
+    SETTINGS.sdFontFamilyName[sizeof(SETTINGS.sdFontFamilyName) - 1] = '\0';
+    mappedInput.suppressNextConfirmRelease();
+    finish();
+    return;
+  }
   const uint8_t targetPointSize = currentFontPointSize(registry_);
   if (font.settingIndex < CrossPointSettings::BUILTIN_FONT_COUNT) {
     SETTINGS.fontFamily = font.settingIndex;

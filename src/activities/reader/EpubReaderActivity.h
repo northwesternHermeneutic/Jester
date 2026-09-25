@@ -64,6 +64,8 @@ class EpubReaderActivity final : public Activity {
     bool hasAutoPageTurnInterval = false;
     uint16_t autoPageTurnSeconds = 0;
     bool hasCustomReaderSettings = false;
+    uint32_t readerSettingsOverrideMask = 0;
+    bool hasSafeModeOverride = false;
     bool hasRenderModeOverride = false;
     bool hasDictionaryFontOverride = false;
     uint8_t renderMode = 0;
@@ -84,6 +86,8 @@ class EpubReaderActivity final : public Activity {
     bool hasAutoPageTurnInterval = false;
     uint16_t autoPageTurnSeconds = 0;
     bool hasCustomReaderSettings = false;
+    uint32_t readerSettingsOverrideMask = 0;
+    bool hasSafeModeOverride = false;
     bool hasRenderModeOverride = false;
     uint8_t renderMode = 0;
     ReaderSettingsSnapshot readerSettings;
@@ -93,6 +97,8 @@ class EpubReaderActivity final : public Activity {
         : hasAutoPageTurnInterval(source.hasAutoPageTurnInterval),
           autoPageTurnSeconds(source.autoPageTurnSeconds),
           hasCustomReaderSettings(source.hasCustomReaderSettings),
+          readerSettingsOverrideMask(source.readerSettingsOverrideMask),
+          hasSafeModeOverride(source.hasSafeModeOverride),
           hasRenderModeOverride(source.hasRenderModeOverride),
           renderMode(source.renderMode),
           readerSettings(source.readerSettings) {}

@@ -49,7 +49,7 @@ struct ImageFolderIndexRecord {
 
 ## `book.bin`
 
-### Version 9
+### Version 10
 
 `book.bin` stores EPUB metadata plus lookup tables for spine and TOC entries.
 The current firmware writes this version from `BookMetadataCache`.
@@ -153,10 +153,12 @@ dictionary SD-font family name. Version 6 stores reader font sizes as physical
 point sizes, version 7 appends the dictionary font's selected point size, and
 version 8 splits the screen margin into vertical and horizontal values. Version
 9 removes the obsolete per-book Dark Mode byte: Dark Mode is now a global
-display setting.
-This lets the
-file preserve an auto-page-turn interval without forcing custom font/layout
-settings for the book. It also stores a per-book EPUB render mode override,
+display setting. Version 10 appends a field mask so a book overrides only the
+reader settings that differ from its current global defaults. Version 2-9
+records with the custom-settings flag keep their full snapshot as an override
+when migrated; they cannot distinguish past manual edits from automatic ones.
+The file can preserve an auto-page-turn interval without forcing custom
+font/layout settings for the book. It also stores a per-book EPUB render mode override,
 which can be changed from book action menus before opening the book so a
 problematic EPUB can be moved to Balanced or Light rendering without entering
 the reader first. Safe Mode also uses this file to save Light rendering with
@@ -165,8 +167,8 @@ fallback successfully opens a difficult book.
 
 ```c++
 struct ReaderSettingsBin {
-    u8 version; // 9
-    u8 flags;   // bit 0 = custom reader settings, bit 1 = custom auto-page-turn interval, bit 2 = render mode override, bit 3 = dictionary font override
+    u8 version; // 10
+    u8 flags;   // bit 0 = at least one custom reader field, bit 1 = custom auto-page-turn interval, bit 2 = render mode override, bit 3 = dictionary font override, bit 4 = Safe Mode override
     u16 autoPageTurnSeconds;
     u8 renderMode; // 0 = CrossInk Default, 1 = Balanced, 2 = Light
 
@@ -192,6 +194,7 @@ struct ReaderSettingsBin {
     char sdFontFamilyName[64];
     char dictionarySdFontFamilyName[64]; // meaningful only when flag bit 3 is set
     u8 dictionaryFontPointSize; // 0 = follow reader size
+    u32 readerSettingsOverrideMask; // bits 0-17 correspond to snapshot fields above, excluding snapshotRenderMode; bit 18 = sdFontFamilyName
 };
 ```
 
