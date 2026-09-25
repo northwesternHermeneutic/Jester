@@ -594,6 +594,8 @@ STR_TAP_HIDE_STATUS_BAR: "Toca per amagar l’estat"
 
 STR_LIBRARY_SORT_BY: "Ordena per:"
 STR_LIBRARY_DATE_ADDED: "Data d’addició"
+STR_LIBRARY_SERIES: "Sèrie"
+STR_LIBRARY_GENRE: "Gènere"
 STR_LIBRARY_RECENTLY_OPENED: "Oberts recentment"
 STR_LIBRARY_UNAVAILABLE: "Llibre no disponible"
 STR_LIBRARY_SEARCH_FAILED: "Cerca no disponible"

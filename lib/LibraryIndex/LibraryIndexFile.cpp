@@ -32,8 +32,10 @@ bool LibraryIndexFile::openImpl(const char* path, const bool acceptStaleFold) {
     return false;
   }
 
-  lastValidity =
-      acceptStaleFold ? validateHeaderStructure(head, file.fileSize64()) : validateHeader(head, file.fileSize64());
+  // Older layouts share the header and records. Reconciliation can recover
+  // their path hashes and arrival history before writing the current layout.
+  lastValidity = acceptStaleFold ? validateHeaderStructure(head, file.fileSize64(), true)
+                                 : validateHeader(head, file.fileSize64());
   if (lastValidity != ClixValidity::Ok) {
     LOG_INF("LIBIDX", "index rejected: %s", clixValidityName(lastValidity));
     file.close();
@@ -92,6 +94,18 @@ uint16_t LibraryIndexFile::ordinalForRow(const SortOrder order, const uint16_t r
       uint16_t ordinal = NONE;
       return readAt(arrivalOrderOffset(head, k), &ordinal, sizeof(ordinal)) && ordinal < head.bookCount ? ordinal
                                                                                                         : NONE;
+    }
+    case SortOrder::SeriesAsc:
+    case SortOrder::SeriesDesc:
+    case SortOrder::GenreAsc:
+    case SortOrder::GenreDesc: {
+      if (head.formatVersion < 4) return NONE;
+      const bool series = order == SortOrder::SeriesAsc || order == SortOrder::SeriesDesc;
+      const bool ascending = order == SortOrder::SeriesAsc || order == SortOrder::GenreAsc;
+      const uint16_t k = ascending ? row : static_cast<uint16_t>(head.bookCount - 1 - row);
+      uint16_t ordinal = NONE;
+      const uint32_t offset = series ? seriesOrderOffset(head, k) : genreOrderOffset(head, k);
+      return readAt(offset, &ordinal, sizeof(ordinal)) && ordinal < head.bookCount ? ordinal : NONE;
     }
   }
   return NONE;
@@ -246,6 +260,14 @@ bool LibraryIndexFile::readDisplayText(const ClixRecord& record, std::string& ti
 
 bool LibraryIndexFile::readSourceAuthor(const ClixRecord& record, std::string& out) {
   return readBlobField(record, 2, out);
+}
+
+bool LibraryIndexFile::readSeries(const ClixRecord& record, std::string& out) {
+  return head.formatVersion >= 3 && readBlobField(record, 3, out);
+}
+
+bool LibraryIndexFile::readGenre(const ClixRecord& record, std::string& out) {
+  return head.formatVersion >= 3 && readBlobField(record, 4, out);
 }
 
 bool LibraryIndexFile::readPath(const ClixRecord& record, std::string& out) {

@@ -534,6 +534,8 @@ STR_PREV_PAGE: "Forrige side"
 
 STR_LIBRARY_SORT_BY: "Sortér efter:"
 STR_LIBRARY_DATE_ADDED: "Tilføjet dato"
+STR_LIBRARY_SERIES: "Serie"
+STR_LIBRARY_GENRE: "Genre"
 STR_LIBRARY_RECENTLY_OPENED: "Senest åbnede"
 STR_LIBRARY_UNAVAILABLE: "Bog utilgængelig"
 STR_LIBRARY_SEARCH_FAILED: "Søgning utilgængelig"

@@ -10,7 +10,7 @@ namespace fui = freeink::ui;
 
 namespace {
 constexpr fui::ActionId ACTION_ROW = 1;
-constexpr int ROW_COUNT = 5;
+constexpr int ROW_COUNT = 8;
 }  // namespace
 
 LibrarySettingsActivity::LibrarySettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
@@ -31,18 +31,27 @@ void LibrarySettingsActivity::onEnter() {
 void LibrarySettingsActivity::toggle(const int row) {
   switch (row) {
     case 0:
-      SETTINGS.libraryListExpanded = !SETTINGS.libraryListExpanded;
+      SETTINGS.libraryUseMetadata = !SETTINGS.libraryUseMetadata;
       break;
     case 1:
-      SETTINGS.libraryShowEpub = !SETTINGS.libraryShowEpub;
+      SETTINGS.libraryListExpanded = !SETTINGS.libraryListExpanded;
       break;
     case 2:
-      SETTINGS.libraryShowXtc = !SETTINGS.libraryShowXtc;
+      SETTINGS.libraryShowSeries = !SETTINGS.libraryShowSeries;
       break;
     case 3:
-      SETTINGS.libraryShowTxt = !SETTINGS.libraryShowTxt;
+      SETTINGS.libraryShowGenre = !SETTINGS.libraryShowGenre;
       break;
     case 4:
+      SETTINGS.libraryShowEpub = !SETTINGS.libraryShowEpub;
+      break;
+    case 5:
+      SETTINGS.libraryShowXtc = !SETTINGS.libraryShowXtc;
+      break;
+    case 6:
+      SETTINGS.libraryShowTxt = !SETTINGS.libraryShowTxt;
+      break;
+    case 7:
       SETTINGS.libraryShowMarkdown = !SETTINGS.libraryShowMarkdown;
       break;
     default:
@@ -57,6 +66,7 @@ void LibrarySettingsActivity::onRow(const fui::ActionEvent& event, void* user) {
   if (event.value < 0 || event.value >= ROW_COUNT) return;
   self->selection = event.value;
   self->showSelection = false;
+  self->topIndex = self->listNav.top;
   self->app.clearTapFlash();
   self->toggle(event.value);
 }
@@ -84,13 +94,32 @@ void LibrarySettingsActivity::loop() {
     toggle(selection);
     return;
   }
+  const auto swipe = mappedInput.wasSwipe();
+  if (swipe == MappedInputManager::SwipeDir::Up || swipe == MappedInputManager::SwipeDir::Down) {
+    showSelection = false;
+    listNav.top = topIndex;
+    listNav.scrollBy(
+        swipe == MappedInputManager::SwipeDir::Up ? listNav.pageRowsFor(ROW_COUNT) : -listNav.pageRowsFor(ROW_COUNT),
+        ROW_COUNT);
+    topIndex = listNav.top;
+    requestUpdate();
+    return;
+  }
   const auto move = [this](int next) {
     if (!showSelection) {
       showSelection = true;
+      listNav.selected = selection;
+      listNav.top = topIndex;
+      listNav.follow(ROW_COUNT);
+      topIndex = listNav.top;
       requestUpdate();
       return;
     }
     selection = next;
+    listNav.selected = selection;
+    listNav.top = topIndex;
+    listNav.follow(ROW_COUNT);
+    topIndex = listNav.top;
     requestUpdate();
   };
   buttonNavigator.onNextRelease([&] { move(ButtonNavigator::nextIndex(selection, ROW_COUNT)); });
@@ -99,6 +128,45 @@ void LibrarySettingsActivity::loop() {
 
 void LibrarySettingsActivity::screen(UiApp::ScreenType& screen, void* user) {
   static_cast<LibrarySettingsActivity*>(user)->buildScreen(screen);
+}
+
+void LibrarySettingsActivity::provideRow(void*, const uint16_t row, fui::ListItem& item) {
+  static constexpr StrId labels[] = {
+      StrId::STR_LIBRARY_USE_METADATA, StrId::STR_LIBRARY_LIST_VIEW, StrId::STR_LIBRARY_SERIES,
+      StrId::STR_LIBRARY_GENRE,        StrId::STR_LIBRARY_EPUBS,     StrId::STR_LIBRARY_XTC_XTCH,
+      StrId::STR_LIBRARY_TXT,           StrId::STR_LIBRARY_MARKDOWN};
+  item.label = I18N.get(labels[row]);
+  item.actionValue = static_cast<int16_t>(row);
+  if (row == 1) {
+    item.value = SETTINGS.libraryListExpanded ? tr(STR_LIBRARY_EXPANDED) : tr(STR_COMPACT);
+    return;
+  }
+  item.toggle = true;
+  switch (row) {
+    case 0:
+      item.toggleChecked = SETTINGS.libraryUseMetadata;
+      break;
+    case 2:
+      item.sectionHeading = tr(STR_CAT_DISPLAY);
+      item.toggleChecked = SETTINGS.libraryShowSeries;
+      break;
+    case 3:
+      item.toggleChecked = SETTINGS.libraryShowGenre;
+      break;
+    case 4:
+      item.sectionHeading = tr(STR_LIBRARY_SHOW_FILES);
+      item.toggleChecked = SETTINGS.libraryShowEpub;
+      break;
+    case 5:
+      item.toggleChecked = SETTINGS.libraryShowXtc;
+      break;
+    case 6:
+      item.toggleChecked = SETTINGS.libraryShowTxt;
+      break;
+    case 7:
+      item.toggleChecked = SETTINGS.libraryShowMarkdown;
+      break;
+  }
 }
 
 void LibrarySettingsActivity::buildScreen(UiApp::ScreenType& screen) {
@@ -111,51 +179,42 @@ void LibrarySettingsActivity::buildScreen(UiApp::ScreenType& screen) {
   screen.setContentMarginFromScreen(fui::Insets{headerBottom, static_cast<int16_t>(bounds[1] + sidePadding),
                                                 static_cast<int16_t>(metrics.buttonHintsHeight + bounds[2]),
                                                 static_cast<int16_t>(bounds[3] + sidePadding)});
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-  auto rowStyles = screen.theme().listRow;
-  rowStyles.selected.background = fui::Paint::dither(fui::Color::LightGray);
-  rowStyles.selected.foreground = fui::Paint::solid(fui::Color::Black);
-  rowStyles.active = rowStyles.selected;
-  fui::SettingRowProps row;
-  row.label = tr(STR_LIBRARY_LIST_VIEW);
-  row.value = SETTINGS.libraryListExpanded ? tr(STR_LIBRARY_EXPANDED) : tr(STR_COMPACT);
-  row.action = ACTION_ROW;
-  row.valueId = 0;
-  row.labelText = row.valueText = screen.theme().bodyText;
-  row.styles = rowStyles;
-  row.state = showSelection && selection == 0 ? fui::StateSelected : fui::StateNormal;
-  screen.settingRow(row, 44);
-  screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
-  const auto heading = screen.take(fui::LayoutAnchor::Top, 44);
-  auto headingText = screen.theme().bodyText;
-  headingText.bold = true;
-  uiTarget.text(heading, tr(STR_LIBRARY_SHOW_FILES), headingText);
-  const StrId labels[] = {StrId::STR_LIBRARY_EPUBS, StrId::STR_LIBRARY_XTC_XTCH, StrId::STR_LIBRARY_TXT,
-                          StrId::STR_LIBRARY_MARKDOWN};
-  const bool checks[] = {SETTINGS.libraryShowEpub != 0, SETTINGS.libraryShowXtc != 0, SETTINGS.libraryShowTxt != 0,
-                         SETTINGS.libraryShowMarkdown != 0};
-  for (int i = 0; i < 4; ++i) {
-    fui::ToggleRowProps toggle;
-    toggle.row.label = I18N.get(labels[i]);
-    toggle.row.action = ACTION_ROW;
-    toggle.row.valueId = static_cast<int16_t>(i + 1);
-    toggle.row.labelText = screen.theme().bodyText;
-    toggle.row.styles = rowStyles;
-    toggle.row.state = showSelection && selection == i + 1 ? fui::StateSelected : fui::StateNormal;
-    toggle.checked = checks[i];
-    screen.toggleRow(toggle, 44);
-  }
+  fui::ListProps props;
+  props.rowProvider = &LibrarySettingsActivity::provideRow;
+  props.rowProviderCtx = this;
+  props.count = ROW_COUNT;
+  props.selectedIndex = showSelection ? selection : -1;
+  props.action = ACTION_ROW;
+  props.inputMask = fui::InputTouch;
+  props.rowHeight = 44;
+  props.rowGap = 0;
+  props.labelText = props.valueText = props.headerText = screen.theme().bodyText;
+  props.headerText.bold = true;
+  props.rtl = (I18N.getLanguage() == Language::AR || I18N.getLanguage() == Language::HE);
+  props.rowStyles = screen.theme().listRow;
+  props.rowStyles.selected.background = fui::Paint::dither(fui::Color::LightGray);
+  props.rowStyles.selected.foreground = fui::Paint::solid(fui::Color::Black);
+  props.rowStyles.active = props.rowStyles.selected;
+  listNav.selected = showSelection ? selection : -1;
+  listNav.top = topIndex;
+  listNav.syncToProps(screen.body(), props.rowHeight, props.rowGap, ROW_COUNT, props);
+  topIndex = listNav.top;
+  screen.list(props);
 }
 
 void LibrarySettingsActivity::render(RenderLock&&) {
-  renderer.clearScreen();
-  const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
-  if (mappedInput.hasTouchHardware())
-    TouchHeaderBackButton::draw(renderer, uiTarget, header, tr(STR_LIBRARY_SETTINGS), false);
-  else
-    GUI.drawHeader(renderer, header, tr(STR_LIBRARY_SETTINGS));
   uiReady = false;
-  app.render();
+  for (int pass = 0; pass < 8; ++pass) {
+    renderer.clearScreen();
+    const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
+    if (mappedInput.hasTouchHardware())
+      TouchHeaderBackButton::draw(renderer, uiTarget, header, tr(STR_LIBRARY_SETTINGS), false);
+    else
+      GUI.drawHeader(renderer, header, tr(STR_LIBRARY_SETTINGS));
+    app.render();
+    topIndex = listNav.top;
+    if (!listNav.consumeRebuildNeeded()) break;
+  }
   uiReady = true;
   const auto labels =
       mappedInput.mapLabels(mappedInput.withBackArrow(tr(STR_BACK)), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));

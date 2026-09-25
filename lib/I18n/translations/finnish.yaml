@@ -523,6 +523,8 @@ STR_PREV_PAGE: "Edellinen sivu"
 
 STR_LIBRARY_SORT_BY: "Järjestä:"
 STR_LIBRARY_DATE_ADDED: "Lisäyspäivä"
+STR_LIBRARY_SERIES: "Sarja"
+STR_LIBRARY_GENRE: "Lajityyppi"
 STR_LIBRARY_RECENTLY_OPENED: "Äskettäin avatut"
 STR_LIBRARY_UNAVAILABLE: "Kirja ei saatavilla"
 STR_LIBRARY_SEARCH_FAILED: "Haku ei saatavilla"

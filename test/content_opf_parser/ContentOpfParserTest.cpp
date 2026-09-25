@@ -78,6 +78,46 @@ Octavia E. Butler
   EXPECT_EQ(parser.author, "Ursula K. Le Guin, Octavia E. Butler");
 }
 
+TEST(ContentOpfParserMetadata, ReadsCalibreSeriesAndFirstSubject) {
+  const std::string xml = R"(<package xmlns:dc="urn:dc"><metadata>
+    <meta content="Earthsea" name="calibre:series"/>
+    <dc:subject> Fantasy &amp; Adventure </dc:subject>
+    <dc:subject>Young adult</dc:subject>
+  </metadata></package>)";
+  ContentOpfParser parser("", "", xml.size(), nullptr);
+  parse(parser, xml);
+  EXPECT_EQ(parser.series, "Earthsea");
+  EXPECT_EQ(parser.subject, "Fantasy & Adventure");
+}
+
+TEST(ContentOpfParserMetadata, DistinguishesEpubThreeSeriesFromSets) {
+  const std::string xml = R"(<package><metadata>
+    <meta property="belongs-to-collection" id="collection">Earthsea</meta>
+    <meta refines="#collection" property="collection-type">series</meta>
+  </metadata></package>)";
+  ContentOpfParser parser("", "", xml.size(), nullptr);
+  parse(parser, xml);
+  EXPECT_EQ(parser.series, "Earthsea");
+
+  const std::string setXml = R"(<package><metadata>
+    <meta property="belongs-to-collection" id="collection">Boxed books</meta>
+    <meta refines="#collection" property="collection-type">set</meta>
+  </metadata></package>)";
+  ContentOpfParser setParser("", "", setXml.size(), nullptr);
+  parse(setParser, setXml);
+  EXPECT_TRUE(setParser.series.empty());
+
+  const std::string mixedXml = R"(<package><metadata>
+    <meta property="belongs-to-collection" id="set">Boxed books</meta>
+    <meta refines="#set" property="collection-type">set</meta>
+    <meta property="belongs-to-collection" id="series">Earthsea</meta>
+    <meta refines="#series" property="collection-type">series</meta>
+  </metadata></package>)";
+  ContentOpfParser mixedParser("", "", mixedXml.size(), nullptr);
+  parse(mixedParser, mixedXml);
+  EXPECT_EQ(mixedParser.series, "Earthsea");
+}
+
 TEST(ContentOpfParserMetadata, StopsBeforeManifestWithoutOpeningTemporaryStorage) {
   const std::string xml = R"(<package xmlns:dc="urn:dc"><metadata>
     <dc:title>A Wizard of Earthsea</dc:title>

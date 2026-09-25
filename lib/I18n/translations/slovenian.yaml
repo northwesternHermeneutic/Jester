@@ -534,6 +534,8 @@ STR_PREV_PAGE: "Prejšnja stran"
 
 STR_LIBRARY_SORT_BY: "Razvrsti po:"
 STR_LIBRARY_DATE_ADDED: "Datum dodajanja"
+STR_LIBRARY_SERIES: "Serija"
+STR_LIBRARY_GENRE: "Žanr"
 STR_LIBRARY_RECENTLY_OPENED: "Nedavno odprte"
 STR_LIBRARY_UNAVAILABLE: "Knjiga ni na voljo"
 STR_LIBRARY_SEARCH_FAILED: "Iskanje ni na voljo"

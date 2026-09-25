@@ -53,9 +53,11 @@ void LibraryActivity::onEnter() {
   Activity::onEnter();
   if (RECENT_BOOKS.pruneMissing()) RECENT_BOOKS.saveToFile();
   applySharedUiTheme(app, uiTarget);
-  sort = SETTINGS.librarySortMethod <= static_cast<uint8_t>(Sort::RecentlyRead)
-             ? static_cast<Sort>(SETTINGS.librarySortMethod)
-             : Sort::RecentlyRead;
+  seriesScratch.reserve(128);
+  genreScratch.reserve(128);
+  subtitleScratch.reserve(448);
+  sort = SETTINGS.librarySortMethod <= static_cast<uint8_t>(Sort::Genre) ? static_cast<Sort>(SETTINGS.librarySortMethod)
+                                                                         : Sort::RecentlyRead;
   descending = SETTINGS.librarySortDescending != 0;
   app.on(ACTION_ROW, &LibraryActivity::onRowEvent, this);
   app.on(ACTION_CONTROL, &LibraryActivity::onControlEvent, this);
@@ -82,8 +84,19 @@ bool LibraryActivity::rebuildIndex(const bool showScanning) {
   scanFailed = !library::buildLibraryIndex("/", stats, SETTINGS.libraryUseMetadata != 0);
   if (scanFailed) LOG_ERR("LIB", "Library scan failed; retaining the previous index");
   if (!index.open(library::libraryIndexPath())) {
-    LOG_ERR("LIB", "Cannot open library index");
-    scanFailed = true;
+    // A failed one-time upgrade leaves the previous index on the card. Keep
+    // its books readable while the next visit retries the rebuild.
+    if (!scanFailed || !index.openForReconciliation(library::libraryIndexPath())) {
+      LOG_ERR("LIB", "Cannot open library index");
+      scanFailed = true;
+    } else {
+      LOG_INF("LIB", "Using previous Library index until rebuild succeeds");
+      if (index.header().formatVersion < library::CLIX_FORMAT_VERSION &&
+          (sort == Sort::Series || sort == Sort::Genre)) {
+        sort = Sort::Title;
+        descending = false;
+      }
+    }
   }
   resolveRecents();
   applyFilter();
@@ -129,6 +142,10 @@ library::SortOrder LibraryActivity::indexOrder() const {
       return descending ? library::SortOrder::AuthorFirstDesc : library::SortOrder::AuthorFirstAsc;
     case Sort::RecentlyRead:
       return library::SortOrder::RecentAsc;
+    case Sort::Series:
+      return descending ? library::SortOrder::SeriesDesc : library::SortOrder::SeriesAsc;
+    case Sort::Genre:
+      return descending ? library::SortOrder::GenreDesc : library::SortOrder::GenreAsc;
     case Sort::DateAdded:
       return descending ? library::SortOrder::RecentDesc : library::SortOrder::RecentAsc;
   }
@@ -145,6 +162,10 @@ const char* LibraryActivity::sortLabel() const {
       return tr(STR_LIBRARY_AUTHOR_FIRST_NAME);
     case Sort::RecentlyRead:
       return tr(STR_LIBRARY_RECENTLY_OPENED);
+    case Sort::Series:
+      return tr(STR_LIBRARY_SERIES);
+    case Sort::Genre:
+      return tr(STR_LIBRARY_GENRE);
     case Sort::DateAdded:
       return tr(STR_LIBRARY_DATE_ADDED);
   }
@@ -288,12 +309,16 @@ void LibraryActivity::openBook(const int row) {
 }
 
 void LibraryActivity::openSortPicker() {
-  static constexpr StrId choices[] = {StrId::STR_LIBRARY_DATE_ADDED, StrId::STR_LIBRARY_TITLE,
-                                      StrId::STR_LIBRARY_AUTHOR_LAST_NAME, StrId::STR_LIBRARY_AUTHOR_FIRST_NAME,
-                                      StrId::STR_LIBRARY_RECENTLY_OPENED};
+  static constexpr StrId choices[] = {StrId::STR_LIBRARY_DATE_ADDED,
+                                      StrId::STR_LIBRARY_TITLE,
+                                      StrId::STR_LIBRARY_AUTHOR_LAST_NAME,
+                                      StrId::STR_LIBRARY_AUTHOR_FIRST_NAME,
+                                      StrId::STR_LIBRARY_RECENTLY_OPENED,
+                                      StrId::STR_LIBRARY_SERIES,
+                                      StrId::STR_LIBRARY_GENRE};
   sortPopup.setDismissOnOutsideTouchDown(true);
-  sortPopup.show(StrId::STR_LIBRARY_SORT_BY, choices, 5, static_cast<int>(sort), [this](const int selected) {
-    if (selected < 0 || selected > static_cast<int>(Sort::RecentlyRead)) return;
+  sortPopup.show(StrId::STR_LIBRARY_SORT_BY, choices, 7, static_cast<int>(sort), [this](const int selected) {
+    if (selected < 0 || selected > static_cast<int>(Sort::Genre)) return;
     sort = static_cast<Sort>(selected);
     descending = sort == Sort::DateAdded || sort == Sort::RecentlyRead;
     SETTINGS.librarySortMethod = static_cast<uint8_t>(sort);
@@ -302,6 +327,8 @@ void LibraryActivity::openSortPicker() {
     applyFilter();
     resetViewport();
   });
+  if (index.isOpen() && index.header().formatVersion < library::CLIX_FORMAT_VERSION)
+    sortPopup.setDisabledOptions({false, false, false, false, false, true, true});
   requestUpdate();
 }
 
@@ -324,10 +351,16 @@ void LibraryActivity::refreshLibrary() {
 }
 
 void LibraryActivity::openSettings() {
-  openDialog(makeUniqueNoThrow<LibrarySettingsActivity>(renderer, mappedInput), [this](const ActivityResult&) {
-    applyFilter();
-    resetViewport();
-  });
+  const bool useMetadata = SETTINGS.libraryUseMetadata != 0;
+  openDialog(makeUniqueNoThrow<LibrarySettingsActivity>(renderer, mappedInput),
+             [this, useMetadata](const ActivityResult&) {
+               if ((SETTINGS.libraryUseMetadata != 0) != useMetadata) {
+                 rebuildIndex(true);
+               } else {
+                 applyFilter();
+               }
+               resetViewport();
+             });
 }
 
 void LibraryActivity::activateControl(const int control) {
@@ -469,9 +502,55 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
   }
   item.label = self->rowScratch.title.c_str();
   if (!self->rowScratch.author.empty()) item.subtitle = self->rowScratch.author.c_str();
+  if (SETTINGS.libraryListExpanded && SETTINGS.libraryUseMetadata &&
+      (SETTINGS.libraryShowSeries || SETTINGS.libraryShowGenre)) {
+    library::ClixRecord record{};
+    const uint16_t ordinal = self->ordinalForRow(row);
+    if (ordinal != UINT16_MAX && self->index.readRecord(ordinal, record) &&
+        self->index.readSeries(record, self->seriesScratch) && self->index.readGenre(record, self->genreScratch) &&
+        ((SETTINGS.libraryShowSeries && !self->seriesScratch.empty()) ||
+         (SETTINGS.libraryShowGenre && !self->genreScratch.empty()))) {
+      self->subtitleScratch = self->rowScratch.author;
+      if (!self->subtitleScratch.empty()) self->subtitleScratch.append(" · ");
+      if (SETTINGS.libraryShowSeries && !self->seriesScratch.empty()) {
+        self->subtitleScratch.append(tr(STR_LIBRARY_SERIES));
+        self->subtitleScratch.append(": ");
+        self->subtitleScratch.append(self->seriesScratch);
+      }
+      if (SETTINGS.libraryShowGenre && !self->genreScratch.empty()) {
+        if (SETTINGS.libraryShowSeries && !self->seriesScratch.empty()) self->subtitleScratch.append(" · ");
+        self->subtitleScratch.append(tr(STR_LIBRARY_GENRE));
+        self->subtitleScratch.append(": ");
+        self->subtitleScratch.append(self->genreScratch);
+      }
+      item.subtitle = self->subtitleScratch.c_str();
+    }
+  }
   item.icon = listIconFor(UITheme::getFileIcon(self->rowScratch.path), 32);
   item.actionValue = static_cast<int16_t>(row);
-  if (SETTINGS.libraryListExpanded && self->sort != Sort::DateAdded && self->sort != Sort::RecentlyRead) {
+  if (SETTINGS.libraryListExpanded && self->sort == Sort::DateAdded) {
+    const uint16_t date = self->dateGroupForRow(row);
+    if (row == 0 || date != self->dateGroupForRow(row - 1)) {
+      if (date == 0) {
+        self->groupHeading = "?";
+      } else {
+        char heading[11];
+        std::snprintf(heading, sizeof(heading), "%04u-%02u-%02u", 1980u + (date >> 9), (date >> 5) & 15u, date & 31u);
+        self->groupHeading = heading;
+      }
+      item.sectionHeading = self->groupHeading.c_str();
+    }
+  } else if (SETTINGS.libraryListExpanded && (self->sort == Sort::Series || self->sort == Sort::Genre)) {
+    if (self->metadataGroupForRow(row, self->groupHeading)) {
+      library::foldInto(self->groupHeading, self->groupKeyScratch);
+      if (row == 0 || !self->metadataGroupForRow(row - 1, self->previousGroupScratch)) {
+        item.sectionHeading = self->groupHeading.c_str();
+      } else {
+        library::foldInto(self->previousGroupScratch, self->previousGroupKeyScratch);
+        if (self->groupKeyScratch != self->previousGroupKeyScratch) item.sectionHeading = self->groupHeading.c_str();
+      }
+    }
+  } else if (SETTINGS.libraryListExpanded && self->sort != Sort::RecentlyRead) {
     const uint32_t initial = self->groupForRow(row);
     if (row == 0 || initial != self->groupForRow(row - 1)) {
       self->groupHeading.clear();
@@ -480,6 +559,24 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
       item.sectionHeading = self->groupHeading.c_str();
     }
   }
+}
+
+bool LibraryActivity::metadataGroupForRow(const int row, std::string& out) {
+  library::ClixRecord record{};
+  const uint16_t ordinal = ordinalForRow(row);
+  if (ordinal == UINT16_MAX || !index.readRecord(ordinal, record)) return false;
+  const bool read = sort == Sort::Series ? index.readSeries(record, out) : index.readGenre(record, out);
+  if (read && out.empty()) out = "#";
+  return read;
+}
+
+uint16_t LibraryActivity::dateGroupForRow(const int row) {
+  library::ClixRecord record{};
+  if (!index.readRecord(ordinalForRow(row), record)) return 0;
+  const uint16_t date = static_cast<uint16_t>(record.modificationTime >> 16);
+  const uint8_t month = static_cast<uint8_t>((date >> 5) & 15u);
+  const uint8_t day = static_cast<uint8_t>(date & 31u);
+  return month >= 1 && month <= 12 && day >= 1 && day <= 31 ? date : 0;
 }
 
 uint32_t LibraryActivity::groupForRow(const int row) {
@@ -572,6 +669,9 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   action.icon = fui::bitmapFromIcon(icon_ellipsis_vertical_32);
   action.value = 2;
   action.state = showSelection && selection == 2 ? fui::StateSelected : fui::StateNormal;
+  // Give the small overflow icon a 56px touch target. Keep its bottom edge at
+  // the header boundary so the expanded target cannot steal taps from sorting.
+  if (mappedInput.hasTouchHardware()) action.hitPadding = fui::Insets{12, 6, 0, 6};
   screen.button(action,
                 fui::Rect{static_cast<int16_t>(right - controlSize),
                           static_cast<int16_t>(header.y + header.height - controlSize), controlSize, controlSize});
@@ -615,6 +715,7 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   props.headerText.bold = true;
   props.rtl = (I18N.getLanguage() == Language::AR || I18N.getLanguage() == Language::HE);
   configureUiList(props, screen.theme(), screen.body(), UiListRowType::WithSubtitle);
+  if (SETTINGS.libraryListExpanded) props.subtitleText.maxLines = 3;
   listNav.selected = showSelection ? selection - CONTROL_COUNT : -1;
   listNav.top = topIndex;
   listNav.syncToProps(screen.body(), props.rowHeight, props.rowGap, rowCount(), props);

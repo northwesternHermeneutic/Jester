@@ -533,6 +533,8 @@ STR_PREV_PAGE: "Önceki sayfa"
 
 STR_LIBRARY_SORT_BY: "Sıralama:"
 STR_LIBRARY_DATE_ADDED: "Eklenme tarihi"
+STR_LIBRARY_SERIES: "Seri"
+STR_LIBRARY_GENRE: "Tür"
 STR_LIBRARY_RECENTLY_OPENED: "Son açılanlar"
 STR_LIBRARY_UNAVAILABLE: "Kitap kullanılamıyor"
 STR_LIBRARY_SEARCH_FAILED: "Arama kullanılamıyor"

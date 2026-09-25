@@ -445,6 +445,8 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
   doc["librarySortMethod"] = librarySortMethod;
   doc["librarySortDescending"] = librarySortDescending;
   doc["libraryListExpanded"] = libraryListExpanded;
+  doc["libraryShowSeries"] = libraryShowSeries;
+  doc["libraryShowGenre"] = libraryShowGenre;
   doc["libraryShowEpub"] = libraryShowEpub;
   doc["libraryShowXtc"] = libraryShowXtc;
   doc["libraryShowTxt"] = libraryShowTxt;
@@ -588,9 +590,11 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
     }
     choice = static_cast<uint8_t>(stored);
   };
-  readLibraryChoice("librarySortMethod", librarySortMethod, 5);
+  readLibraryChoice("librarySortMethod", librarySortMethod, 7);
   readLibraryChoice("librarySortDescending", librarySortDescending, 2);
   readLibraryChoice("libraryListExpanded", libraryListExpanded, 2);
+  readLibraryChoice("libraryShowSeries", libraryShowSeries, 2);
+  readLibraryChoice("libraryShowGenre", libraryShowGenre, 2);
   readLibraryChoice("libraryShowEpub", libraryShowEpub, 2);
   readLibraryChoice("libraryShowXtc", libraryShowXtc, 2);
   readLibraryChoice("libraryShowTxt", libraryShowTxt, 2);

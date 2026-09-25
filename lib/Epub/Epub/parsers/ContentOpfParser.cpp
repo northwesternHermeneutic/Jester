@@ -325,6 +325,15 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
     return;
   }
 
+  if (self->state == IN_METADATA && strcmp(name, "dc:subject") == 0) {
+    // Subjects are free-form tags; keep the first one as the Library genre.
+    if (self->subject.empty()) {
+      self->state = IN_BOOK_SUBJECT;
+      self->metadataSpacePending = false;
+    }
+    return;
+  }
+
   if (self->state == IN_PACKAGE && (strcmp(name, "manifest") == 0 || strcmp(name, "opf:manifest") == 0)) {
     self->state = IN_MANIFEST;
     if (!Storage.openFileForWrite("COF", self->cachePath + itemCacheFile, self->tempItemStore)) {
@@ -357,18 +366,51 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
 
   if (self->state == IN_METADATA && (strcmp(name, "meta") == 0 || strcmp(name, "opf:meta") == 0)) {
     bool isCover = false;
-    std::string coverItemId;
+    bool isSeries = false;
+    bool isCollection = false;
+    bool isCollectionType = false;
+    const char* content = nullptr;
+    const char* id = nullptr;
+    const char* refines = nullptr;
 
     for (int i = 0; atts[i]; i += 2) {
       if (strcmp(atts[i], "name") == 0 && strcmp(atts[i + 1], "cover") == 0) {
         isCover = true;
       } else if (strcmp(atts[i], "content") == 0) {
-        coverItemId = atts[i + 1];
+        content = atts[i + 1];
+      } else if (strcmp(atts[i], "name") == 0 && strcmp(atts[i + 1], "calibre:series") == 0) {
+        isSeries = true;
+      } else if (strcmp(atts[i], "property") == 0 && strcmp(atts[i + 1], "belongs-to-collection") == 0) {
+        isCollection = true;
+      } else if (strcmp(atts[i], "property") == 0 && strcmp(atts[i + 1], "collection-type") == 0) {
+        isCollectionType = true;
+      } else if (strcmp(atts[i], "id") == 0) {
+        id = atts[i + 1];
+      } else if (strcmp(atts[i], "refines") == 0) {
+        refines = atts[i + 1];
       }
     }
 
     if (isCover) {
-      self->coverItemId = coverItemId;
+      if (content) self->coverItemId = content;
+    }
+    if (isSeries && self->series.empty() && content) {
+      const size_t bytes = std::min(strlen(content), MAX_METADATA_TEXT);
+      self->series.assign(content, static_cast<size_t>(utf8SafeTruncateBuffer(content, static_cast<int>(bytes))));
+    }
+    if (isCollection && self->series.empty() && id) {
+      if (self->collectionType == "series") self->series = std::move(self->collectionName);
+      self->collectionName.clear();
+      self->collectionType.clear();
+      self->collectionId.assign(id, std::min(strlen(id), MAX_METADATA_TEXT));
+      self->seriesTruncated = false;
+      self->collectionTypeTruncated = false;
+      self->state = IN_BOOK_COLLECTION;
+      self->metadataSpacePending = false;
+    }
+    if (isCollectionType && refines && refines[0] == '#' && self->collectionId == refines + 1) {
+      self->state = IN_BOOK_COLLECTION_TYPE;
+      self->metadataSpacePending = false;
     }
     return;
   }
@@ -525,6 +567,18 @@ void XMLCALL ContentOpfParser::characterData(void* userData, const XML_Char* s, 
     appendMetadataText(self->language, s, len, self->metadataSpacePending, self->languageTruncated);
     return;
   }
+  if (self->state == IN_BOOK_SUBJECT) {
+    appendMetadataText(self->subject, s, len, self->metadataSpacePending, self->subjectTruncated);
+    return;
+  }
+  if (self->state == IN_BOOK_COLLECTION) {
+    appendMetadataText(self->collectionName, s, len, self->metadataSpacePending, self->seriesTruncated);
+    return;
+  }
+  if (self->state == IN_BOOK_COLLECTION_TYPE) {
+    appendMetadataText(self->collectionType, s, len, self->metadataSpacePending, self->collectionTypeTruncated);
+    return;
+  }
 }
 
 void XMLCALL ContentOpfParser::endElement(void* userData, const XML_Char* name) {
@@ -567,8 +621,18 @@ void XMLCALL ContentOpfParser::endElement(void* userData, const XML_Char* name) 
     self->state = IN_METADATA;
     return;
   }
+  if (self->state == IN_BOOK_SUBJECT && strcmp(name, "dc:subject") == 0) {
+    self->state = IN_METADATA;
+    return;
+  }
+  if ((self->state == IN_BOOK_COLLECTION || self->state == IN_BOOK_COLLECTION_TYPE) &&
+      (strcmp(name, "meta") == 0 || strcmp(name, "opf:meta") == 0)) {
+    self->state = IN_METADATA;
+    return;
+  }
 
   if (self->state == IN_METADATA && (strcmp(name, "metadata") == 0 || strcmp(name, "opf:metadata") == 0)) {
+    if (self->series.empty() && self->collectionType == "series") self->series = std::move(self->collectionName);
     self->state = IN_PACKAGE;
     if (self->metadataOnly) {
       self->metadataComplete = true;

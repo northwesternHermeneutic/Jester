@@ -18,13 +18,16 @@ class LibrarySettingsActivity final : public Activity {
   freeink::ui::GfxRendererTarget uiTarget;
   UiApp app;
   ButtonNavigator buttonNavigator;
+  freeink::ui::ListNav listNav;
   int selection = 0;
+  int topIndex = 0;
   bool showSelection = true;
   bool uiReady = false;
   bool ignoreConfirmRelease = false;
 
   static void screen(UiApp::ScreenType& screen, void* user);
   static void onRow(const freeink::ui::ActionEvent& event, void* user);
+  static void provideRow(void* user, uint16_t row, freeink::ui::ListItem& item);
   void buildScreen(UiApp::ScreenType& screen);
   void toggle(int row);
 };

@@ -49,6 +49,30 @@ struct ImageFolderIndexRecord {
 
 ## `/.crosspoint/library.idx`
 
+### Version 4
+
+Two more `uint16_t` permutations follow arrival order: series order and genre
+order. Both use folded EPUB metadata, place missing values last in ascending
+order, and use title order to break ties. The header, records, and name blobs
+remain compatible with version 3. During the one-time rebuild, version 3
+metadata and `firstSeen` arrival history are reused for unchanged books.
+
+### Version 3
+
+The Library index adds two length-prefixed fields after source author in each
+book's name blob: series and genre. The fixed-size header and record layout stay
+the same. A version 2 index is read once during rebuilding so existing
+`firstSeen` values survive; the new index is then written as version 3.
+Series and genre are read only from EPUB metadata. The library treats the first
+`dc:subject` value as genre, and reads Calibre or EPUB 3 series metadata.
+
+### Version 2
+
+Version 2 added EPUB title and author metadata, the file modification time,
+and source-author spelling to the original Library index. Its header and
+128-byte records are compatible with version 3 reconciliation; its name blobs
+do not contain series or genre.
+
 ### Version 1
 
 `LibraryIndexFile` (`lib/LibraryIndex/LibraryIndexFile.{h,cpp}`) reads the
@@ -63,9 +87,9 @@ the previous index instead of publishing a partial shelf.
 
 Every section starts on a 512-byte boundary. Records are a fixed 128 bytes
 each, so record `k` always lives at `recordStart + 128*k` with no offset table
-to load first, and 32 records exactly fill a 4096-byte scan buffer. Three
-`uint16_t` permutation arrays (surname order, first-name order, then arrival
-order) let the author and recent sorts page without re-sorting on every open;
+to load first, and 32 records exactly fill a 4096-byte scan buffer. Five
+`uint16_t` permutation arrays (surname, first name, arrival, series, then genre
+order) let those sorts page without re-sorting on every open;
 Title order needs no permutation because the record section is already
 title-sorted.
 
@@ -78,13 +102,14 @@ reconciliation instead: `openForReconciliation()` accepts stale sort/search
 keys so each book's `firstSeen` arrival order survives across the rebuild
 even though its fold and permutations are regenerated.
 
-CrossInk's format version is `2`; version `1` indexes rebuild automatically
-because they lack the first-name permutation. The fold version remains `1`.
+CrossInk's format version is `4`; older indexes rebuild automatically. Versions
+2 and 3 can be read for reconciliation so arrival history survives. The fold
+version remains `1`.
 
 ```c++
 struct ClixHeader {            // 64 bytes, padded to the first 512-byte sector
     char magic[4];              // "CLX1"
-    u8 formatVersion;           // 2
+    u8 formatVersion;           // 4
     u8 foldVersion;             // 1
     u8 flags;                   // bit0: ranks degraded, bit1: dedup degraded
     u8 metadataEnabled;         // 0 or 1
@@ -125,7 +150,8 @@ The name blob for each record (found via `nameOff` into the `names` section)
 holds, back to back: an 8-byte FNV-1a path hash of the book's complete path
 (the identity used by rebuild reconciliation and by "is this book already in
 the index" lookups), the filename, then three length-prefixed fields —
-display author, title, and the pre-spelling-harmonisation source author.
+display author, title, the pre-spelling-harmonisation source author, series,
+and genre.
 
 ## `book.bin`
 

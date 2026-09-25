@@ -50,9 +50,13 @@ TEST(LibraryIndexFile, ReadsEveryStoredOrderInBothDirections) {
   const uint16_t authorOrder[] = {2, 0, 1};
   const uint16_t firstNameOrder[] = {0, 2, 1};
   const uint16_t arrivalOrder[] = {1, 2, 0};
+  const uint16_t seriesOrder[] = {1, 0, 2};
+  const uint16_t genreOrder[] = {2, 1, 0};
   std::memcpy(bytes.data() + library::authorOrderOffset(header, 0), authorOrder, sizeof(authorOrder));
   std::memcpy(bytes.data() + library::firstNameOrderOffset(header, 0), firstNameOrder, sizeof(firstNameOrder));
   std::memcpy(bytes.data() + library::arrivalOrderOffset(header, 0), arrivalOrder, sizeof(arrivalOrder));
+  std::memcpy(bytes.data() + library::seriesOrderOffset(header, 0), seriesOrder, sizeof(seriesOrder));
+  std::memcpy(bytes.data() + library::genreOrderOffset(header, 0), genreOrder, sizeof(genreOrder));
   Storage.setFile("/library.clx", std::move(bytes));
 
   library::LibraryIndexFile index;
@@ -72,6 +76,10 @@ TEST(LibraryIndexFile, ReadsEveryStoredOrderInBothDirections) {
   expectOrder(library::SortOrder::AuthorDesc, 1, 0, 2);
   expectOrder(library::SortOrder::AuthorFirstAsc, 0, 2, 1);
   expectOrder(library::SortOrder::AuthorFirstDesc, 1, 2, 0);
+  expectOrder(library::SortOrder::SeriesAsc, 1, 0, 2);
+  expectOrder(library::SortOrder::SeriesDesc, 2, 0, 1);
+  expectOrder(library::SortOrder::GenreAsc, 2, 1, 0);
+  expectOrder(library::SortOrder::GenreDesc, 0, 1, 2);
 }
 
 TEST(LibraryIndexFile, ResolvesRecentRowsByIdentity) {

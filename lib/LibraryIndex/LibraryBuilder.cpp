@@ -35,6 +35,7 @@ constexpr size_t NAME_BUF_SIZE = 512;
 // the display name. Fixed stride keeps the second pass a seek rather than a scan.
 constexpr size_t STAGE_NAME_BYTES = 255;
 constexpr size_t STAGE_AUTHOR_BYTES = 128;
+constexpr size_t STAGE_METADATA_BYTES = 128;
 // A folder path is stored behind one length byte in the folder section.
 constexpr size_t FOLDER_PATH_BYTES = 255;
 struct StagedEntry {
@@ -50,6 +51,10 @@ struct StagedEntry {
   // name on one side of reconciliation against a stored title on the other.
   uint8_t titleLen;
   char title[STAGE_NAME_BYTES];
+  uint8_t seriesLen;
+  char series[STAGE_METADATA_BYTES];
+  uint8_t genreLen;
+  char genre[STAGE_METADATA_BYTES];
 };
 constexpr size_t STAGE_STRIDE = sizeof(StagedEntry);
 
@@ -115,7 +120,12 @@ bool sortKeysWithFullTies(SortKey* keys, const uint16_t count, const size_t keyB
   while (run < count) {
     uint16_t next = run + 1;
     while (next < count && memcmp(keys[run].key, keys[next].key, sizeof(keys[run].key)) == 0) next++;
-    if (!refineSortKeyTies(keys, run, next, sizeof(keys[run].key), keyBytes, loadSegment, serviceUnits)) return false;
+    // The all-FF sentinel means metadata/author is missing; reading the same
+    // empty source in every refinement pass cannot change its title-order tie.
+    const bool unknown = std::all_of(keys[run].key, keys[run].key + sizeof(keys[run].key),
+                                     [](const char value) { return static_cast<uint8_t>(value) == 0xFF; });
+    if (!unknown && !refineSortKeyTies(keys, run, next, sizeof(keys[run].key), keyBytes, loadSegment, serviceUnits))
+      return false;
     run = next;
   }
   return true;
@@ -148,7 +158,7 @@ bool recoverInterruptedInstall() {
   }
   candidate.close();
 
-  if (candidate.open(BACKUP_PATH)) {
+  if (candidate.openForReconciliation(BACKUP_PATH)) {
     candidate.close();
     if (!Storage.remove(INDEX_PATH) || !Storage.rename(BACKUP_PATH, INDEX_PATH)) {
       LOG_ERR("LIBIDX", "validated backup could not replace an invalid live index");
@@ -320,6 +330,8 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
   // of one by pattern is a guess wearing a fact's clothes.
   std::string title = stemOf(name);
   std::string author;
+  std::string series;
+  std::string genre;
   bool titleFromBook = false;
   bool authorFromBook = false;
 
@@ -335,14 +347,19 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
       st.failed = true;
       return false;
     }
-    reuseMetadata =
-        st.prior[priorIndex].fileSize == fileSize && modificationTime != 0 &&
-        priorRecord.modificationTime == modificationTime && st.previous->header().foldVersion == CLIX_FOLD_VERSION &&
-        st.previous->header().metadataEnabled == st.readMetadata && priorRecord.metadataStatus == expectedStatus;
+    reuseMetadata = st.prior[priorIndex].fileSize == fileSize && modificationTime != 0 &&
+                    priorRecord.modificationTime == modificationTime && st.previous->header().formatVersion >= 3 &&
+                    st.previous->header().foldVersion == CLIX_FOLD_VERSION &&
+                    st.previous->header().metadataEnabled == st.readMetadata &&
+                    priorRecord.metadataStatus == expectedStatus;
   }
 
   if (reuseMetadata) {
     if (!st.previous->readSourceAuthor(priorRecord, author)) {
+      st.failed = true;
+      return false;
+    }
+    if (!st.previous->readSeries(priorRecord, series) || !st.previous->readGenre(priorRecord, genre)) {
       st.failed = true;
       return false;
     }
@@ -361,9 +378,9 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
     st.stats->metadataReused++;
   }
 
-  // Prefer the reader's existing cache. For an unopened book, loadMetadata()
-  // reuses the same EPUB parser but stops before the manifest, so this never
-  // builds spine, TOC, CSS, cover, or section caches during the library walk.
+  // An EPUB that changed or is new gets a short OPF metadata read. The reader
+  // cache does not contain series or genre, so only our own index can reuse
+  // those fields without parsing the book again.
   if (!reuseMetadata && extractionExpected) {
     st.stats->parsed++;
     Epub epub(fullPath, CACHE_DIR);
@@ -374,7 +391,7 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
         modificationTime == 0 ||
         (priorIndex >= 0 && (st.prior[priorIndex].fileSize != fileSize || priorRecord.modificationTime == 0 ||
                              priorRecord.modificationTime != modificationTime));
-    if (epub.loadMetadata(bookTitle, author, !sourceChanged)) {
+    if (epub.loadMetadata(bookTitle, author, !sourceChanged, &series, &genre)) {
       entry.record.metadataStatus = CLIX_METADATA_EXTRACTED;
       if (!bookTitle.empty()) {
         title = std::move(bookTitle);
@@ -440,6 +457,12 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
   entry.authorLen = static_cast<uint8_t>(utf8SafeTruncateBuffer(
       displayAuthor.data(), static_cast<int>(std::min(displayAuthor.size(), STAGE_AUTHOR_BYTES))));
   memcpy(entry.author, displayAuthor.data(), entry.authorLen);
+  entry.seriesLen = static_cast<uint8_t>(
+      utf8SafeTruncateBuffer(series.data(), static_cast<int>(std::min(series.size(), STAGE_METADATA_BYTES))));
+  if (entry.seriesLen > 0) memcpy(entry.series, series.data(), entry.seriesLen);
+  entry.genreLen = static_cast<uint8_t>(
+      utf8SafeTruncateBuffer(genre.data(), static_cast<int>(std::min(genre.size(), STAGE_METADATA_BYTES))));
+  if (entry.genreLen > 0) memcpy(entry.genre, genre.data(), entry.genreLen);
 
   st.stageOut->write(&entry, STAGE_STRIDE);
   st.books++;
@@ -595,7 +618,7 @@ void walk(WalkState& st, const std::string& path, const int depth) {
 // truth.
 uint32_t blobBytesFor(const StagedEntry& entry, const StagedEntry& canonical) {
   return sizeof(entry.pathHash) + entry.record.nameLen + 1u + canonical.authorLen + 1u + entry.titleLen + 1u +
-         entry.authorLen;
+         entry.authorLen + 1u + entry.seriesLen + 1u + entry.genreLen;
 }
 
 bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order, const uint16_t* resolvedFirstSeen,
@@ -1083,6 +1106,51 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
     const uint16_t ordinal = arrivalOrder[k];
     put(&ordinal, sizeof(ordinal));
   }
+  // Reuse the author sort buffer for each metadata order. Only the 14-byte
+  // key and ordinal per book stay resident; full strings come from staging
+  // only when their short prefixes tie.
+  std::string foldedMetadata;
+  foldedMetadata.reserve(STAGE_METADATA_BYTES * 2);
+  const auto emitMetadataOrder = [&](const size_t lengthOffset, const size_t textOffset) {
+    const auto loadSegment = [&](const uint16_t ordinal, const size_t offset, char* segment) {
+      const uint32_t base = static_cast<uint32_t>(order[ordinal]) * STAGE_STRIDE;
+      uint8_t length = 0;
+      char value[STAGE_METADATA_BYTES]{};
+      if (!readStageAt(base + lengthOffset, &length, sizeof(length))) return false;
+      if (length > sizeof(value)) {
+        LOG_ERR("LIBIDX", "invalid staged metadata length: %u", static_cast<unsigned>(length));
+        ioFailed = true;
+        return false;
+      }
+      if (length > 0 && !readStageAt(base + textOffset, value, length)) return false;
+      foldInto(std::string_view(value, length), foldedMetadata);
+      if (foldedMetadata.empty()) {
+        memset(segment, 0xFF, sizeof(SortKey::key));
+      } else {
+        memset(segment, 0, sizeof(SortKey::key));
+        if (offset < foldedMetadata.size())
+          memcpy(segment, foldedMetadata.data() + offset,
+                 std::min(foldedMetadata.size() - offset, sizeof(SortKey::key)));
+      }
+      return true;
+    };
+    if (authorSort && n > 1 && !ioFailed) {
+      for (uint16_t i = 0; i < n && !ioFailed; i++) {
+        serviceBuilder(serviceUnits);
+        authorSort[i].ordinal = i;
+        if (!loadSegment(i, 0, authorSort[i].key)) ioFailed = true;
+      }
+      if (!ioFailed && !sortKeysWithFullTies(authorSort.get(), n, STAGE_METADATA_BYTES * 4u, loadSegment, serviceUnits))
+        ioFailed = true;
+    }
+    for (uint16_t k = 0; k < n; k++) {
+      serviceBuilder(serviceUnits);
+      const uint16_t ordinal = authorSort && !ioFailed ? authorSort[k].ordinal : k;
+      put(&ordinal, sizeof(ordinal));
+    }
+  };
+  emitMetadataOrder(offsetof(StagedEntry, seriesLen), offsetof(StagedEntry, series));
+  emitMetadataOrder(offsetof(StagedEntry, genreLen), offsetof(StagedEntry, genre));
   padTo(header.nameStart);
 
   uint32_t blobWritten = 0;
@@ -1100,6 +1168,10 @@ bool emitIndex(const char* folderStagePath, WalkState& st, const uint16_t* order
     if (entry.titleLen > 0) put(entry.title, entry.titleLen);
     put(&entry.authorLen, 1);
     if (entry.authorLen > 0) put(entry.author, entry.authorLen);
+    put(&entry.seriesLen, 1);
+    if (entry.seriesLen > 0) put(entry.series, entry.seriesLen);
+    put(&entry.genreLen, 1);
+    if (entry.genreLen > 0) put(entry.genre, entry.genreLen);
     blobWritten += blobBytesFor(entry, canonical);
   }
   header.nameLen = blobWritten;
@@ -1265,8 +1337,9 @@ bool buildLibraryIndex(const char* rootPath, BuildStats& stats, const bool readM
   stats.unchanged = st.reused;
   stats.enriched = st.enriched;
 
-  if (previous.isOpen() && st.books == priorCount && st.reused == priorCount && stats.metadataReused == priorCount &&
-      st.unreadableSkipped == 0 && !st.dedupDegraded &&
+  if (previous.isOpen() && previous.header().formatVersion == CLIX_FORMAT_VERSION &&
+      previous.header().foldVersion == CLIX_FOLD_VERSION && st.books == priorCount && st.reused == priorCount &&
+      stats.metadataReused == priorCount && st.unreadableSkipped == 0 && !st.dedupDegraded &&
       (previous.header().flags & (CLIX_FLAG_RANKS_DEGRADED | CLIX_FLAG_DEDUP_DEGRADED)) == 0) {
     previous.close();
     Storage.remove(STAGE_PATH);

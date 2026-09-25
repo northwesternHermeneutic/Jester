@@ -533,6 +533,8 @@ STR_PREV_PAGE: "Pagina anterioară"
 
 STR_LIBRARY_SORT_BY: "Sortare după:"
 STR_LIBRARY_DATE_ADDED: "Data adăugării"
+STR_LIBRARY_SERIES: "Serie"
+STR_LIBRARY_GENRE: "Gen"
 STR_LIBRARY_RECENTLY_OPENED: "Deschise recent"
 STR_LIBRARY_UNAVAILABLE: "Carte indisponibilă"
 STR_LIBRARY_SEARCH_FAILED: "Căutare indisponibilă"

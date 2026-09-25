@@ -601,6 +601,8 @@ STR_TAP_HIDE_STATUS_BAR: "Касание скрывает строку сост�
 
 STR_LIBRARY_SORT_BY: "Сортировать:"
 STR_LIBRARY_DATE_ADDED: "Дата добавления"
+STR_LIBRARY_SERIES: "Серия"
+STR_LIBRARY_GENRE: "Жанр"
 STR_LIBRARY_RECENTLY_OPENED: "Недавно открытые"
 STR_LIBRARY_UNAVAILABLE: "Книга недоступна"
 STR_LIBRARY_SEARCH_FAILED: "Поиск недоступен"

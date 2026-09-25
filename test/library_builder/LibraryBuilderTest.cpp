@@ -251,6 +251,156 @@ TEST_F(LibraryBuilderTest, MetadataStagingTruncatesAtUtf8Boundaries) {
   EXPECT_EQ(storedAuthor, emojiAuthor);
 }
 
+TEST_F(LibraryBuilderTest, SeriesAndGenreSurviveRebuildWithoutReparsing) {
+  bookMetadata["/a.epub"].series = "Earthsea";
+  bookMetadata["/a.epub"].genre = "Fantasy";
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  ClixRecord record{};
+  ASSERT_TRUE(recordAtPath(index, "/a.epub", record));
+  std::string series;
+  std::string genre;
+  ASSERT_TRUE(index.readSeries(record, series));
+  ASSERT_TRUE(index.readGenre(record, genre));
+  EXPECT_EQ(series, "Earthsea");
+  EXPECT_EQ(genre, "Fantasy");
+}
+
+TEST_F(LibraryBuilderTest, SeriesAndGenreSortByFullFoldedNameWithMissingValuesLast) {
+  fake::add("/c.epub");
+  fake::add("/d.epub");
+  bookMetadata["/a.epub"].series = "Alpha";
+  bookMetadata["/a.epub"].genre = "Zeta";
+  bookMetadata["/b.epub"].series = "beta";
+  bookMetadata["/b.epub"].genre = "Fantasy";
+  bookMetadata["/c.epub"].series = "ALPHA";
+  bookMetadata["/c.epub"].genre = "fantasy";
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  EXPECT_EQ(pathAt(index, SortOrder::SeriesAsc, 0), "/a.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::SeriesAsc, 1), "/c.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::SeriesAsc, 2), "/b.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::SeriesAsc, 3), "/d.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::SeriesDesc, 0), "/d.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 0), "/b.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 1), "/c.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 2), "/a.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::GenreAsc, 3), "/d.epub");
+}
+
+TEST_F(LibraryBuilderTest, SeriesSortRefinesLongSharedPrefixes) {
+  const std::string prefix(24, 'a');
+  bookMetadata["/a.epub"].series = prefix + "z";
+  bookMetadata["/b.epub"].series = prefix + "b";
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  EXPECT_EQ(pathAt(index, SortOrder::SeriesAsc, 0), "/b.epub");
+  EXPECT_EQ(pathAt(index, SortOrder::SeriesAsc, 1), "/a.epub");
+}
+
+TEST_F(LibraryBuilderTest, VersionThreeIndexReusesMetadataDuringSortUpgrade) {
+  bookMetadata["/a.epub"].series = "Earthsea";
+  initial();
+  LibraryIndexFile before;
+  ASSERT_TRUE(before.open(INDEX));
+  ClixRecord original{};
+  ASSERT_TRUE(recordAtPath(before, "/a.epub", original));
+  before.close();
+
+  // Two-book v3 and v4 indexes have the same aligned nameStart. The v3
+  // permutation section ends early, leaving padding before the name blob.
+  fake::files[INDEX]->bytes[offsetof(ClixHeader, formatVersion)] = 3;
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+  EXPECT_EQ(stats.metadataReused, 2);
+  LibraryIndexFile after;
+  ASSERT_TRUE(after.open(INDEX));
+  EXPECT_EQ(after.header().formatVersion, CLIX_FORMAT_VERSION);
+  ClixRecord rebuilt{};
+  ASSERT_TRUE(recordAtPath(after, "/a.epub", rebuilt));
+  EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
+  std::string series;
+  ASSERT_TRUE(after.readSeries(rebuilt, series));
+  EXPECT_EQ(series, "Earthsea");
+}
+
+TEST_F(LibraryBuilderTest, InterruptedUpgradeRestoresVersionThreeBackup) {
+  bookMetadata["/a.epub"].series = "Earthsea";
+  initial();
+  LibraryIndexFile before;
+  ASSERT_TRUE(before.open(INDEX));
+  ClixRecord original{};
+  ASSERT_TRUE(recordAtPath(before, "/a.epub", original));
+  before.close();
+
+  constexpr char BACKUP[] = "/.crosspoint/library.bak";
+  fake::files[BACKUP] = std::make_shared<fake::Node>(*fake::files[INDEX]);
+  fake::files[BACKUP]->bytes[offsetof(ClixHeader, formatVersion)] = 3;
+  fake::files[INDEX]->bytes[0] = 'X';  // Damaged live index after install.
+  fake::parses = 0;
+
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+  EXPECT_EQ(stats.metadataReused, 2);
+  EXPECT_FALSE(Storage.exists(BACKUP));
+  LibraryIndexFile after;
+  ASSERT_TRUE(after.open(INDEX));
+  ClixRecord rebuilt{};
+  ASSERT_TRUE(recordAtPath(after, "/a.epub", rebuilt));
+  EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
+}
+
+TEST_F(LibraryBuilderTest, FailedUpgradeKeepsVersionThreeShelfReadable) {
+  bookMetadata["/a.epub"].series = "Earthsea";
+  initial();
+  fake::files[INDEX]->bytes[offsetof(ClixHeader, formatVersion)] = 3;
+  fake::failWritePath = "/.crosspoint/library.new";
+
+  EXPECT_FALSE(buildLibraryIndex("/", stats, true));
+  LibraryIndexFile shelf;
+  EXPECT_FALSE(shelf.open(INDEX));
+  ASSERT_TRUE(shelf.openForReconciliation(INDEX));
+  EXPECT_EQ(shelf.bookCount(), 2);
+  EXPECT_EQ(pathAt(shelf, SortOrder::TitleAsc, 0), "/a.epub");
+  ClixRecord record{};
+  ASSERT_TRUE(recordAtPath(shelf, "/a.epub", record));
+  std::string series;
+  ASSERT_TRUE(shelf.readSeries(record, series));
+  EXPECT_EQ(series, "Earthsea");
+}
+
+TEST_F(LibraryBuilderTest, VersionTwoIndexRebuildKeepsFirstSeenOrder) {
+  initial();
+  LibraryIndexFile before;
+  ASSERT_TRUE(before.open(INDEX));
+  ClixRecord original{};
+  ASSERT_TRUE(recordAtPath(before, "/a.epub", original));
+  before.close();
+
+  // The old format has the same header and record stride. Reconciliation only
+  // needs those records and path hashes; its shorter metadata blob is replaced.
+  fake::files[INDEX]->bytes[offsetof(ClixHeader, formatVersion)] = 2;
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 2u);
+
+  LibraryIndexFile after;
+  ASSERT_TRUE(after.open(INDEX));
+  EXPECT_EQ(after.header().formatVersion, CLIX_FORMAT_VERSION);
+  ClixRecord rebuilt{};
+  ASSERT_TRUE(recordAtPath(after, "/a.epub", rebuilt));
+  EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
+}
+
 TEST_F(LibraryBuilderTest, ZeroTimestampAndFailedExtractionAreNeverFresh) {
   fake::files["/a.epub"]->time = 0;
   bookMetadata["/b.epub"].success = false;

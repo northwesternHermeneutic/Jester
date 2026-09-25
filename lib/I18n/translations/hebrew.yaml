@@ -530,6 +530,8 @@ STR_TAP_HIDE_STATUS_BAR: "הקשה להסתרת שורת מצב"
 
 STR_LIBRARY_SORT_BY: "מיון לפי:"
 STR_LIBRARY_DATE_ADDED: "תאריך הוספה"
+STR_LIBRARY_SERIES: "סדרה"
+STR_LIBRARY_GENRE: "סוגה"
 STR_LIBRARY_RECENTLY_OPENED: "נפתחו לאחרונה"
 STR_LIBRARY_UNAVAILABLE: "הספר אינו זמין"
 STR_LIBRARY_SEARCH_FAILED: "החיפוש אינו זמין"

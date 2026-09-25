@@ -1317,7 +1317,6 @@ inline std::vector<SettingInfo> buildGroupedDisplaySettingsList(const std::vecto
   addDisplaySetting(StrId::STR_NIGHT_MODE);
   addDisplaySetting(StrId::STR_UI_THEME);
   addDisplaySetting(StrId::STR_UI_SCALE);
-  addDisplaySetting(StrId::STR_LIBRARY_USE_METADATA);
   addDisplaySetting(StrId::STR_SUNLIGHT_FADING_FIX);
 
   return displaySettings;

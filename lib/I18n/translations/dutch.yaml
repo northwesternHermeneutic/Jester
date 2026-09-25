@@ -533,6 +533,8 @@ STR_PREV_PAGE: "Vorige pagina"
 
 STR_LIBRARY_SORT_BY: "Sorteren op:"
 STR_LIBRARY_DATE_ADDED: "Toegevoegd op"
+STR_LIBRARY_SERIES: "Reeks"
+STR_LIBRARY_GENRE: "Genre"
 STR_LIBRARY_RECENTLY_OPENED: "Recent geopend"
 STR_LIBRARY_UNAVAILABLE: "Boek niet beschikbaar"
 STR_LIBRARY_SEARCH_FAILED: "Zoeken niet beschikbaar"

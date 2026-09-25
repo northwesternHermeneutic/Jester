@@ -534,6 +534,8 @@ STR_PREV_PAGE: "Ankstesnis puslapis"
 
 STR_LIBRARY_SORT_BY: "Rikiuoti pagal:"
 STR_LIBRARY_DATE_ADDED: "Pridėjimo data"
+STR_LIBRARY_SERIES: "Serija"
+STR_LIBRARY_GENRE: "Žanras"
 STR_LIBRARY_RECENTLY_OPENED: "Neseniai atidarytos"
 STR_LIBRARY_UNAVAILABLE: "Knyga nepasiekiama"
 STR_LIBRARY_SEARCH_FAILED: "Paieška nepasiekiama"

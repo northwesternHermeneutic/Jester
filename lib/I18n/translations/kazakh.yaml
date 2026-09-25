@@ -534,6 +534,8 @@ STR_PREV_PAGE: "Алдыңғы бет"
 
 STR_LIBRARY_SORT_BY: "Сұрыптау:"
 STR_LIBRARY_DATE_ADDED: "Қосылған күні"
+STR_LIBRARY_SERIES: "Серия"
+STR_LIBRARY_GENRE: "Жанр"
 STR_LIBRARY_RECENTLY_OPENED: "Жақында ашылған"
 STR_LIBRARY_UNAVAILABLE: "Кітап қолжетімсіз"
 STR_LIBRARY_SEARCH_FAILED: "Іздеу қолжетімсіз"

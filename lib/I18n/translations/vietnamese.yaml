@@ -591,6 +591,8 @@ STR_TAP_HIDE_STATUS_BAR: "Chạm để ẩn thanh trạng thái"
 
 STR_LIBRARY_SORT_BY: "Sắp xếp theo:"
 STR_LIBRARY_DATE_ADDED: "Ngày thêm"
+STR_LIBRARY_SERIES: "Bộ sách"
+STR_LIBRARY_GENRE: "Thể loại"
 STR_LIBRARY_RECENTLY_OPENED: "Đã mở gần đây"
 STR_LIBRARY_UNAVAILABLE: "Sách không khả dụng"
 STR_LIBRARY_SEARCH_FAILED: "Tìm kiếm không khả dụng"

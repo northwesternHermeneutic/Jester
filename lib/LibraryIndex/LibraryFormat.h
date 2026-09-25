@@ -11,8 +11,9 @@
 //   header        64 bytes of struct, padded to 512
 //   folders       F variable-length records; the id of a folder IS its ordinal
 //   records       N x exactly 128 bytes, in folded-title order
-//   permutations  authorOrder[N], firstNameOrder[N], arrivalOrder[N], all u16
-//   names         path hash, filename, display author, title, and source author blobs
+//   permutations  authorOrder[N], firstNameOrder[N], arrivalOrder[N],
+//                 seriesOrder[N], genreOrder[N], all u16
+//   names         path hash, filename, author, title, source author, series, genre blobs
 //
 // The fixed 128-byte record stride is the load-bearing choice: record k lives at
 // recordStart + 128k, so paging is O(1) in every sort order with no offset
@@ -26,9 +27,8 @@
 namespace library {
 
 inline constexpr char CLIX_MAGIC[4] = {'C', 'L', 'X', '1'};
-// Bumping this is the whole migration: an index from an older version fails
-// validation and is rebuilt. No previous format is accepted.
-inline constexpr uint8_t CLIX_FORMAT_VERSION = 2;
+// Older layouts are accepted only for reconciliation during a rebuild.
+inline constexpr uint8_t CLIX_FORMAT_VERSION = 4;
 
 // Bump when the fold, the article table, or a permutation's sort key changes.
 // Forces fold and ranks to be rebuilt while firstSeen values are preserved, so
@@ -123,7 +123,8 @@ inline void layoutSections(ClixHeader& h, const uint32_t folderBytes, const uint
   h.folderLen = folderBytes;
   h.recordStart = alignUp(h.folderStart + folderBytes);
   h.permStart = alignUp(h.recordStart + static_cast<uint32_t>(h.bookCount) * sizeof(ClixRecord));
-  h.nameStart = alignUp(h.permStart + static_cast<uint32_t>(h.bookCount) * 3u * sizeof(uint16_t));
+  const uint32_t permutationCount = h.formatVersion >= 4 ? 5u : 3u;
+  h.nameStart = alignUp(h.permStart + static_cast<uint32_t>(h.bookCount) * permutationCount * sizeof(uint16_t));
   h.nameLen = nameBytes;
   h.selfSize = h.nameStart + nameBytes;
 }
@@ -139,6 +140,12 @@ inline uint32_t firstNameOrderOffset(const ClixHeader& h, const uint16_t k) {
 }
 inline uint32_t arrivalOrderOffset(const ClixHeader& h, const uint16_t k) {
   return h.permStart + (static_cast<uint32_t>(h.bookCount) * 2u + k) * sizeof(uint16_t);
+}
+inline uint32_t seriesOrderOffset(const ClixHeader& h, const uint16_t k) {
+  return h.permStart + (static_cast<uint32_t>(h.bookCount) * 3u + k) * sizeof(uint16_t);
+}
+inline uint32_t genreOrderOffset(const ClixHeader& h, const uint16_t k) {
+  return h.permStart + (static_cast<uint32_t>(h.bookCount) * 4u + k) * sizeof(uint16_t);
 }
 
 // Why a loaded index was rejected. Reported rather than swallowed so a rebuild
@@ -157,11 +164,13 @@ enum class ClixValidity : uint8_t {
 // Validate a header against the real file size. Cheap enough to run on the one
 // sector already read, and strict enough that nothing downstream has to
 // re-check bounds.
-inline ClixValidity validateHeaderStructure(const ClixHeader& h, const uint64_t actualFileSize) {
+inline ClixValidity validateHeaderStructure(const ClixHeader& h, const uint64_t actualFileSize,
+                                            const bool acceptPrevious = false) {
   for (size_t i = 0; i < sizeof(CLIX_MAGIC); i++) {
     if (h.magic[i] != CLIX_MAGIC[i]) return ClixValidity::BadMagic;
   }
-  if (h.formatVersion != CLIX_FORMAT_VERSION) return ClixValidity::UnknownFormatVersion;
+  if (h.formatVersion != CLIX_FORMAT_VERSION && !(acceptPrevious && (h.formatVersion == 2 || h.formatVersion == 3)))
+    return ClixValidity::UnknownFormatVersion;
   if (h.bookCount > CLIX_MAX_RECORDS) return ClixValidity::CountOutOfRange;
   if (h.metadataEnabled > 1) return ClixValidity::SectionsInconsistent;
   if (actualFileSize != h.selfSize) return ClixValidity::SizeMismatch;

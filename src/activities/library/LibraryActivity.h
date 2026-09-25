@@ -22,7 +22,7 @@ class LibraryActivity final : public Activity {
   bool blocksGlobalInput() const override { return sortPopup.isActive(); }
 
  private:
-  enum class Sort : uint8_t { DateAdded, Title, AuthorLast, AuthorFirst, RecentlyRead };
+  enum class Sort : uint8_t { DateAdded, Title, AuthorLast, AuthorFirst, RecentlyRead, Series, Genre };
   // Ring: refresh, search, settings, sort method, direction, then the book rows. All controls are
   // reachable on button-only devices as well as through SDK touch routing.
   static constexpr int CONTROL_COUNT = 5;
@@ -55,6 +55,12 @@ class LibraryActivity final : public Activity {
   // Reuse one row instead of retaining every title/author in the library.
   RecentBook rowScratch;
   std::string groupHeading;
+  std::string previousGroupScratch;
+  std::string groupKeyScratch;
+  std::string previousGroupKeyScratch;
+  std::string seriesScratch;
+  std::string genreScratch;
+  std::string subtitleScratch;
 
   static void listScreen(UiApp::ScreenType& screen, void* user);
   static void onRowEvent(const freeink::ui::ActionEvent& event, void* user);
@@ -68,6 +74,8 @@ class LibraryActivity final : public Activity {
   uint16_t ordinalForRow(int row);
   bool readBook(int row, RecentBook& book, bool fullPath = true);
   uint32_t groupForRow(int row);
+  uint16_t dateGroupForRow(int row);
+  bool metadataGroupForRow(int row, std::string& out);
   bool hasActiveFilter() const;
   bool rebuildIndex(bool showScanning);
   void resolveRecents();

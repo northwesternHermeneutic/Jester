@@ -9,6 +9,8 @@
 struct FakeMetadata {
   std::string title = "Title";
   std::string author = "Author";
+  std::string series;
+  std::string genre;
   bool success = true;
 };
 
@@ -22,15 +24,19 @@ class Epub {
  public:
   Epub(const std::string& path, const char*) : path(path) {}
 
-  bool loadMetadata(std::string& title, std::string& author, const bool allowCachedMetadata = true) {
+  bool loadMetadata(std::string& title, std::string& author, const bool allowCachedMetadata = true,
+                    std::string* series = nullptr, std::string* genre = nullptr) {
     ++fake::parses;
     metadataCacheUse.push_back(allowCachedMetadata);
     const auto cached = cachedBookMetadata.find(path);
-    const auto& metadata =
-        allowCachedMetadata && cached != cachedBookMetadata.end() ? cached->second : bookMetadata[path];
+    const auto& metadata = allowCachedMetadata && !series && !genre && cached != cachedBookMetadata.end()
+                               ? cached->second
+                               : bookMetadata[path];
     if (!metadata.success) return false;
     title = metadata.title;
     author = metadata.author;
+    if (series) *series = metadata.series;
+    if (genre) *genre = metadata.genre;
     return true;
   }
 };

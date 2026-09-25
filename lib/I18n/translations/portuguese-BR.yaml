@@ -709,6 +709,8 @@ STR_TAP_HIDE_STATUS_BAR: "Toque para ocultar barra de status"
 
 STR_LIBRARY_SORT_BY: "Ordenar por:"
 STR_LIBRARY_DATE_ADDED: "Data de adição"
+STR_LIBRARY_SERIES: "Série"
+STR_LIBRARY_GENRE: "Gênero"
 STR_LIBRARY_RECENTLY_OPENED: "Abertos recentemente"
 STR_LIBRARY_UNAVAILABLE: "Livro indisponível"
 STR_LIBRARY_SEARCH_FAILED: "Busca indisponível"

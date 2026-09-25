@@ -587,6 +587,8 @@ STR_TAP_HIDE_STATUS_BAR: "Дотик ховає рядок стану"
 
 STR_LIBRARY_SORT_BY: "Сортувати:"
 STR_LIBRARY_DATE_ADDED: "Дата додавання"
+STR_LIBRARY_SERIES: "Серія"
+STR_LIBRARY_GENRE: "Жанр"
 STR_LIBRARY_RECENTLY_OPENED: "Нещодавно відкриті"
 STR_LIBRARY_UNAVAILABLE: "Книга недоступна"
 STR_LIBRARY_SEARCH_FAILED: "Пошук недоступний"

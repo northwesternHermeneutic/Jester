@@ -630,6 +630,8 @@ STR_TAP_HIDE_STATUS_BAR: "Ťuknutím skryť stavový riadok"
 
 STR_LIBRARY_SORT_BY: "Zoradiť podľa:"
 STR_LIBRARY_DATE_ADDED: "Dátum pridania"
+STR_LIBRARY_SERIES: "Séria"
+STR_LIBRARY_GENRE: "Žáner"
 STR_LIBRARY_RECENTLY_OPENED: "Nedávno otvorené"
 STR_LIBRARY_UNAVAILABLE: "Kniha nie je dostupná"
 STR_LIBRARY_SEARCH_FAILED: "Hľadanie nie je dostupné"

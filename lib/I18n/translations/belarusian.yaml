@@ -535,6 +535,8 @@ STR_PREV_PAGE: "Папярэдняя старонка"
 
 STR_LIBRARY_SORT_BY: "Сартаваць:"
 STR_LIBRARY_DATE_ADDED: "Дата дадання"
+STR_LIBRARY_SERIES: "Серыя"
+STR_LIBRARY_GENRE: "Жанр"
 STR_LIBRARY_RECENTLY_OPENED: "Нядаўна адкрытыя"
 STR_LIBRARY_UNAVAILABLE: "Кніга недаступная"
 STR_LIBRARY_SEARCH_FAILED: "Пошук недаступны"

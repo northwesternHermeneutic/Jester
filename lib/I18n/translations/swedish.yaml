@@ -589,6 +589,8 @@ STR_TAP_HIDE_STATUS_BAR: "Tryck döljer statusfältet"
 
 STR_LIBRARY_SORT_BY: "Sortera efter:"
 STR_LIBRARY_DATE_ADDED: "Datum tillagd"
+STR_LIBRARY_SERIES: "Serie"
+STR_LIBRARY_GENRE: "Genre"
 STR_LIBRARY_RECENTLY_OPENED: "Senast öppnade"
 STR_LIBRARY_UNAVAILABLE: "Boken är inte tillgänglig"
 STR_LIBRARY_SEARCH_FAILED: "Sökning är inte tillgänglig"

@@ -128,7 +128,8 @@ class Epub {
   // stops the OPF parse at </metadata>, before the manifest. Used by the
   // Library index builder, which reads every EPUB on the card and cannot
   // afford a full load() per book.
-  bool loadMetadata(std::string& title, std::string& author, bool allowCachedMetadata = true);
+  bool loadMetadata(std::string& title, std::string& author, bool allowCachedMetadata = true,
+                    std::string* series = nullptr, std::string* genre = nullptr);
   // Loads optional stable-page and source-spine metadata after a Skip-mode open.
   // Failure leaves normal size-based progress available.
   bool loadXLocations();

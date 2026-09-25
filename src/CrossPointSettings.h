@@ -606,6 +606,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t librarySortMethod = 4;
   uint8_t librarySortDescending = 1;
   uint8_t libraryListExpanded = 1;
+  uint8_t libraryShowSeries = 1;
+  uint8_t libraryShowGenre = 1;
   uint8_t libraryShowEpub = 1;
   uint8_t libraryShowXtc = 1;
   uint8_t libraryShowTxt = 1;
