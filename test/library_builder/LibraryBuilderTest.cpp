@@ -11,6 +11,7 @@
 #include "LibraryBuilder.h"
 #include "LibraryFileTypes.h"
 #include "LibraryIndexFile.h"
+#include "LibraryText.h"
 
 using namespace library;
 
@@ -331,6 +332,55 @@ TEST_F(LibraryBuilderTest, VersionThreeIndexReusesMetadataDuringSortUpgrade) {
   std::string series;
   ASSERT_TRUE(after.readSeries(rebuilt, series));
   EXPECT_EQ(series, "Earthsea");
+}
+
+TEST_F(LibraryBuilderTest, OldFoldVersionRebuildsTitleKeysWithoutReparsingBooks) {
+  bookMetadata["/a.epub"].title = "I Am Number Four";
+  bookMetadata["/b.epub"].title = "Horizon";
+  initial();
+  LibraryIndexFile before;
+  ASSERT_TRUE(before.open(INDEX));
+  ASSERT_EQ(pathAt(before, SortOrder::TitleAsc, 1), "/a.epub");
+  ClixRecord original{};
+  ClixRecord other{};
+  ASSERT_TRUE(recordAtPath(before, "/a.epub", original));
+  ASSERT_TRUE(recordAtPath(before, "/b.epub", other));
+  before.close();
+
+  // Simulate the old index's "i " article stripping without changing its
+  // stored title metadata. The upgrade must build the new key from that title.
+  auto& bytes = fake::files[INDEX]->bytes;
+  ClixHeader header{};
+  std::memcpy(&header, bytes.data(), sizeof(header));
+  ClixRecord oldRecord = original;
+  constexpr char oldKey[] = "am number four";
+  oldRecord.foldLen = sizeof(oldKey) - 1;
+  std::memset(oldRecord.fold, 0, sizeof(oldRecord.fold));
+  std::memcpy(oldRecord.fold, oldKey, oldRecord.foldLen);
+  // Old title order is "am" before "horizon"; the new key puts "i" after it.
+  std::memcpy(bytes.data() + recordOffset(header, 0), &oldRecord, sizeof(oldRecord));
+  std::memcpy(bytes.data() + recordOffset(header, 1), &other, sizeof(other));
+  bytes[offsetof(ClixHeader, foldVersion)] = CLIX_FOLD_VERSION - 1;
+  LibraryIndexFile stale;
+  ASSERT_TRUE(stale.openForReconciliation(INDEX));
+  EXPECT_EQ(pathAt(stale, SortOrder::TitleAsc, 0), "/a.epub");
+  stale.close();
+
+  fake::parses = 0;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(fake::parses, 0u);
+  EXPECT_EQ(stats.metadataReused, 2);
+  EXPECT_TRUE(stats.indexReplaced);
+  LibraryIndexFile after;
+  ASSERT_TRUE(after.open(INDEX));
+  EXPECT_EQ(after.header().foldVersion, CLIX_FOLD_VERSION);
+  EXPECT_EQ(pathAt(after, SortOrder::TitleAsc, 0), "/b.epub");
+  EXPECT_EQ(pathAt(after, SortOrder::TitleAsc, 1), "/a.epub");
+  ClixRecord rebuilt{};
+  ASSERT_TRUE(recordAtPath(after, "/a.epub", rebuilt));
+  EXPECT_EQ(std::string(rebuilt.fold, rebuilt.foldLen), "i am number four");
+  EXPECT_EQ(foldedGroupInitial(std::string_view(rebuilt.fold, rebuilt.foldLen)), static_cast<uint32_t>('i'));
+  EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
 }
 
 TEST_F(LibraryBuilderTest, InterruptedUpgradeRestoresVersionThreeBackup) {

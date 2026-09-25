@@ -349,10 +349,11 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
     }
     reuseMetadata = st.prior[priorIndex].fileSize == fileSize && modificationTime != 0 &&
                     priorRecord.modificationTime == modificationTime && st.previous->header().formatVersion >= 3 &&
-                    st.previous->header().foldVersion == CLIX_FOLD_VERSION &&
                     st.previous->header().metadataEnabled == st.readMetadata &&
                     priorRecord.metadataStatus == expectedStatus;
   }
+  // A fold update invalidates derived sort keys, not the stored book metadata.
+  const bool reuseSortKeys = reuseMetadata && st.previous->header().foldVersion == CLIX_FOLD_VERSION;
 
   if (reuseMetadata) {
     if (!st.previous->readSourceAuthor(priorRecord, author)) {
@@ -415,8 +416,8 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
 
   // An absent author is a fact, not a gap to fill: the row joins the Unknown
   // group rather than borrowing a name from its surroundings.
-  const std::string folded = reuseMetadata ? std::string() : fold(title, true);
-  const std::string key = reuseMetadata ? std::string() : authorKey(author);
+  const std::string folded = reuseSortKeys ? std::string() : fold(title, true);
+  const std::string key = reuseSortKeys ? std::string() : authorKey(author);
 
   entry.record.fileSize = fileSize;
   entry.record.modificationTime = modificationTime;
@@ -444,10 +445,12 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
   entry.titleLen = static_cast<uint8_t>(utf8SafeTruncateBuffer(
       shownTitle.data(), static_cast<int>(std::min<size_t>(shownTitle.size(), STAGE_NAME_BYTES))));
   if (entry.titleLen > 0) memcpy(entry.title, shownTitle.data(), entry.titleLen);
-  if (!reuseMetadata) {
+  if (!reuseSortKeys) {
     const size_t foldBytes = std::min(folded.size(), CLIX_FOLD_BYTES);
     entry.record.foldLen = static_cast<uint8_t>(utf8SafeTruncateBuffer(folded.data(), static_cast<int>(foldBytes)));
     entry.record.authorKeyLen = static_cast<uint8_t>(std::min(key.size(), CLIX_AUTHOR_KEY_BYTES));
+    memset(entry.record.fold, 0, sizeof(entry.record.fold));
+    memset(entry.record.authorKey, 0, sizeof(entry.record.authorKey));
     memcpy(entry.record.fold, folded.data(), entry.record.foldLen);
     memcpy(entry.record.authorKey, key.data(), entry.record.authorKeyLen);
   }

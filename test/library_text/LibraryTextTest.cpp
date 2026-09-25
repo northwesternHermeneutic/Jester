@@ -113,6 +113,14 @@ TEST(LibraryFold, ArticleStrippingOnlyWhenAsked) {
   EXPECT_EQ(fold("The", true), "the");
 }
 
+TEST(LibraryFold, SingleLetterOpeningWordsStayInTitleSortKeys) {
+  EXPECT_EQ(fold("I Am Number Four", true), "i am number four");
+  EXPECT_EQ(fold("A Tale of Two Cities", true), "a tale of two cities");
+  EXPECT_EQ(fold("O Brother, Where Art Thou?", true), "o brother where art thou");
+  EXPECT_EQ(library::foldedGroupInitial(fold("I Am Number Four", true)), static_cast<uint32_t>('i'));
+  EXPECT_EQ(library::foldedGroupInitial(fold("A Tale of Two Cities", true)), static_cast<uint32_t>('a'));
+}
+
 TEST(LibraryAuthorKey, OrderAndPunctuationDoNotMatter) {
   const std::string expected = authorKey("Lu Xun");
   EXPECT_FALSE(expected.empty());
