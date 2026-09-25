@@ -95,30 +95,33 @@ TEST(LibraryFold, PreservesHebrewLettersAndDropsNiqqud) {
 }
 
 TEST(LibraryFold, GroupInitialUsesUnicodeLettersAndBucketsNumbers) {
-  EXPECT_EQ(library::foldedGroupInitial(fold("Alpha", true)), static_cast<uint32_t>('a'));
-  EXPECT_EQ(library::foldedGroupInitial(fold("שלום", true)), 0x05E9u);
-  EXPECT_EQ(library::foldedGroupInitial(fold("Книга", true)), 0x041Au);
-  EXPECT_EQ(library::foldedGroupInitial(fold("书", true)), 0x4E66u);
-  EXPECT_EQ(library::foldedGroupInitial(fold("2085", true)), 0u);
-  EXPECT_EQ(library::foldedGroupInitial(fold("٢٠٨٥", true)), 0u);
-  EXPECT_EQ(library::foldedGroupInitial(fold("!!!", true)), 0u);
+  EXPECT_EQ(library::foldedGroupInitial(fold("Alpha")), static_cast<uint32_t>('a'));
+  EXPECT_EQ(library::foldedGroupInitial(fold("שלום")), 0x05E9u);
+  EXPECT_EQ(library::foldedGroupInitial(fold("Книга")), 0x041Au);
+  EXPECT_EQ(library::foldedGroupInitial(fold("书")), 0x4E66u);
+  EXPECT_EQ(library::foldedGroupInitial(fold("2085")), 0u);
+  EXPECT_EQ(library::foldedGroupInitial(fold("٢٠٨٥")), 0u);
+  EXPECT_EQ(library::foldedGroupInitial(fold("!!!")), 0u);
 }
 
-TEST(LibraryFold, ArticleStrippingOnlyWhenAsked) {
+TEST(LibraryFold, KeepsLeadingWordsInEveryLanguage) {
   EXPECT_EQ(fold("The Iliad"), "the iliad");
-  EXPECT_EQ(fold("The Iliad", true), "iliad");
-  EXPECT_EQ(fold("Les Mis\xC3\xA9rables", true), "miserables");
-  EXPECT_EQ(fold("L\xE2\x80\x99\xC3\x89n\xC3\xA9ide", true), "eneide");
-  // A title that IS an article-like word must not vanish.
-  EXPECT_EQ(fold("The", true), "the");
+  EXPECT_EQ(fold("Les Mis\xC3\xA9rables"), "les miserables");
+  EXPECT_EQ(fold("L\xE2\x80\x99\xC3\x89n\xC3\xA9ide"), "l'eneide");
+  EXPECT_EQ(fold("Der Zauberberg"), "der zauberberg");
+  EXPECT_EQ(fold("El Aleph"), "el aleph");
+  EXPECT_EQ(fold("Il nome della rosa"), "il nome della rosa");
+  EXPECT_EQ(fold("Os Lusíadas"), "os lusiadas");
+  EXPECT_EQ(library::foldedGroupInitial(fold("The Iliad")), static_cast<uint32_t>('t'));
+  EXPECT_EQ(library::foldedGroupInitial(fold("Les Mis\xC3\xA9rables")), static_cast<uint32_t>('l'));
 }
 
 TEST(LibraryFold, SingleLetterOpeningWordsStayInTitleSortKeys) {
-  EXPECT_EQ(fold("I Am Number Four", true), "i am number four");
-  EXPECT_EQ(fold("A Tale of Two Cities", true), "a tale of two cities");
-  EXPECT_EQ(fold("O Brother, Where Art Thou?", true), "o brother where art thou");
-  EXPECT_EQ(library::foldedGroupInitial(fold("I Am Number Four", true)), static_cast<uint32_t>('i'));
-  EXPECT_EQ(library::foldedGroupInitial(fold("A Tale of Two Cities", true)), static_cast<uint32_t>('a'));
+  EXPECT_EQ(fold("I Am Number Four"), "i am number four");
+  EXPECT_EQ(fold("A Tale of Two Cities"), "a tale of two cities");
+  EXPECT_EQ(fold("O Brother, Where Art Thou?"), "o brother where art thou");
+  EXPECT_EQ(library::foldedGroupInitial(fold("I Am Number Four")), static_cast<uint32_t>('i'));
+  EXPECT_EQ(library::foldedGroupInitial(fold("A Tale of Two Cities")), static_cast<uint32_t>('a'));
 }
 
 TEST(LibraryAuthorKey, OrderAndPunctuationDoNotMatter) {
@@ -290,8 +293,8 @@ TEST(LibraryText, FoldIntoReusesStorageAndReplacesPreviousText) {
   library::foldInto("The Sundial — Shirley Jackson", output);
   EXPECT_EQ(output, "the sundial shirley jackson");
   EXPECT_EQ(output.data(), storage);
-  library::foldInto("L'Énéide", output, true);
-  EXPECT_EQ(output, "eneide");
+  library::foldInto("L'Énéide", output);
+  EXPECT_EQ(output, "l'eneide");
   EXPECT_EQ(output.data(), storage);
   library::foldInto("", output);
   EXPECT_TRUE(output.empty());

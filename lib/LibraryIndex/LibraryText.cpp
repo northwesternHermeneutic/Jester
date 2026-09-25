@@ -3,7 +3,6 @@
 #include <Utf8.h>
 
 #include <algorithm>
-#include <cstring>
 
 namespace library {
 
@@ -139,13 +138,6 @@ bool isUnicodeLetter(const uint32_t cp) {
   return inRanges(cp, LETTER_RANGES, sizeof(LETTER_RANGES) / sizeof(LETTER_RANGES[0]));
 }
 
-// Articles stripped from the head of sort and search keys. Display text never
-// goes through this.
-// A single-letter word can also be a meaningful title word (for example,
-// English "I"), so keep those in the sort key.
-constexpr const char* ARTICLES[] = {"the ", "an ",  "le ",  "la ", "les ", "l'",   "un ", "une ", "de ",  "du ", "des ",
-                                    "der ", "die ", "das ", "el ", "los ", "las ", "il ", "lo ",  "gli ", "os "};
-
 // Views into `folded`, not copies: the caller keeps that string alive for as
 // long as the tokens, and a std::string per token costs an allocation each plus
 // 24 bytes of stack apiece -- 288 B for the twelve, over the 256 B this repo
@@ -170,13 +162,13 @@ bool isSingleCodepoint(const std::string_view text) {
 
 }  // namespace
 
-std::string fold(const std::string_view text, const bool stripArticle) {
+std::string fold(const std::string_view text) {
   std::string out;
-  foldInto(text, out, stripArticle);
+  foldInto(text, out);
   return out;
 }
 
-void foldInto(const std::string_view text, std::string& out, const bool stripArticle) {
+void foldInto(const std::string_view text, std::string& out) {
   out.clear();
   out.reserve(text.size());
 
@@ -227,16 +219,6 @@ void foldInto(const std::string_view text, std::string& out, const bool stripArt
     // Everything else — punctuation, symbols, unmapped scripts — separates
     // words. Deferring the space keeps runs collapsed and drops trailing ones.
     if (!out.empty()) pendingSpace = true;
-  }
-
-  if (stripArticle) {
-    for (const char* article : ARTICLES) {
-      const size_t len = strlen(article);
-      if (out.size() > len && out.compare(0, len, article) == 0) {
-        out.erase(0, len);
-        break;
-      }
-    }
   }
 }
 

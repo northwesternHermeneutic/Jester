@@ -335,8 +335,8 @@ TEST_F(LibraryBuilderTest, VersionThreeIndexReusesMetadataDuringSortUpgrade) {
 }
 
 TEST_F(LibraryBuilderTest, OldFoldVersionRebuildsTitleKeysWithoutReparsingBooks) {
-  bookMetadata["/a.epub"].title = "I Am Number Four";
-  bookMetadata["/b.epub"].title = "Horizon";
+  bookMetadata["/a.epub"].title = "The Iliad";
+  bookMetadata["/b.epub"].title = "Rendezvous";
   initial();
   LibraryIndexFile before;
   ASSERT_TRUE(before.open(INDEX));
@@ -347,17 +347,17 @@ TEST_F(LibraryBuilderTest, OldFoldVersionRebuildsTitleKeysWithoutReparsingBooks)
   ASSERT_TRUE(recordAtPath(before, "/b.epub", other));
   before.close();
 
-  // Simulate the old index's "i " article stripping without changing its
+  // Simulate the old index's "the " article stripping without changing its
   // stored title metadata. The upgrade must build the new key from that title.
   auto& bytes = fake::files[INDEX]->bytes;
   ClixHeader header{};
   std::memcpy(&header, bytes.data(), sizeof(header));
   ClixRecord oldRecord = original;
-  constexpr char oldKey[] = "am number four";
+  constexpr char oldKey[] = "iliad";
   oldRecord.foldLen = sizeof(oldKey) - 1;
   std::memset(oldRecord.fold, 0, sizeof(oldRecord.fold));
   std::memcpy(oldRecord.fold, oldKey, oldRecord.foldLen);
-  // Old title order is "am" before "horizon"; the new key puts "i" after it.
+  // Old title order is "iliad" before "rendezvous"; the new key puts "the" after it.
   std::memcpy(bytes.data() + recordOffset(header, 0), &oldRecord, sizeof(oldRecord));
   std::memcpy(bytes.data() + recordOffset(header, 1), &other, sizeof(other));
   bytes[offsetof(ClixHeader, foldVersion)] = CLIX_FOLD_VERSION - 1;
@@ -378,8 +378,8 @@ TEST_F(LibraryBuilderTest, OldFoldVersionRebuildsTitleKeysWithoutReparsingBooks)
   EXPECT_EQ(pathAt(after, SortOrder::TitleAsc, 1), "/a.epub");
   ClixRecord rebuilt{};
   ASSERT_TRUE(recordAtPath(after, "/a.epub", rebuilt));
-  EXPECT_EQ(std::string(rebuilt.fold, rebuilt.foldLen), "i am number four");
-  EXPECT_EQ(foldedGroupInitial(std::string_view(rebuilt.fold, rebuilt.foldLen)), static_cast<uint32_t>('i'));
+  EXPECT_EQ(std::string(rebuilt.fold, rebuilt.foldLen), "the iliad");
+  EXPECT_EQ(foldedGroupInitial(std::string_view(rebuilt.fold, rebuilt.foldLen)), static_cast<uint32_t>('t'));
   EXPECT_EQ(rebuilt.firstSeen, original.firstSeen);
 }
 

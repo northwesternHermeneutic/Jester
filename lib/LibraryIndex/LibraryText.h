@@ -48,11 +48,9 @@ std::string joinLibraryPath(std::string_view folder, std::string_view name);
 // dropped. Apostrophes survive as ASCII '\'' so names and elisions keep their
 // shape.
 //
-// `stripArticle` additionally removes one leading article ("the ", "le ", "la ",
-// ...) — correct for sort keys and search text, wrong for anything displayed.
-std::string fold(std::string_view text, bool stripArticle = false);
+std::string fold(std::string_view text);
 // Reuse caller-owned storage for scans. `text` must not alias `out`.
-void foldInto(std::string_view text, std::string& out, bool stripArticle = false);
+void foldInto(std::string_view text, std::string& out);
 
 // First letter of an already-folded sort key, or 0 when the key starts with a
 // number/non-letter. The Library renders 0 as its shared '#' group.
