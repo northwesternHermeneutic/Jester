@@ -294,15 +294,36 @@ bool LibraryIndexFile::readSeriesPosition(const ClixRecord& record, uint32_t& ou
 }
 
 bool LibraryIndexFile::readPath(const ClixRecord& record, std::string& out) {
+  return readPath(record, out, nullptr, 0);
+}
+
+bool LibraryIndexFile::buildFolderCheckpoints(uint32_t* offsets, uint16_t& stride) {
+  stride = 0;
+  if (!opened || !offsets || head.folderCount == 0) return false;
+  stride = (head.folderCount + FOLDER_CHECKPOINT_COUNT - 1) / FOLDER_CHECKPOINT_COUNT;
+  uint32_t offset = head.folderStart;
+  const uint32_t folderEnd = head.folderStart + head.folderLen;
+  for (uint32_t i = 0; i < head.folderCount; ++i) {
+    if (offset >= folderEnd) return false;
+    if (i % stride == 0) offsets[i / stride] = offset;
+    uint8_t pathLen = 0;
+    if (!readAt(offset, &pathLen, sizeof(pathLen)) || pathLen == 0 || pathLen > folderEnd - offset - 1u) return false;
+    offset += 1u + pathLen;
+  }
+  return true;
+}
+
+bool LibraryIndexFile::readPath(const ClixRecord& record, std::string& out, const uint32_t* offsets,
+                                const uint16_t stride) {
   out.clear();
   if (!opened || record.folderId >= head.folderCount) return false;
 
-  // Folder records are variable length, so reaching folder n means walking the
-  // n preceding length bytes. At one seek per folder this is only done when a
-  // book is opened or its details are shown, never while paging.
-  uint32_t offset = head.folderStart;
+  // Folder records are variable length. A scan can supply sparse offsets to
+  // bound each walk; ordinary single-book reads still start at folder zero.
+  const uint16_t firstFolder = offsets && stride ? (record.folderId / stride) * stride : 0;
+  uint32_t offset = offsets && stride ? offsets[record.folderId / stride] : head.folderStart;
   const uint32_t folderEnd = head.folderStart + head.folderLen;
-  for (uint16_t i = 0; i <= record.folderId; i++) {
+  for (uint32_t i = firstFolder; i <= record.folderId; i++) {
     if (offset >= folderEnd) return false;
     uint8_t pathLen = 0;
     if (!readAt(offset, &pathLen, sizeof(pathLen)) || pathLen == 0) return false;

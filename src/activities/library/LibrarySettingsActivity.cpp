@@ -10,7 +10,7 @@ namespace fui = freeink::ui;
 
 namespace {
 constexpr fui::ActionId ACTION_ROW = 1;
-constexpr int ROW_COUNT = 8;
+constexpr int ROW_COUNT = 9;
 }  // namespace
 
 LibrarySettingsActivity::LibrarySettingsActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
@@ -53,6 +53,9 @@ void LibrarySettingsActivity::toggle(const int row) {
       break;
     case 7:
       SETTINGS.libraryShowMarkdown = !SETTINGS.libraryShowMarkdown;
+      break;
+    case 8:
+      SETTINGS.libraryHideFinishedBooks = !SETTINGS.libraryHideFinishedBooks;
       break;
     default:
       return;
@@ -131,10 +134,10 @@ void LibrarySettingsActivity::screen(UiApp::ScreenType& screen, void* user) {
 }
 
 void LibrarySettingsActivity::provideRow(void*, const uint16_t row, fui::ListItem& item) {
-  static constexpr StrId labels[] = {StrId::STR_LIBRARY_USE_METADATA, StrId::STR_LIBRARY_LIST_VIEW,
-                                     StrId::STR_LIBRARY_SERIES,       StrId::STR_LIBRARY_GENRE,
-                                     StrId::STR_LIBRARY_EPUBS,        StrId::STR_LIBRARY_XTC_XTCH,
-                                     StrId::STR_LIBRARY_TXT,          StrId::STR_LIBRARY_MARKDOWN};
+  static constexpr StrId labels[] = {
+      StrId::STR_LIBRARY_USE_METADATA, StrId::STR_LIBRARY_LIST_VIEW, StrId::STR_LIBRARY_SERIES,
+      StrId::STR_LIBRARY_GENRE,        StrId::STR_LIBRARY_EPUBS,     StrId::STR_LIBRARY_XTC_XTCH,
+      StrId::STR_LIBRARY_TXT,          StrId::STR_LIBRARY_MARKDOWN,  StrId::STR_LIBRARY_HIDE_FINISHED_BOOKS};
   item.label = I18N.get(labels[row]);
   item.actionValue = static_cast<int16_t>(row);
   if (row == 1) {
@@ -165,6 +168,9 @@ void LibrarySettingsActivity::provideRow(void*, const uint16_t row, fui::ListIte
       break;
     case 7:
       item.toggleChecked = SETTINGS.libraryShowMarkdown;
+      break;
+    case 8:
+      item.toggleChecked = SETTINGS.libraryHideFinishedBooks;
       break;
   }
 }

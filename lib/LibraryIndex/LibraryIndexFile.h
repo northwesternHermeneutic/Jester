@@ -107,6 +107,10 @@ class LibraryIndexFile {
 
   // Absolute path of the book, rebuilt from its folder record.
   bool readPath(const ClixRecord& record, std::string& out);
+  // A small, caller-owned offset table bounds folder walks during full-library scans.
+  static constexpr uint16_t FOLDER_CHECKPOINT_COUNT = 128;
+  bool buildFolderCheckpoints(uint32_t* offsets, uint16_t& stride);
+  bool readPath(const ClixRecord& record, std::string& out, const uint32_t* offsets, uint16_t stride);
 
  private:
   bool openImpl(const char* path, bool acceptStaleFold);

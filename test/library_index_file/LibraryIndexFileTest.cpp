@@ -235,6 +235,43 @@ TEST(LibraryIndexFile, RejectsFolderRecordBeyondFolderBlob) {
   EXPECT_FALSE(index.readPath(record, path));
 }
 
+TEST(LibraryIndexFile, FolderCheckpointsResolvePathsAcrossBuckets) {
+  library::ClixHeader header{};
+  std::memcpy(header.magic, library::CLIX_MAGIC, sizeof(header.magic));
+  header.formatVersion = library::CLIX_FORMAT_VERSION;
+  header.foldVersion = library::CLIX_FOLD_VERSION;
+  header.bookCount = 1;
+  header.folderCount = 130;
+  std::vector<uint8_t> folders;
+  for (unsigned i = 0; i < header.folderCount; ++i) {
+    const std::string dir = "/b" + std::to_string(i);
+    folders.push_back(static_cast<uint8_t>(dir.size()));
+    folders.insert(folders.end(), dir.begin(), dir.end());
+  }
+  const auto blob = makeBlob(1, {'x'});
+  library::layoutSections(header, folders.size(), blob.size());
+  std::vector<uint8_t> bytes(header.selfSize, 0);
+  std::memcpy(bytes.data(), &header, sizeof(header));
+  std::memcpy(bytes.data() + header.folderStart, folders.data(), folders.size());
+  std::memcpy(bytes.data() + header.nameStart, blob.data(), blob.size());
+  Storage.setFile("/library.clx", std::move(bytes));
+
+  library::LibraryIndexFile index;
+  ASSERT_TRUE(index.open("/library.clx"));
+  uint32_t offsets[library::LibraryIndexFile::FOLDER_CHECKPOINT_COUNT]{};
+  uint16_t stride = 0;
+  ASSERT_TRUE(index.buildFolderCheckpoints(offsets, stride));
+  EXPECT_EQ(stride, 2);
+  library::ClixRecord record{};
+  record.nameLen = 1;
+  std::string path;
+  for (const uint16_t folderId : {uint16_t{0}, uint16_t{1}, uint16_t{128}, uint16_t{129}}) {
+    record.folderId = folderId;
+    ASSERT_TRUE(index.readPath(record, path, offsets, stride));
+    EXPECT_EQ(path, "/b" + std::to_string(folderId) + "/x");
+  }
+}
+
 TEST(LibraryIndexFile, DisplayTextAcceptsMissingMetadataAndRejectsMalformedFields) {
   library::ClixHeader header{};
   std::memcpy(header.magic, library::CLIX_MAGIC, sizeof(header.magic));

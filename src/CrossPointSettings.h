@@ -612,6 +612,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t libraryShowXtc = 1;
   uint8_t libraryShowTxt = 1;
   uint8_t libraryShowMarkdown = 1;
+  uint8_t libraryHideFinishedBooks = 0;
   // Hide file extensions in the file browser right-side value column (0 = show, 1 = hide)
   uint8_t hideFileExtension = 0;
   // File browser display row style (0 = one-line theme list, 1 = two-line compact display)
