@@ -2,7 +2,7 @@
 
 // Builds the CLX1 index by walking the SD card once.
 //
-// The walk derives filename fallbacks and can read title, author, series, and subject metadata from
+// The walk derives filename fallbacks and can read title, author, series/order, and subject metadata from
 // EPUBs. Fresh metadata is reused from the previous index.
 //
 // Shape of the build, and why:
@@ -59,7 +59,7 @@ struct BuildStats {
 // The previous index, including its monotonic "recently added" counter, is read
 // internally so callers cannot accidentally split one rebuild state across two
 // file opens.
-// `readMetadata` takes title, author, series, and subject from each EPUB. It
+// `readMetadata` takes title, author, series/order, and subject from each EPUB. It
 // stops the normal EPUB parser at the end of <metadata>, before the manifest,
 // without building the reader's spine, TOC, CSS, or section caches. Unchanged
 // books reuse these values from the prior Library index.

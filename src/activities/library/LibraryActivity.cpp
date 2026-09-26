@@ -49,25 +49,42 @@ LibraryActivity::LibraryActivity(GfxRenderer& renderer, MappedInputManager& mapp
       app(uiTarget, uiTarget.deviceContext()) {}
 
 void LibraryActivity::onEnter() {
-  RenderLock lock;
-  Activity::onEnter();
-  if (RECENT_BOOKS.pruneMissing()) RECENT_BOOKS.saveToFile();
-  applySharedUiTheme(app, uiTarget);
-  seriesScratch.reserve(128);
-  genreScratch.reserve(128);
-  subtitleScratch.reserve(448);
-  sort = SETTINGS.librarySortMethod <= static_cast<uint8_t>(Sort::Genre) ? static_cast<Sort>(SETTINGS.librarySortMethod)
-                                                                         : Sort::RecentlyRead;
-  descending = SETTINGS.librarySortDescending != 0;
-  app.on(ACTION_ROW, &LibraryActivity::onRowEvent, this);
-  app.on(ACTION_CONTROL, &LibraryActivity::onControlEvent, this);
-  app.setScreen(&LibraryActivity::listScreen, this);
-  // Reconcile on entry as card contents may change through USB, Wi-Fi or an
-  // external card reader. Unchanged books reuse the index's metadata.
-  rebuildIndex(!Storage.exists(library::libraryIndexPath()));
-  resetViewport();
-  ignoreConfirmRelease = mappedInput.isPressed(MappedInputManager::Button::Confirm);
-  requestUpdate();
+  {
+    RenderLock lock;
+    Activity::onEnter();
+    if (RECENT_BOOKS.pruneMissing()) RECENT_BOOKS.saveToFile();
+    applySharedUiTheme(app, uiTarget);
+    seriesScratch.reserve(128);
+    genreScratch.reserve(128);
+    subtitleScratch.reserve(448);
+    sort = SETTINGS.librarySortMethod <= static_cast<uint8_t>(Sort::Genre)
+               ? static_cast<Sort>(SETTINGS.librarySortMethod)
+               : Sort::RecentlyRead;
+    descending = SETTINGS.librarySortDescending != 0;
+    app.on(ACTION_ROW, &LibraryActivity::onRowEvent, this);
+    app.on(ACTION_CONTROL, &LibraryActivity::onControlEvent, this);
+    app.setScreen(&LibraryActivity::listScreen, this);
+    initialScanPending = !Storage.exists(library::libraryIndexPath());
+  }
+
+  // Paint the first-scan message before the main task starts reading the card.
+  // The render task normally paints only after onEnter() returns.
+  if (initialScanPending && requestUpdateAndWait() != RequestUpdateResult::Rendered) {
+    RenderLock lock;
+    renderer.clearScreen();
+    GUI.drawPopup(renderer, tr(STR_LIBRARY_SCANNING));
+  }
+
+  {
+    RenderLock lock;
+    // Reconcile on entry as card contents may change through USB, Wi-Fi or an
+    // external card reader. Unchanged books reuse the index's metadata.
+    rebuildIndex(false);
+    initialScanPending = false;
+    resetViewport();
+    ignoreConfirmRelease = mappedInput.isPressed(MappedInputManager::Button::Confirm);
+    requestUpdate();
+  }
 }
 
 void LibraryActivity::onExit() {
@@ -501,8 +518,7 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
   }
   item.label = self->rowScratch.title.c_str();
   if (!self->rowScratch.author.empty()) item.subtitle = self->rowScratch.author.c_str();
-  if (SETTINGS.libraryListExpanded && SETTINGS.libraryUseMetadata &&
-      (SETTINGS.libraryShowSeries || SETTINGS.libraryShowGenre)) {
+  if (SETTINGS.libraryUseMetadata && (SETTINGS.libraryShowSeries || SETTINGS.libraryShowGenre)) {
     library::ClixRecord record{};
     const uint16_t ordinal = self->ordinalForRow(row);
     if (ordinal != UINT16_MAX && self->index.readRecord(ordinal, record) &&
@@ -527,7 +543,8 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
   }
   item.icon = listIconFor(UITheme::getFileIcon(self->rowScratch.path), 32);
   item.actionValue = static_cast<int16_t>(row);
-  if (SETTINGS.libraryListExpanded && self->sort == Sort::DateAdded) {
+  if (!SETTINGS.libraryListExpanded) return;
+  if (self->sort == Sort::DateAdded) {
     const uint16_t date = self->dateGroupForRow(row);
     if (row == 0 || date != self->dateGroupForRow(row - 1)) {
       if (date == 0) {
@@ -539,7 +556,7 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
       }
       item.sectionHeading = self->groupHeading.c_str();
     }
-  } else if (SETTINGS.libraryListExpanded && (self->sort == Sort::Series || self->sort == Sort::Genre)) {
+  } else if (self->sort == Sort::Series || self->sort == Sort::Genre) {
     if (self->metadataGroupForRow(row, self->groupHeading)) {
       library::foldInto(self->groupHeading, self->groupKeyScratch);
       if (row == 0 || !self->metadataGroupForRow(row - 1, self->previousGroupScratch)) {
@@ -549,7 +566,7 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
         if (self->groupKeyScratch != self->previousGroupKeyScratch) item.sectionHeading = self->groupHeading.c_str();
       }
     }
-  } else if (SETTINGS.libraryListExpanded && self->sort != Sort::RecentlyRead) {
+  } else if (self->sort != Sort::RecentlyRead) {
     const uint32_t initial = self->groupForRow(row);
     if (row == 0 || initial != self->groupForRow(row - 1)) {
       self->groupHeading.clear();
@@ -565,7 +582,7 @@ bool LibraryActivity::metadataGroupForRow(const int row, std::string& out) {
   const uint16_t ordinal = ordinalForRow(row);
   if (ordinal == UINT16_MAX || !index.readRecord(ordinal, record)) return false;
   const bool read = sort == Sort::Series ? index.readSeries(record, out) : index.readGenre(record, out);
-  if (read && out.empty()) out = "#";
+  if (read && out.empty()) out = "-";
   return read;
 }
 
@@ -718,7 +735,7 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   props.headerText.bold = true;
   props.rtl = (I18N.getLanguage() == Language::AR || I18N.getLanguage() == Language::HE);
   configureUiList(props, screen.theme(), screen.body(), UiListRowType::WithSubtitle);
-  if (SETTINGS.libraryListExpanded) props.subtitleText.maxLines = 3;
+  props.subtitleText.maxLines = 3;
   listNav.selected = showSelection ? selection - CONTROL_COUNT : -1;
   listNav.top = topIndex;
   listNav.syncToProps(screen.body(), props.rowHeight, props.rowGap, rowCount(), props);
@@ -728,6 +745,11 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
 
 void LibraryActivity::render(RenderLock&&) {
   uiReady = false;
+  if (initialScanPending) {
+    renderer.clearScreen();
+    GUI.drawPopup(renderer, tr(STR_LIBRARY_SCANNING));
+    return;
+  }
   for (int pass = 0; pass < 8; ++pass) {
     renderer.clearScreen();
     const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInput);

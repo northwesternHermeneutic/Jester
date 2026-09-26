@@ -21,6 +21,7 @@ class ContentOpfParser final : public Print {
     IN_BOOK_SUBJECT,
     IN_BOOK_COLLECTION,
     IN_BOOK_COLLECTION_TYPE,
+    IN_BOOK_COLLECTION_POSITION,
     IN_MANIFEST,
     IN_SPINE,
     IN_GUIDE,
@@ -51,9 +52,11 @@ class ContentOpfParser final : public Print {
   bool subjectTruncated = false;
   bool seriesTruncated = false;
   bool collectionTypeTruncated = false;
+  bool collectionPositionTruncated = false;
   std::string collectionName;
   std::string collectionId;
   std::string collectionType;
+  std::string collectionPosition;
   bool hasExplicitStartReference = false;
   bool collectCssFiles = true;
 
@@ -113,6 +116,7 @@ class ContentOpfParser final : public Print {
   std::string language;
   std::string subject;
   std::string series;
+  std::string seriesIndex;
   std::string tocNcxPath;
   std::string tocNavPath;        // EPUB 3 nav document path
   std::string guideTocPageHref;  // EPUB 2 guide TOC page, if declared

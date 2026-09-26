@@ -102,6 +102,8 @@ class LibraryIndexFile {
   bool readSourceAuthor(const ClixRecord& record, std::string& out);
   bool readSeries(const ClixRecord& record, std::string& out);
   bool readGenre(const ClixRecord& record, std::string& out);
+  // V6 sortable signed float bits; UINT32_MAX means no usable order.
+  bool readSeriesPosition(const ClixRecord& record, uint32_t& out);
 
   // Absolute path of the book, rebuilt from its folder record.
   bool readPath(const ClixRecord& record, std::string& out);

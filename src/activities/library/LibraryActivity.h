@@ -39,6 +39,7 @@ class LibraryActivity final : public Activity {
   bool showSelection = true;
   int topIndex = 0;
   bool uiReady = false;
+  bool initialScanPending = false;
   bool longPressFired = false;
   bool ignoreConfirmRelease = false;
   bool scanFailed = false;

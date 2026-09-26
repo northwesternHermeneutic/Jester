@@ -49,6 +49,17 @@ struct ImageFolderIndexRecord {
 
 ## `/.crosspoint/library.idx`
 
+### Version 6
+
+Each book's name blob now ends with a `uint32_t` series position after the
+length-prefixed genre. The value is a sortable encoding of a finite signed
+IEEE-754 single-precision number; `0xFFFFFFFF` means missing or invalid. Series
+sorting compares folded series name, then this position, then title order. Missing
+positions follow numbered books within a series. Calibre `series_index` and
+EPUB 3 `group-position` supply the value. Version 5 and earlier indexes rebuild
+on the next Library scan; EPUB metadata is reread when enabled to obtain the new
+field, while `firstSeen` history survives reconciliation.
+
 ### Version 5
 
 Date Added now uses the filesystem creation timestamp. A title-ordered array of
@@ -117,15 +128,15 @@ reconciliation instead: `openForReconciliation()` accepts stale sort/search
 keys so each book's `firstSeen` arrival order survives across the rebuild
 even though its fold and permutations are regenerated.
 
-CrossInk's format version is `5`; older indexes rebuild automatically. Versions
-2, 3, and 4 can be read for reconciliation so arrival history survives. The fold
-version is `2`.
+CrossInk's format version is `6`; older indexes rebuild automatically. Versions
+2 through 5 can be read for reconciliation so arrival history survives. The fold
+version is `3`.
 
 ```c++
 struct ClixHeader {            // 64 bytes, padded to the first 512-byte sector
     char magic[4];              // "CLX1"
-    u8 formatVersion;           // 5
-    u8 foldVersion;             // 2
+    u8 formatVersion;           // 6
+    u8 foldVersion;             // 3
     u8 flags;                   // bit0: ranks degraded, bit1: dedup degraded, bit2: arrival degraded
     u8 metadataEnabled;         // 0 or 1
     u16 bookCount;
@@ -164,9 +175,9 @@ struct ClixFolderHeader {        // one per indexed folder, back to back
 The name blob for each record (found via `nameOff` into the `names` section)
 holds, back to back: an 8-byte FNV-1a path hash of the book's complete path
 (the identity used by rebuild reconciliation and by "is this book already in
-the index" lookups), the filename, then three length-prefixed fields —
+the index" lookups), the filename, then five length-prefixed fields —
 display author, title, the pre-spelling-harmonisation source author, series,
-and genre.
+and genre. Version 6 appends the four-byte series position.
 
 ## `book.bin`
 

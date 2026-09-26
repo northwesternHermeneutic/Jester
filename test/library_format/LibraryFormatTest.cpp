@@ -30,8 +30,8 @@ TEST(LibraryFormat, StructSizesAreFrozen) {
   EXPECT_EQ(sizeof(ClixHeader), 64u);
   EXPECT_EQ(sizeof(ClixRecord), 128u);
   EXPECT_EQ(sizeof(ClixFolderHeader), 1u);
-  // Version 5 adds the creation-time array after the permutations.
-  EXPECT_EQ(CLIX_FORMAT_VERSION, 5u);
+  // Version 6 appends each book's series position to its name blob.
+  EXPECT_EQ(CLIX_FORMAT_VERSION, 6u);
 }
 
 TEST(LibraryFormat, RecordsTileSectorsExactly) {
@@ -115,6 +115,11 @@ TEST(LibraryFormatValidation, PreviousLayoutIsOnlyAcceptedForReconciliation) {
   EXPECT_EQ(validateHeaderStructure(h, h.selfSize, true), ClixValidity::Ok);
 
   h.formatVersion = 4;
+  layoutSections(h, h.folderLen, h.nameLen);
+  EXPECT_EQ(validateHeaderStructure(h, h.selfSize), ClixValidity::UnknownFormatVersion);
+  EXPECT_EQ(validateHeaderStructure(h, h.selfSize, true), ClixValidity::Ok);
+
+  h.formatVersion = 5;
   layoutSections(h, h.folderLen, h.nameLen);
   EXPECT_EQ(validateHeaderStructure(h, h.selfSize), ClixValidity::UnknownFormatVersion);
   EXPECT_EQ(validateHeaderStructure(h, h.selfSize, true), ClixValidity::Ok);

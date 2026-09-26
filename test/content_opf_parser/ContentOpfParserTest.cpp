@@ -81,12 +81,14 @@ Octavia E. Butler
 TEST(ContentOpfParserMetadata, ReadsCalibreSeriesAndFirstSubject) {
   const std::string xml = R"(<package xmlns:dc="urn:dc"><metadata>
     <meta content="Earthsea" name="calibre:series"/>
+    <meta content="2.5" name="calibre:series_index"/>
     <dc:subject> Fantasy &amp; Adventure </dc:subject>
     <dc:subject>Young adult</dc:subject>
   </metadata></package>)";
   ContentOpfParser parser("", "", xml.size(), nullptr);
   parse(parser, xml);
   EXPECT_EQ(parser.series, "Earthsea");
+  EXPECT_EQ(parser.seriesIndex, "2.5");
   EXPECT_EQ(parser.subject, "Fantasy & Adventure");
 }
 
@@ -94,28 +96,34 @@ TEST(ContentOpfParserMetadata, DistinguishesEpubThreeSeriesFromSets) {
   const std::string xml = R"(<package><metadata>
     <meta property="belongs-to-collection" id="collection">Earthsea</meta>
     <meta refines="#collection" property="collection-type">series</meta>
+    <meta refines="#collection" property="group-position"> 3 </meta>
   </metadata></package>)";
   ContentOpfParser parser("", "", xml.size(), nullptr);
   parse(parser, xml);
   EXPECT_EQ(parser.series, "Earthsea");
+  EXPECT_EQ(parser.seriesIndex, "3");
 
   const std::string setXml = R"(<package><metadata>
     <meta property="belongs-to-collection" id="collection">Boxed books</meta>
     <meta refines="#collection" property="collection-type">set</meta>
+    <meta refines="#collection" property="group-position">1</meta>
   </metadata></package>)";
   ContentOpfParser setParser("", "", setXml.size(), nullptr);
   parse(setParser, setXml);
   EXPECT_TRUE(setParser.series.empty());
+  EXPECT_TRUE(setParser.seriesIndex.empty());
 
   const std::string mixedXml = R"(<package><metadata>
     <meta property="belongs-to-collection" id="set">Boxed books</meta>
     <meta refines="#set" property="collection-type">set</meta>
     <meta property="belongs-to-collection" id="series">Earthsea</meta>
     <meta refines="#series" property="collection-type">series</meta>
+    <meta refines="#series" property="group-position">2</meta>
   </metadata></package>)";
   ContentOpfParser mixedParser("", "", mixedXml.size(), nullptr);
   parse(mixedParser, mixedXml);
   EXPECT_EQ(mixedParser.series, "Earthsea");
+  EXPECT_EQ(mixedParser.seriesIndex, "2");
 }
 
 TEST(ContentOpfParserMetadata, StopsBeforeManifestWithoutOpeningTemporaryStorage) {

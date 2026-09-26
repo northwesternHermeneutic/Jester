@@ -276,6 +276,23 @@ bool LibraryIndexFile::readGenre(const ClixRecord& record, std::string& out) {
   return head.formatVersion >= 3 && readBlobField(record, 4, out);
 }
 
+bool LibraryIndexFile::readSeriesPosition(const ClixRecord& record, uint32_t& out) {
+  out = CLIX_UNKNOWN_SERIES_POSITION;
+  if (!opened || head.formatVersion < 6 || record.nameOff > head.nameLen ||
+      sizeof(uint64_t) + record.nameLen > head.nameLen - record.nameOff)
+    return false;
+  uint32_t at = record.nameOff + sizeof(uint64_t) + record.nameLen;
+  for (uint8_t field = 0; field < 5; field++) {
+    if (at >= head.nameLen) return false;
+    uint8_t length = 0;
+    if (!readAt(head.nameStart + at, &length, sizeof(length))) return false;
+    ++at;
+    if (length > head.nameLen - at) return false;
+    at += length;
+  }
+  return at <= head.nameLen && sizeof(out) <= head.nameLen - at && readAt(head.nameStart + at, &out, sizeof(out));
+}
+
 bool LibraryIndexFile::readPath(const ClixRecord& record, std::string& out) {
   out.clear();
   if (!opened || record.folderId >= head.folderCount) return false;

@@ -131,10 +131,10 @@ void LibrarySettingsActivity::screen(UiApp::ScreenType& screen, void* user) {
 }
 
 void LibrarySettingsActivity::provideRow(void*, const uint16_t row, fui::ListItem& item) {
-  static constexpr StrId labels[] = {
-      StrId::STR_LIBRARY_USE_METADATA, StrId::STR_LIBRARY_LIST_VIEW, StrId::STR_LIBRARY_SERIES,
-      StrId::STR_LIBRARY_GENRE,        StrId::STR_LIBRARY_EPUBS,     StrId::STR_LIBRARY_XTC_XTCH,
-      StrId::STR_LIBRARY_TXT,           StrId::STR_LIBRARY_MARKDOWN};
+  static constexpr StrId labels[] = {StrId::STR_LIBRARY_USE_METADATA, StrId::STR_LIBRARY_LIST_VIEW,
+                                     StrId::STR_LIBRARY_SERIES,       StrId::STR_LIBRARY_GENRE,
+                                     StrId::STR_LIBRARY_EPUBS,        StrId::STR_LIBRARY_XTC_XTCH,
+                                     StrId::STR_LIBRARY_TXT,          StrId::STR_LIBRARY_MARKDOWN};
   item.label = I18N.get(labels[row]);
   item.actionValue = static_cast<int16_t>(row);
   if (row == 1) {
@@ -175,10 +175,9 @@ void LibrarySettingsActivity::buildScreen(UiApp::ScreenType& screen) {
   renderer.getOrientedViewableTRBL(&bounds[0], &bounds[1], &bounds[2], &bounds[3]);
   const int16_t headerBottom =
       static_cast<int16_t>(metrics.topPadding + TouchHeaderBackButton::height(metrics, mappedInput));
-  const int16_t sidePadding = static_cast<int16_t>(metrics.contentSidePadding);
-  screen.setContentMarginFromScreen(fui::Insets{headerBottom, static_cast<int16_t>(bounds[1] + sidePadding),
+  screen.setContentMarginFromScreen(fui::Insets{headerBottom, static_cast<int16_t>(bounds[1]),
                                                 static_cast<int16_t>(metrics.buttonHintsHeight + bounds[2]),
-                                                static_cast<int16_t>(bounds[3] + sidePadding)});
+                                                static_cast<int16_t>(bounds[3])});
   fui::ListProps props;
   props.rowProvider = &LibrarySettingsActivity::provideRow;
   props.rowProviderCtx = this;

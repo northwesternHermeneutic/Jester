@@ -13,7 +13,8 @@
 //   records       N x exactly 128 bytes, in folded-title order
 //   permutations  authorOrder[N], firstNameOrder[N], arrivalOrder[N],
 //                 seriesOrder[N], genreOrder[N], all u16; creationTime[N], u32
-//   names         path hash, filename, author, title, source author, series, genre blobs
+//   names         path hash, filename, author, title, source author, series, genre,
+//                 series-position blobs
 //
 // The fixed 128-byte record stride is the load-bearing choice: record k lives at
 // recordStart + 128k, so paging is O(1) in every sort order with no offset
@@ -28,7 +29,8 @@ namespace library {
 
 inline constexpr char CLIX_MAGIC[4] = {'C', 'L', 'X', '1'};
 // Older layouts are accepted only for reconciliation during a rebuild.
-inline constexpr uint8_t CLIX_FORMAT_VERSION = 5;
+inline constexpr uint8_t CLIX_FORMAT_VERSION = 6;
+inline constexpr uint32_t CLIX_UNKNOWN_SERIES_POSITION = 0xFFFFFFFFu;
 
 // Bump when the fold or a permutation's sort key changes.
 // Forces fold and ranks to be rebuilt while firstSeen values are preserved, so
@@ -176,8 +178,8 @@ inline ClixValidity validateHeaderStructure(const ClixHeader& h, const uint64_t 
   for (size_t i = 0; i < sizeof(CLIX_MAGIC); i++) {
     if (h.magic[i] != CLIX_MAGIC[i]) return ClixValidity::BadMagic;
   }
-  if (h.formatVersion != CLIX_FORMAT_VERSION &&
-      !(acceptPrevious && (h.formatVersion == 2 || h.formatVersion == 3 || h.formatVersion == 4)))
+  if (h.formatVersion != CLIX_FORMAT_VERSION && !(acceptPrevious && (h.formatVersion == 2 || h.formatVersion == 3 ||
+                                                                     h.formatVersion == 4 || h.formatVersion == 5)))
     return ClixValidity::UnknownFormatVersion;
   if (h.bookCount > CLIX_MAX_RECORDS) return ClixValidity::CountOutOfRange;
   if (h.metadataEnabled > 1) return ClixValidity::SectionsInconsistent;

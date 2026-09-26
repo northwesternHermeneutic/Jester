@@ -367,8 +367,10 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
   if (self->state == IN_METADATA && (strcmp(name, "meta") == 0 || strcmp(name, "opf:meta") == 0)) {
     bool isCover = false;
     bool isSeries = false;
+    bool isSeriesIndex = false;
     bool isCollection = false;
     bool isCollectionType = false;
+    bool isCollectionPosition = false;
     const char* content = nullptr;
     const char* id = nullptr;
     const char* refines = nullptr;
@@ -380,10 +382,14 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
         content = atts[i + 1];
       } else if (strcmp(atts[i], "name") == 0 && strcmp(atts[i + 1], "calibre:series") == 0) {
         isSeries = true;
+      } else if (strcmp(atts[i], "name") == 0 && strcmp(atts[i + 1], "calibre:series_index") == 0) {
+        isSeriesIndex = true;
       } else if (strcmp(atts[i], "property") == 0 && strcmp(atts[i + 1], "belongs-to-collection") == 0) {
         isCollection = true;
       } else if (strcmp(atts[i], "property") == 0 && strcmp(atts[i + 1], "collection-type") == 0) {
         isCollectionType = true;
+      } else if (strcmp(atts[i], "property") == 0 && strcmp(atts[i + 1], "group-position") == 0) {
+        isCollectionPosition = true;
       } else if (strcmp(atts[i], "id") == 0) {
         id = atts[i + 1];
       } else if (strcmp(atts[i], "refines") == 0) {
@@ -398,18 +404,30 @@ void XMLCALL ContentOpfParser::startElement(void* userData, const XML_Char* name
       const size_t bytes = std::min(strlen(content), MAX_METADATA_TEXT);
       self->series.assign(content, static_cast<size_t>(utf8SafeTruncateBuffer(content, static_cast<int>(bytes))));
     }
+    if (isSeriesIndex && self->seriesIndex.empty() && content) {
+      self->seriesIndex.assign(content, std::min(strlen(content), MAX_METADATA_TEXT));
+    }
     if (isCollection && self->series.empty() && id) {
-      if (self->collectionType == "series") self->series = std::move(self->collectionName);
+      if (self->collectionType == "series") {
+        self->series = std::move(self->collectionName);
+        self->seriesIndex = std::move(self->collectionPosition);
+      }
       self->collectionName.clear();
       self->collectionType.clear();
+      self->collectionPosition.clear();
       self->collectionId.assign(id, std::min(strlen(id), MAX_METADATA_TEXT));
       self->seriesTruncated = false;
       self->collectionTypeTruncated = false;
+      self->collectionPositionTruncated = false;
       self->state = IN_BOOK_COLLECTION;
       self->metadataSpacePending = false;
     }
     if (isCollectionType && refines && refines[0] == '#' && self->collectionId == refines + 1) {
       self->state = IN_BOOK_COLLECTION_TYPE;
+      self->metadataSpacePending = false;
+    }
+    if (isCollectionPosition && refines && refines[0] == '#' && self->collectionId == refines + 1) {
+      self->state = IN_BOOK_COLLECTION_POSITION;
       self->metadataSpacePending = false;
     }
     return;
@@ -579,6 +597,10 @@ void XMLCALL ContentOpfParser::characterData(void* userData, const XML_Char* s, 
     appendMetadataText(self->collectionType, s, len, self->metadataSpacePending, self->collectionTypeTruncated);
     return;
   }
+  if (self->state == IN_BOOK_COLLECTION_POSITION) {
+    appendMetadataText(self->collectionPosition, s, len, self->metadataSpacePending, self->collectionPositionTruncated);
+    return;
+  }
 }
 
 void XMLCALL ContentOpfParser::endElement(void* userData, const XML_Char* name) {
@@ -625,14 +647,18 @@ void XMLCALL ContentOpfParser::endElement(void* userData, const XML_Char* name) 
     self->state = IN_METADATA;
     return;
   }
-  if ((self->state == IN_BOOK_COLLECTION || self->state == IN_BOOK_COLLECTION_TYPE) &&
+  if ((self->state == IN_BOOK_COLLECTION || self->state == IN_BOOK_COLLECTION_TYPE ||
+       self->state == IN_BOOK_COLLECTION_POSITION) &&
       (strcmp(name, "meta") == 0 || strcmp(name, "opf:meta") == 0)) {
     self->state = IN_METADATA;
     return;
   }
 
   if (self->state == IN_METADATA && (strcmp(name, "metadata") == 0 || strcmp(name, "opf:metadata") == 0)) {
-    if (self->series.empty() && self->collectionType == "series") self->series = std::move(self->collectionName);
+    if (self->series.empty() && self->collectionType == "series") {
+      self->series = std::move(self->collectionName);
+      self->seriesIndex = std::move(self->collectionPosition);
+    }
     self->state = IN_PACKAGE;
     if (self->metadataOnly) {
       self->metadataComplete = true;
