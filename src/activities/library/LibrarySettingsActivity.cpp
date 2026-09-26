@@ -37,25 +37,25 @@ void LibrarySettingsActivity::toggle(const int row) {
       SETTINGS.libraryListExpanded = !SETTINGS.libraryListExpanded;
       break;
     case 2:
-      SETTINGS.libraryShowSeries = !SETTINGS.libraryShowSeries;
+      SETTINGS.libraryHideFinishedBooks = !SETTINGS.libraryHideFinishedBooks;
       break;
     case 3:
-      SETTINGS.libraryShowGenre = !SETTINGS.libraryShowGenre;
+      SETTINGS.libraryShowSeries = !SETTINGS.libraryShowSeries;
       break;
     case 4:
-      SETTINGS.libraryShowEpub = !SETTINGS.libraryShowEpub;
+      SETTINGS.libraryShowGenre = !SETTINGS.libraryShowGenre;
       break;
     case 5:
-      SETTINGS.libraryShowXtc = !SETTINGS.libraryShowXtc;
+      SETTINGS.libraryShowEpub = !SETTINGS.libraryShowEpub;
       break;
     case 6:
-      SETTINGS.libraryShowTxt = !SETTINGS.libraryShowTxt;
+      SETTINGS.libraryShowXtc = !SETTINGS.libraryShowXtc;
       break;
     case 7:
-      SETTINGS.libraryShowMarkdown = !SETTINGS.libraryShowMarkdown;
+      SETTINGS.libraryShowTxt = !SETTINGS.libraryShowTxt;
       break;
     case 8:
-      SETTINGS.libraryHideFinishedBooks = !SETTINGS.libraryHideFinishedBooks;
+      SETTINGS.libraryShowMarkdown = !SETTINGS.libraryShowMarkdown;
       break;
     default:
       return;
@@ -135,9 +135,9 @@ void LibrarySettingsActivity::screen(UiApp::ScreenType& screen, void* user) {
 
 void LibrarySettingsActivity::provideRow(void*, const uint16_t row, fui::ListItem& item) {
   static constexpr StrId labels[] = {
-      StrId::STR_LIBRARY_USE_METADATA, StrId::STR_LIBRARY_LIST_VIEW, StrId::STR_LIBRARY_SERIES,
-      StrId::STR_LIBRARY_GENRE,        StrId::STR_LIBRARY_EPUBS,     StrId::STR_LIBRARY_XTC_XTCH,
-      StrId::STR_LIBRARY_TXT,          StrId::STR_LIBRARY_MARKDOWN,  StrId::STR_LIBRARY_HIDE_FINISHED_BOOKS};
+      StrId::STR_LIBRARY_USE_METADATA, StrId::STR_LIBRARY_LIST_VIEW, StrId::STR_LIBRARY_FINISHED_BOOKS,
+      StrId::STR_LIBRARY_SERIES,       StrId::STR_LIBRARY_GENRE,     StrId::STR_LIBRARY_EPUBS,
+      StrId::STR_LIBRARY_XTC_XTCH,     StrId::STR_LIBRARY_TXT,       StrId::STR_LIBRARY_MARKDOWN};
   item.label = I18N.get(labels[row]);
   item.actionValue = static_cast<int16_t>(row);
   if (row == 1) {
@@ -151,26 +151,26 @@ void LibrarySettingsActivity::provideRow(void*, const uint16_t row, fui::ListIte
       break;
     case 2:
       item.sectionHeading = tr(STR_CAT_DISPLAY);
-      item.toggleChecked = SETTINGS.libraryShowSeries;
+      item.toggleChecked = !SETTINGS.libraryHideFinishedBooks;
       break;
     case 3:
-      item.toggleChecked = SETTINGS.libraryShowGenre;
+      item.toggleChecked = SETTINGS.libraryShowSeries;
       break;
     case 4:
+      item.toggleChecked = SETTINGS.libraryShowGenre;
+      break;
+    case 5:
       item.sectionHeading = tr(STR_LIBRARY_SHOW_FILES);
       item.toggleChecked = SETTINGS.libraryShowEpub;
       break;
-    case 5:
+    case 6:
       item.toggleChecked = SETTINGS.libraryShowXtc;
       break;
-    case 6:
+    case 7:
       item.toggleChecked = SETTINGS.libraryShowTxt;
       break;
-    case 7:
-      item.toggleChecked = SETTINGS.libraryShowMarkdown;
-      break;
     case 8:
-      item.toggleChecked = SETTINGS.libraryHideFinishedBooks;
+      item.toggleChecked = SETTINGS.libraryShowMarkdown;
       break;
   }
 }
