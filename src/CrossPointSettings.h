@@ -462,6 +462,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     ReaderStatusBarConfig config;
     config.slots = {ReaderStatusBarItem::Battery,
                     ReaderStatusBarItem::Empty,
+                    ReaderStatusBarItem::Empty,
                     ReaderStatusBarItem::TitleChapter,
                     ReaderStatusBarItem::ChapterPageCount,
                     ReaderStatusBarItem::BookProgressPercentage,

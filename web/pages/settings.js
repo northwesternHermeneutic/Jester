@@ -313,11 +313,10 @@ let allSettings = [];
       return { value: option.value, label: option.label,
         disabled: option.value === 1 && !statusBars.clockAvailable };
     });
-    const slotNames = [labels.left + ' 1', labels.left + ' 2', labels.center,
+    const slotNames = [labels.left + ' 1', labels.left + ' 2', labels.left + ' 3', labels.center,
       labels.right + ' 1', labels.right + ' 2', labels.right + ' 3'];
     let html = '<div class="status-bar-editor"><h3>' + escapeHtml(labels[position]) + '</h3>';
-    const slotCount = bar.slots[5] === 0 ? 5 : 6;
-    for (let i = 0; i < slotCount; i++) {
+    for (let i = 0; i < bar.slots.length; i++) {
       html += statusBarRow(slotNames[i], statusBarSelect('bar-' + position + '-slot-' + i,
         itemOptions, bar.slots[i], 'statusBarChanged()'));
     }
@@ -337,9 +336,8 @@ let allSettings = [];
   function readStatusBarForm(position) {
     const bar = statusBars[position];
     return {
-      slots: bar.slots.map(function(item, index) {
-        const input = document.getElementById('bar-' + position + '-slot-' + index);
-        return input ? Number(input.value) : item;
+      slots: bar.slots.map(function(_, index) {
+        return Number(document.getElementById('bar-' + position + '-slot-' + index).value);
       }),
       percentageFormat: Number(document.getElementById('bar-' + position + '-percentageFormat').value),
       progressBar: Number(document.getElementById('bar-' + position + '-progressBar').value),
@@ -352,13 +350,13 @@ let allSettings = [];
     const examples = ['', '10:30', '85%', '2h 15m', '12m', '4/12', '27',
       (64.12).toFixed(bar.percentageFormat) + '%', 'Book title', 'Chapter title'];
     const slot = function(index) { return escapeHtml(examples[bar.slots[index]] || ''); };
-    const right = [3, 4, 5].map(slot).filter(Boolean).join(' &nbsp; ');
+    const right = [4, 5, 6].map(slot).filter(Boolean).join(' &nbsp; ');
     const progressValue = bar.progressBar === 0 ? 64 : 35;
     const progress = bar.progressBar === 2 ? '' : '<div class="status-bar-preview-progress" style="height:' +
       ((bar.thickness + 1) * 2) + 'px"><span style="width:' + progressValue + '%"></span></div>';
     document.getElementById('bar-' + position + '-preview').innerHTML =
       (position === 'top' ? progress : '') + '<div class="status-bar-preview-items"><span>' +
-      [slot(0), slot(1)].filter(Boolean).join(' &nbsp; ') + '</span><span>' + slot(2) +
+      [slot(0), slot(1), slot(2)].filter(Boolean).join(' &nbsp; ') + '</span><span>' + slot(3) +
       '</span><span>' + right + '</span></div>' + (position === 'bottom' ? progress : '');
   }
 

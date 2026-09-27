@@ -300,6 +300,7 @@ device model and build.
   turn it back on.
 
 - **Status Bars**: Configure the status bars displayed while reading:
+  - Top and bottom bars each have three left slots, one center slot, and three right slots.
   - Chapter Page Count - Show/Hide the current page in the chapter (ex: 5/25). Page count may change based on the font size and margins set.
   - Book Progress Percentage - Show/Hide the current percent progress in the book.
   - Percentage Format - Show book progress as `10%` (default), `10.1%`, or `10.12%`.

@@ -20,6 +20,7 @@ namespace {
 enum BarItem {
   SLOT_LEFT_1,
   SLOT_LEFT_2,
+  SLOT_LEFT_3,
   SLOT_CENTER,
   SLOT_RIGHT_1,
   SLOT_RIGHT_2,
@@ -143,13 +144,8 @@ ReaderStatusBarPosition StatusBarSettingsActivity::selectedPosition() const {
   return view == View::Top ? ReaderStatusBarPosition::Top : ReaderStatusBarPosition::Bottom;
 }
 
-int StatusBarSettingsActivity::barItemForIndex(const int index) const {
-  const auto config = SETTINGS.readerStatusBar(selectedPosition());
-  return !config.hasExtraRightSlot() && index >= SLOT_RIGHT_3 ? index + 1 : index;
-}
-
 void StatusBarSettingsActivity::refreshItemCount() {
-  visibleItemCount = view == View::Root ? 3 : SETTINGS.readerStatusBar(selectedPosition()).hasExtraRightSlot() ? 9 : 8;
+  visibleItemCount = view == View::Root ? 3 : PROGRESS_BAR_THICKNESS + 1;
   selectedIndex = std::clamp(selectedIndex, 0, visibleItemCount - 1);
 }
 
@@ -258,7 +254,7 @@ void StatusBarSettingsActivity::openOptionPicker() {
   }
 
   const auto position = selectedPosition();
-  const int item = barItemForIndex(selectedIndex);
+  const int item = selectedIndex;
   const auto config = SETTINGS.readerStatusBar(position);
   std::vector<std::string> options;
   std::vector<uint8_t> rawValues;
@@ -356,10 +352,10 @@ void StatusBarSettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
       row.label = i == 0 ? tr(STR_TOP_STATUS_BAR) : i == 1 ? tr(STR_BOTTOM_STATUS_BAR) : tr(STR_XTC_STATUS_BAR);
       row.value = i == 2 ? xtcModeLabel(SETTINGS.xtcStatusBarMode) : ">";
     } else {
-      const int item = barItemForIndex(i);
+      const int item = i;
       if (item <= SLOT_RIGHT_3) {
         values[i] = itemLabel(config.slots[item]);
-        if (item <= SLOT_LEFT_2) {
+        if (item <= SLOT_LEFT_3) {
           labels[i] = std::string(tr(STR_STATUS_BAR_LEFT)) + " " + std::to_string(item + 1);
         } else if (item == SLOT_CENTER) {
           labels[i] = tr(STR_CENTER);
@@ -407,11 +403,10 @@ void StatusBarSettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
   // Keep the separator aligned with FreeInkUI's variable-height rows when the list scrolls or wraps.
   const auto resolvedProps = screen.resolveListProps(props);
   const auto body = screen.body();
-  const int dividerItem =
-      SETTINGS.readerStatusBar(selectedPosition()).hasExtraRightSlot() ? SLOT_RIGHT_3 : SLOT_RIGHT_2;
+  const int dividerItem = SLOT_RIGHT_3;
   const int dividerIndex = [&] {
     for (int i = topIndex; i < visibleItemCount; ++i) {
-      if (barItemForIndex(i) == dividerItem) return i;
+      if (i == dividerItem) return i;
     }
     return -1;
   }();

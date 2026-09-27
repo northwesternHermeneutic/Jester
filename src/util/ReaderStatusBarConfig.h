@@ -39,13 +39,14 @@ struct ReaderStatusBarConfig {
   static constexpr int TOP_TEXT_INSET = 2;
   static constexpr int BOOKMARK_WIDTH = 9;
   static constexpr int BOOKMARK_HEIGHT = 14;
-  static constexpr unsigned SLOT_COUNT = 6;
+  static constexpr unsigned SLOT_COUNT = 7;
   static constexpr unsigned LEFT_FIRST = 0;
   static constexpr unsigned LEFT_SECOND = 1;
-  static constexpr unsigned CENTER = 2;
-  static constexpr unsigned RIGHT_FIRST = 3;
-  static constexpr unsigned RIGHT_SECOND = 4;
-  static constexpr unsigned RIGHT_EXTRA = 5;
+  static constexpr unsigned LEFT_THIRD = 2;
+  static constexpr unsigned CENTER = 3;
+  static constexpr unsigned RIGHT_FIRST = 4;
+  static constexpr unsigned RIGHT_SECOND = 5;
+  static constexpr unsigned RIGHT_THIRD = 6;
 
   std::array<ReaderStatusBarItem, SLOT_COUNT> slots{};
   uint8_t percentageFormat = 0;
@@ -65,8 +66,6 @@ struct ReaderStatusBarConfig {
     }
     return false;
   }
-
-  constexpr bool hasExtraRightSlot() const { return slots[RIGHT_EXTRA] != ReaderStatusBarItem::Empty; }
 };
 
 struct ReaderStatusBarsPayload {
@@ -128,10 +127,10 @@ inline void fitReaderStatusBarSideWidths(std::array<int, ReaderStatusBarConfig::
                                          const int available, const int bookmarkReserve = 0, const int gap = 8) {
   int leftCount = 0;
   int rightCount = 0;
-  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_SECOND; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_THIRD; ++i) {
     if (widths[i] > 0) ++leftCount;
   }
-  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_EXTRA; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_THIRD; ++i) {
     if (widths[i] > 0) ++rightCount;
   }
   if (leftCount + rightCount == 0) return;
@@ -163,7 +162,7 @@ inline ReaderStatusBarGeometry layoutReaderStatusBarItems(
   ReaderStatusBarGeometry result;
   int leftX = leftEdge + bookmarkReserve;
   bool hasLeft = bookmarkReserve > 0;
-  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_SECOND; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_THIRD; ++i) {
     if (widths[i] <= 0) continue;
     if (hasLeft) leftX += gap;
     result.x[i] = leftX;
@@ -172,13 +171,13 @@ inline ReaderStatusBarGeometry layoutReaderStatusBarItems(
   }
 
   int rightWidth = 0;
-  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_EXTRA; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_THIRD; ++i) {
     if (widths[i] <= 0) continue;
     if (rightWidth > 0) rightWidth += gap;
     rightWidth += widths[i];
   }
   int rightX = rightEdge - rightWidth;
-  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_EXTRA; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_THIRD; ++i) {
     if (widths[i] <= 0) continue;
     result.x[i] = rightX;
     rightX += widths[i] + gap;

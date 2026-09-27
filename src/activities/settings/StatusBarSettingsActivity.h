@@ -54,7 +54,6 @@ class StatusBarSettingsActivity final : public Activity {
   void openOptionPicker();
   void goBack();
   ReaderStatusBarPosition selectedPosition() const;
-  int barItemForIndex(int index) const;
   void refreshItemCount();
   int previewHeight() const;
   int topPreviewOriginY() const;

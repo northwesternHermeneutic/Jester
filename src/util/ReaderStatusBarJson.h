@@ -64,8 +64,9 @@ inline bool repairReaderStatusBarJson(const JsonVariantConst source, ReaderStatu
                               thicknessCount)) {
     return false;
   }
-  ReaderStatusBarConfig repaired;
   const JsonArrayConst slots = source["slots"].as<JsonArrayConst>();
+  if (slots.size() != ReaderStatusBarConfig::SLOT_COUNT) return true;
+  ReaderStatusBarConfig repaired;
   for (unsigned i = 0; i < ReaderStatusBarConfig::SLOT_COUNT; ++i) {
     const int item = slots[i].as<int>();
     if (slots[i].is<int>() && validReaderStatusBarItemValue(item, clockAvailable)) {

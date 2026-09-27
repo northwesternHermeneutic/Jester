@@ -1016,18 +1016,18 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
   const int available = std::max(0, rightEdge - leftEdge);
 
   std::array<int, ReaderStatusBarConfig::SLOT_COUNT> widths{};
-  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_SECOND; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_THIRD; ++i) {
     widths[i] = measureItem(config.slots[i], available);
   }
-  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_EXTRA; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_THIRD; ++i) {
     widths[i] = measureItem(config.slots[i], available);
   }
   fitReaderStatusBarSideWidths(widths, available, bookmarkReserve, itemGap);
   const auto placement = layoutReaderStatusBarItems(leftEdge, rightEdge, widths, bookmarkReserve, itemGap);
-  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_SECOND; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::LEFT_FIRST; i <= ReaderStatusBarConfig::LEFT_THIRD; ++i) {
     if (widths[i] > 0) drawItem(config.slots[i], placement.x[i], widths[i], false);
   }
-  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_EXTRA; ++i) {
+  for (unsigned i = ReaderStatusBarConfig::RIGHT_FIRST; i <= ReaderStatusBarConfig::RIGHT_THIRD; ++i) {
     if (widths[i] > 0) drawItem(config.slots[i], placement.x[i], widths[i], true);
   }
 
