@@ -647,6 +647,9 @@ bool handleGlobalPowerButtonAction(const CrossPointSettings::SHORT_PWRBTN action
       }
       activityManager.goToHotspotFileTransfer();
       return true;
+    case CrossPointSettings::SHORT_PWRBTN::LIBRARY:
+      activityManager.goToLibrary();
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_FRONTLIGHT: {
       if (!Frontlight.present()) return false;
       const bool lightOn = !Frontlight.isOn();
@@ -731,6 +734,8 @@ CrossPointSettings::SHORT_PWRBTN chordPowerAction(const ButtonShortcutController
       return Power::SYNC_PROGRESS;
     case Chord::NearbyPositionSync:
       return Power::NEARBY_POSITION_SYNC;
+    case Chord::Library:
+      return Power::LIBRARY;
     case Chord::FileTransfer:
       return Power::FILE_TRANSFER;
     case Chord::CalibreWireless:

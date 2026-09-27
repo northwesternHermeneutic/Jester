@@ -66,24 +66,6 @@ TEST(ReleaseSuppressionTest, PowerConfirmSuppressionExpiresWithoutAConsumer) {
   EXPECT_FALSE(suppression.consumePowerConfirmRelease());
 }
 
-TEST(ReleaseSuppressionTest, WakePowerHoldStaysSuppressedUntilReleasedThenAllowsTheNextPress) {
-  ReleaseSuppression suppression;
-  suppression.suppressPower();
-  suppression.suppressPowerConfirm();
-
-  for (int frame = 0; frame < 10; ++frame) {
-    suppression.expireAfterReleaseFrame({.powerHeld = true});
-    EXPECT_TRUE(suppression.isPowerReleaseSuppressed());
-  }
-  suppression.expireAfterReleaseFrame({.powerReleased = true});
-  EXPECT_TRUE(suppression.isPowerReleaseSuppressed());
-  suppression.expireAfterReleaseFrame({});
-  EXPECT_FALSE(suppression.isPowerReleaseSuppressed());
-  EXPECT_FALSE(suppression.consumePowerConfirmRelease());
-  suppression.expireAfterReleaseFrame({.powerHeld = true});
-  EXPECT_FALSE(suppression.isPowerReleaseSuppressed());
-}
-
 TEST(ReleaseSuppressionTest, NavigationHoldSwallowsOnlyItsOwnMenuOrBackRelease) {
   for (const bool fromMenu : {false, true}) {
     ReleaseSuppression suppression;

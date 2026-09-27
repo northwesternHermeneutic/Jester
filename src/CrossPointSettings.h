@@ -267,8 +267,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     // raw values or they can silently change an existing binding's behavior.
     PREVIOUS_PAGE = 31,
     NEARBY_POSITION_SYNC = 32,
-    // CrossInk v1.6.1 continues at LIBRARY = 33 .. HOME_READER = 36 and uses
-    // 64..70 for side-button-only actions; those values belong to CrossInk.
+    // CrossInk values continue here (v1.6.1: SLEEP_ONLY = 34 .. HOME_READER = 36,
+    // side-button-only actions 64..70); those values belong to CrossInk.
+    LIBRARY = 33,
     SHORT_PWRBTN_COUNT,
     // Jester actions: a reserved block far above CrossInk's ranges (rule G2),
     // outside SHORT_PWRBTN_COUNT. Use isJesterShortcutAction() where a bound
@@ -318,6 +319,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     CHORD_TOGGLE_TOUCHSCREEN = 28,
     CHORD_PREVIOUS_PAGE = 29,
     CHORD_NEARBY_POSITION_SYNC = 30,
+    CHORD_LIBRARY = 31,
     POWER_CHORD_ACTION_COUNT
   };
 
@@ -407,7 +409,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     // Appended: values are persisted in settings.bin.
     LONG_MENU_QUICK_ACTIONS = 22,
     LONG_MENU_QUICK_LOCK = 23,
-    // CrossInk v1.6.1 continues at LONG_MENU_LIBRARY = 24.
+    LONG_MENU_LIBRARY = 24,
     LONG_PRESS_MENU_ACTION_COUNT,
     // Jester long-press actions: reserved block, same rule as SHORT_PWRBTN.
     LONG_MENU_JESTER_FIRST = 192,

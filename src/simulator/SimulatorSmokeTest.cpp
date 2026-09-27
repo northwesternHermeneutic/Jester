@@ -320,6 +320,42 @@ class SimulatorSmokeTest {
                   CrossPointSettings::CHORD_TOGGLE_FRONTLIGHT) != chordSetting->enumRawValues.end()) {
       fail("Toggle Frontlight is still offered without a frontlight");
     }
+
+    const auto hasLibrary = [](const SettingInfo& setting, const ShortcutOptionCatalog catalog) {
+      const auto raw = shortcutRawValue(catalog, CrossPointSettings::LIBRARY);
+      const auto choice = std::find(setting.enumRawValues.begin(), setting.enumRawValues.end(), raw);
+      return choice != setting.enumRawValues.end() &&
+             setting.enumValues[static_cast<size_t>(choice - setting.enumRawValues.begin())] == StrId::STR_LIBRARY;
+    };
+    const auto verifyLibraryChoice = [&](const char* key, const ShortcutOptionCatalog catalog) {
+      const auto setting = std::find_if(allSettings.begin(), allSettings.end(),
+                                        [key](const SettingInfo& candidate) { return settingKeyIs(candidate, key); });
+      if (setting == allSettings.end() || !hasLibrary(*setting, catalog)) {
+        fail("Library shortcut is missing or mislabeled in %s", key);
+      }
+    };
+    verifyLibraryChoice("shortPwrBtn", ShortcutOptionCatalog::PowerButton);
+    verifyLibraryChoice("longPwrBtn", ShortcutOptionCatalog::PowerButton);
+    verifyLibraryChoice("powerChordAction", ShortcutOptionCatalog::ButtonChord);
+    verifyLibraryChoice("longPressMenuAction", ShortcutOptionCatalog::LongPress);
+    verifyLibraryChoice("longPressBackAction", ShortcutOptionCatalog::LongPress);
+    if (gpio.hasHomeKey()) {
+      verifyLibraryChoice("homeButtonTapAction", ShortcutOptionCatalog::HomeButton);
+      verifyLibraryChoice("homeButtonDoubleTapAction", ShortcutOptionCatalog::HomeButton);
+      verifyLibraryChoice("homeButtonLongPressAction", ShortcutOptionCatalog::HomeButton);
+    }
+    if (hasSideButtonChord) {
+      const auto side =
+          std::find_if(sideButtonSettings.begin(), sideButtonSettings.end(),
+                       [](const SettingInfo& setting) { return settingKeyIs(setting, "sideButtonChordAction"); });
+      if (side == sideButtonSettings.end() || !hasLibrary(*side, ShortcutOptionCatalog::ButtonChord)) {
+        fail("Library shortcut is missing from the filtered Up + Down choices");
+      }
+    }
+    if (!QuickActions::isQuickActionSlotActionAvailable(CrossPointSettings::LIBRARY) ||
+        QuickActions::actionLabel(CrossPointSettings::LIBRARY) != StrId::STR_LIBRARY) {
+      fail("Library is missing from Quick Actions choices");
+    }
   }
 
   [[noreturn]] static void fail(const char* message) {

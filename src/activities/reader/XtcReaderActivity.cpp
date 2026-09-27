@@ -286,6 +286,15 @@ void XtcReaderActivity::loop() {
     return;
   }
 
+  if (longPressMenuAction == CrossPointSettings::LONG_MENU_LIBRARY && mappedInput.getHeldTime() >= LONG_PRESS_MENU_MS &&
+      (mappedInput.isPressed(MappedInputManager::Button::Confirm) ||
+       mappedInput.wasReleased(MappedInputManager::Button::Confirm))) {
+    longPressMenuHandled = mappedInput.isPressed(MappedInputManager::Button::Confirm);
+    mappedInput.suppressNextConfirmRelease();
+    activityManager.goToLibrary();
+    return;
+  }
+
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) || ReaderUtils::isTouchMenuGesture(mappedInput)) {
     openReaderMenu();
     return;
@@ -978,6 +987,7 @@ bool XtcReaderActivity::supportsQuickAction(const CrossPointSettings::SHORT_PWRB
     case CrossPointSettings::SHORT_PWRBTN::JOIN_NETWORK:
     case CrossPointSettings::SHORT_PWRBTN::CREATE_HOTSPOT:
     case CrossPointSettings::SHORT_PWRBTN::FILE_BROWSER:
+    case CrossPointSettings::SHORT_PWRBTN::LIBRARY:
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_FRONTLIGHT:
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_TOUCHSCREEN:
       return true;
@@ -1008,6 +1018,9 @@ bool XtcReaderActivity::executeReaderShortcutAction(const CrossPointSettings::SH
       return true;
     case CrossPointSettings::SHORT_PWRBTN::FILE_BROWSER:
       activityManager.goToFileBrowser(xtc ? xtc->getPath() : "");
+      return true;
+    case CrossPointSettings::SHORT_PWRBTN::LIBRARY:
+      activityManager.goToLibrary();
       return true;
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_HOME_BUTTON_IN_READER:
       toggleHomeButtonInReader();
@@ -1043,6 +1056,9 @@ bool XtcReaderActivity::executeLongPressBackAction() {
       return true;
     case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_FILE_BROWSER:
       activityManager.goToFileBrowser(xtc ? xtc->getPath() : "");
+      return true;
+    case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_LIBRARY:
+      activityManager.goToLibrary();
       return true;
     case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_CREATE_CLIPPING:
       return false;
