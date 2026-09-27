@@ -47,6 +47,7 @@ class StatusBarSettingsActivity final : public Activity {
   freeink::ui::GfxRendererTarget uiTarget;  // Must precede app: the app holds a reference to it.
   UiApp app;
   std::atomic<bool> uiReady{false};
+  freeink::ui::ListNav listNav;
   int visibleRows = 1;
   int topIndex = 0;
 

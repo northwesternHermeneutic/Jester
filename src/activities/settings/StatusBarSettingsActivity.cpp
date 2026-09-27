@@ -113,6 +113,7 @@ void StatusBarSettingsActivity::onEnter() {
   selectedIndex = 0;
   topIndex = 0;
   visibleRows = 1;
+  listNav.reset();
   uiReady = false;
   refreshItemCount();
   applySharedUiTheme(app, uiTarget);
@@ -135,6 +136,7 @@ void StatusBarSettingsActivity::goBack() {
     view = View::Root;
     selectedIndex = 0;
     topIndex = 0;
+    listNav.reset();
     refreshItemCount();
     requestUpdate();
   }
@@ -233,6 +235,7 @@ void StatusBarSettingsActivity::handleSelection() {
     view = selectedIndex == 0 ? View::Top : View::Bottom;
     selectedIndex = 0;
     topIndex = 0;
+    listNav.reset();
     refreshItemCount();
     requestUpdate();
     return;
@@ -392,13 +395,21 @@ void StatusBarSettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
   props.headerText = screen.theme().smallText;
   props.headerText.bold = true;
   const auto rows = configureUiList(props, screen.theme(), screen.body());
-  visibleRows = rows > 0 ? rows : 1;
+  // Section headings and wrapped values can fit fewer rows than this fixed-height estimate.
+  visibleRows = listNav.trusts(visibleItemCount) ? listNav.pageRowsFor(visibleItemCount) : std::max<int>(rows, 1);
   topIndex = scrollListBy(topIndex, 0, visibleRows, visibleItemCount);
   props.topIndex = static_cast<uint16_t>(topIndex);
   if (view == View::Root) {
     screen.list(props);
     return;
   }
+
+  const auto renderScrollingList = [&] {
+    props.nav = &listNav;
+    screen.list(props);
+    visibleRows = listNav.pageRowsFor(visibleItemCount);
+    topIndex = listNav.top;
+  };
 
   // Keep the separator aligned with FreeInkUI's variable-height rows when the list scrolls or wraps.
   const auto resolvedProps = screen.resolveListProps(props);
@@ -411,7 +422,7 @@ void StatusBarSettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
     return -1;
   }();
   if (dividerIndex < topIndex) {
-    screen.list(props);
+    renderScrollingList();
     return;
   }
 
@@ -446,7 +457,7 @@ void StatusBarSettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
   if (maxDividerMargin < 0) {
     // On compact screens, keep every option in one scrollable list instead of
     // splitting off a segment that cannot fit its first row.
-    screen.list(props);
+    renderScrollingList();
     screen.target().fill(fui::Rect{body.x, dividerY, body.width, 1}, fui::Paint::solid(fui::Color::Black));
     return;
   }
@@ -476,6 +487,14 @@ void StatusBarSettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
       selectedIndex > dividerIndex ? static_cast<int16_t>(selectedIndex - dividerIndex - 1) : -1;
   afterDivider.scrollIndicator = false;
   screen.list(afterDivider);
+
+  // The split sections share one scroll position, so keep one indicator for the full list.
+  if (resolvedProps.scrollIndicator) {
+    fui::drawListScrollIndicator(screen.target(), body, static_cast<uint32_t>(visibleItemCount),
+                                 static_cast<uint32_t>(visibleItemCount - topIndex), static_cast<uint32_t>(topIndex),
+                                 resolvedProps.scrollIndicatorWidth, resolvedProps.scrollIndicatorSide,
+                                 resolvedProps.scrollIndicatorInset);
+  }
 }
 
 void StatusBarSettingsActivity::render(RenderLock&&) {
