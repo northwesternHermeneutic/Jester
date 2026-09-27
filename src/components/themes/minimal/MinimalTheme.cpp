@@ -412,12 +412,13 @@ void drawBookCover(const GfxRenderer& renderer, const Rect& coverRect, const Rec
 void MinimalTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle,
                               const bool readerContext, const bool showStatus) const {
   (void)subtitle;
+  (void)readerContext;
 
   renderer.fillRect(rect.x, rect.y, rect.width, rect.height, false);
   const bool showBatteryPercentage =
       SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
-  const int batteryX = rect.x + rect.width - 12 - MinimalMetrics::values.batteryWidth;
-  const int batteryY = rect.y + homeHeaderTopInset + UITheme::getTopStatusBarInset(renderer);
+  const int batteryX = rect.x + rect.width - StatusBarMetrics::sideInset - MinimalMetrics::values.batteryWidth;
+  const int batteryY = UITheme::getTopStatusBarY(renderer) + homeHeaderTopInset;
   if (showStatus) {
     drawBatteryRight(
         renderer, Rect{batteryX, batteryY, MinimalMetrics::values.batteryWidth, MinimalMetrics::values.batteryHeight},
@@ -435,8 +436,8 @@ void MinimalTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char
   }
 
   if (showStatus) {
-    drawTopStatusBarClock(renderer, rect.y, nullptr, readerContext,
-                          title == nullptr && !readerContext ? homeHeaderClockTextYOffset(renderer) : 0);
+    drawTopStatusBarClock(renderer, MinimalMetrics::values.topPadding, nullptr, false,
+                          homeHeaderClockTextYOffset(renderer));
   }
 }
 

@@ -36,6 +36,7 @@ constexpr bool validReaderStatusBarChoice(const int value, const int optionCount
 }
 
 struct ReaderStatusBarConfig {
+  static constexpr int TOP_TEXT_INSET = 2;
   static constexpr int BOOKMARK_WIDTH = 9;
   static constexpr int BOOKMARK_HEIGHT = 14;
   static constexpr unsigned SLOT_COUNT = 6;
@@ -79,7 +80,10 @@ constexpr int readerStatusBarTotalHeight(const ReaderStatusBarPosition position,
   if (!hasText && progressSpace > 0 && position == ReaderStatusBarPosition::Bottom) {
     return std::max(progressSpace, ReaderStatusBarConfig::BOOKMARK_HEIGHT);
   }
-  return (hasText ? textLaneHeight : 0) + progressSpace;
+  return (hasText
+              ? textLaneHeight + (position == ReaderStatusBarPosition::Top ? ReaderStatusBarConfig::TOP_TEXT_INSET : 0)
+              : 0) +
+         progressSpace;
 }
 
 struct LegacyReaderStatusBarSettings {

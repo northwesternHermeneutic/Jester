@@ -277,6 +277,10 @@ int UITheme::getReaderProgressBarHeight(const ReaderStatusBarPosition position) 
              : 0;
 }
 
+int UITheme::getTopStatusBarY(const GfxRenderer& renderer) {
+  return getInstance().getMetrics().topPadding + getTopStatusBarInset(renderer);
+}
+
 int UITheme::getTopStatusBarInset(const GfxRenderer& renderer) {
 #if defined(FREEINK_DEVICE_STICKY) && FREEINK_DEVICE_STICKY
   // The Sticky panel remains usable closer to its top edge than the shared

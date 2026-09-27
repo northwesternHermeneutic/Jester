@@ -64,7 +64,10 @@ inline int getTopStatusBarReservedHeight(const GfxRenderer& renderer) {
     return 0;
   }
 
-  return UITheme::getInstance().getMetrics().topPadding + UITheme::getTopStatusBarInset(renderer) + statusBarHeight;
+  int top, right, bottom, left;
+  renderer.getOrientedViewableTRBL(&top, &right, &bottom, &left);
+  // Reader layout already includes the bezel margin; reserve only the remainder.
+  return std::max(0, UITheme::getTopStatusBarY(renderer) + statusBarHeight - top);
 }
 
 inline bool bottomStatusBarHasTextLane() {
@@ -172,10 +175,8 @@ inline bool isBottomStatusBarTap(const GfxRenderer& renderer, const int y, const
 }
 
 inline bool isTopStatusBarTap(const GfxRenderer& renderer, const int y, const int statusBarHeight) {
-  int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
-  renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
-                                   &orientedMarginLeft);
-  return ReaderStatusBarTapTarget::containsTop(y, renderer.getScreenHeight(), orientedMarginTop, statusBarHeight);
+  return ReaderStatusBarTapTarget::containsTop(y, renderer.getScreenHeight(), UITheme::getTopStatusBarY(renderer),
+                                               statusBarHeight);
 }
 
 // Reader menu opens on its board-specific vertical swipe anywhere on the open

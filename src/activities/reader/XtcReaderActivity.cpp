@@ -1174,7 +1174,7 @@ void XtcReaderActivity::renderStatusBarOverlay(const StatusBarOverlayPosition po
       clearY = 0;
     }
   } else {
-    clearY = orientedMarginTop;
+    clearY = std::min(orientedMarginTop, UITheme::getTopStatusBarY(renderer));
   }
   const int clearHeight = position == StatusBarOverlayPosition::Bottom
                               ? renderer.getScreenHeight() - orientedMarginBottom - clearY

@@ -160,3 +160,14 @@ TEST(ReaderStatusBarConfig, RepairsDamagedSavedValuesWithoutDroppingValidSlots) 
   EXPECT_EQ(repaired.slots[3], ReaderStatusBarItem::Empty);
   EXPECT_EQ(repaired.progressBarThickness, 1);
 }
+
+TEST(ReaderStatusBarLayout, TopTextUsesHomeInsetAndOnlyEnabledProgressReservesSpace) {
+  constexpr int textLane = 19;
+  EXPECT_EQ(readerStatusBarTotalHeight(ReaderStatusBarPosition::Top, true, 0, textLane), 21);
+  EXPECT_EQ(readerStatusBarTotalHeight(ReaderStatusBarPosition::Top, true, 7, textLane), 28);
+  EXPECT_EQ(readerStatusBarTotalHeight(ReaderStatusBarPosition::Top, false, 0, textLane), 0);
+  EXPECT_EQ(readerStatusBarTotalHeight(ReaderStatusBarPosition::Top, false, 7, textLane), 7);
+  // Bottom text and progress-only bookmark reservations retain their existing bounds.
+  EXPECT_EQ(readerStatusBarTotalHeight(ReaderStatusBarPosition::Bottom, true, 0, textLane), 19);
+  EXPECT_EQ(readerStatusBarTotalHeight(ReaderStatusBarPosition::Bottom, false, 7, textLane), 14);
+}

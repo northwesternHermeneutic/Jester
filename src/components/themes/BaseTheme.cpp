@@ -454,13 +454,9 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
   const bool roundedRaffCompactHeader = !readerContext &&
                                         SETTINGS.uiTheme == CrossPointSettings::UI_THEME::ROUNDEDRAFF &&
                                         rect.height != metrics.homeTopPadding;
-  const bool lyraHeader = SETTINGS.uiTheme == CrossPointSettings::UI_THEME::LYRA ||
-                          SETTINGS.uiTheme == CrossPointSettings::UI_THEME::LYRA_3_COVERS ||
-                          SETTINGS.uiTheme == CrossPointSettings::UI_THEME::LYRA_CAROUSEL;
   const bool roundedRaffHeader = !readerContext && SETTINGS.uiTheme == CrossPointSettings::UI_THEME::ROUNDEDRAFF;
-  const int clockYOffset = roundedRaffHeader
-                               ? roundedRaffHeaderClockYOffset
-                               : (!hasVisibleTitle && !readerContext ? homeHeaderClockTextYOffset(renderer) : 0);
+  const int clockYOffset =
+      roundedRaffHeader ? roundedRaffHeaderClockYOffset : (!readerContext ? homeHeaderClockTextYOffset(renderer) : 0);
   if (batteryDetached) {
     const int titleLineHeight = ui.target.lineHeight(fui::GfxRendererTarget::FONT_TITLE);
     const int titleTop = static_cast<int>(band.height) - tokens.headerUnderline - tokens.spaceMd - titleLineHeight;
@@ -481,17 +477,13 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
 
   if (!showStatus) return;
 
-  const int16_t batteryEdgeInset = batteryDetached ? 12 : tokens.headerSidePadding;
+  const int16_t batteryEdgeInset = batteryDetached ? StatusBarMetrics::sideInset : tokens.headerSidePadding;
   const int16_t batteryX = batteryLeft ? static_cast<int16_t>(band.x + batteryEdgeInset)
                                        : static_cast<int16_t>(band.right() - batteryEdgeInset - batteryReserve);
-  // Lyra places its battery in the top status lane. Align the percentage text
-  // to the clock's text row, while the shared icon helper keeps the glyph
-  // vertically aligned with that label.
+  // Shared detached headers use the same status row as Dashboard Home.
   const int16_t batteryY = [&] {
-    if (batteryDetached && lyraHeader) {
-      const int statusBarHeight = metrics.statusBarVerticalMargin;
-      return static_cast<int16_t>(rect.y + (statusBarHeight - renderer.getLineHeight(SMALL_FONT_ID)) / 2 +
-                                  UITheme::getTopStatusBarInset(renderer) + clockYOffset);
+    if (batteryDetached && SETTINGS.uiTheme != CrossPointSettings::UI_THEME::ROUNDEDRAFF) {
+      return static_cast<int16_t>(UITheme::getTopStatusBarY(renderer) + homeHeaderTopInset);
     }
 
     // RoundedRaff's Home header is taller than ordinary headers. Shift compact
@@ -502,8 +494,10 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
              ? detachedHeaderBatteryTopInset
              : (roundedRaffCompactHeader ? std::max(0, (metrics.homeTopPadding - metrics.headerHeight) / 2) : 0)));
   }();
-  const int16_t batteryIconX =
-      batteryLeft ? batteryX : static_cast<int16_t>(batteryX + batteryReserve - metrics.batteryWidth - batteryNubWidth);
+  const int16_t batteryIconX = batteryLeft
+                                   ? batteryX
+                                   : static_cast<int16_t>(band.right() - batteryEdgeInset - metrics.batteryWidth -
+                                                          (batteryDetached ? 0 : batteryNubWidth));
   const Rect batteryRect{batteryIconX, batteryY, metrics.batteryWidth, metrics.batteryHeight};
   if (batteryLeft) {
     drawBatteryLeft(renderer, batteryRect, showBatteryPercentage);
@@ -897,13 +891,14 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
   int marginTop, marginRight, marginBottom, marginLeft;
   renderer.getOrientedViewableTRBL(&marginTop, &marginRight, &marginBottom, &marginLeft);
   const int screenWidth = renderer.getScreenWidth();
-  const int topInset = top ? UITheme::getTopStatusBarInset(renderer) : 0;
   const int edgeY = content.previewOriginY >= 0
                         ? content.previewOriginY
-                        : (top ? marginTop + metrics.topPadding + topInset + content.edgePadding
+                        : (top ? UITheme::getTopStatusBarY(renderer) + content.edgePadding
                                : renderer.getScreenHeight() - marginBottom - totalHeight - content.edgePadding);
   const int textY = edgeY + (top ? progressSpace : 0) +
-                    (textHeight > 0 ? (textHeight - renderer.getLineHeight(SMALL_FONT_ID)) / 2 : 0);
+                    (hasText ? (top ? ReaderStatusBarConfig::TOP_TEXT_INSET
+                                    : (textHeight - renderer.getLineHeight(SMALL_FONT_ID)) / 2)
+                             : 0);
 
   if (progressHeight > 0 && content.showProgress) {
     const float percent =
@@ -990,8 +985,14 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
       snprintf(percent, sizeof(percent), "%u%%", static_cast<unsigned>(powerManager.getBatteryPercentage()));
       const bool showPercent = batteryPercent && allowedWidth >= metrics.batteryWidth + batteryPercentSpacing +
                                                                      renderer.getTextWidth(SMALL_FONT_ID, percent);
-      drawBatteryLeft(renderer, Rect{x, textY, metrics.batteryWidth, metrics.batteryHeight}, showPercent,
-                      foregroundBlack);
+      if (top && alignRight) {
+        drawBatteryRight(
+            renderer, Rect{x + allowedWidth - metrics.batteryWidth, textY, metrics.batteryWidth, metrics.batteryHeight},
+            showPercent, foregroundBlack);
+      } else {
+        drawBatteryLeft(renderer, Rect{x, textY, metrics.batteryWidth, metrics.batteryHeight}, showPercent,
+                        foregroundBlack);
+      }
       return;
     }
     char scratch[48];
@@ -1008,8 +1009,10 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
   };
 
   constexpr int itemGap = 8;
-  const int leftEdge = marginLeft + metrics.statusBarHorizontalMargin + 1;
-  const int rightEdge = screenWidth - marginRight - metrics.statusBarHorizontalMargin;
+  const int leftEdge =
+      top ? std::max(marginLeft, StatusBarMetrics::sideInset) : marginLeft + metrics.statusBarHorizontalMargin + 1;
+  const int rightEdge = screenWidth - (top ? std::max(marginRight, StatusBarMetrics::sideInset)
+                                           : marginRight + metrics.statusBarHorizontalMargin);
   const int available = std::max(0, rightEdge - leftEdge);
 
   std::array<int, ReaderStatusBarConfig::SLOT_COUNT> widths{};
@@ -1065,19 +1068,12 @@ void BaseTheme::drawTopStatusBarClock(const GfxRenderer& renderer, int topY, con
     return;
   }
 
-  int orientedMarginTop, orientedMarginRight, orientedMarginBottom, orientedMarginLeft;
-  renderer.getOrientedViewableTRBL(&orientedMarginTop, &orientedMarginRight, &orientedMarginBottom,
-                                   &orientedMarginLeft);
-  (void)orientedMarginRight;
-  (void)orientedMarginBottom;
-  (void)orientedMarginLeft;
-
   const int textWidth = renderer.getTextWidth(SMALL_FONT_ID, timeText);
   const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
   const int textX = (renderer.getScreenWidth() - textWidth) / 2;
   const int effectiveTextYOffset = textYOffset + UITheme::getTopStatusBarInset(renderer) +
                                    (readerContext ? homeHeaderClockTextYOffset(renderer) : 0);
-  const int baseTopY = topY >= 0 ? topY : orientedMarginTop + metrics.topPadding;
+  const int baseTopY = topY >= 0 ? topY : metrics.topPadding;
   const int textY = baseTopY + (statusBarHeight - lineHeight) / 2 + effectiveTextYOffset;
   renderer.drawText(SMALL_FONT_ID, textX, textY, timeText, !darkMode);
 }

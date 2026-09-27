@@ -59,6 +59,7 @@ enum class ThemeTabBarAppearance : uint8_t {
 namespace StatusBarMetrics {
 constexpr int batteryWidth = 15;
 constexpr int batteryHeight = 12;
+constexpr int sideInset = 12;
 }  // namespace StatusBarMetrics
 
 struct ThemeMetrics {
@@ -327,7 +328,7 @@ class BaseTheme {
 
   // Shared constants and helpers for battery drawing (used by all themes)
   static constexpr int batteryPercentSpacing = 4;
-  static constexpr int homeHeaderTopInset = 2;
+  static constexpr int homeHeaderTopInset = ReaderStatusBarConfig::TOP_TEXT_INSET;
   static int homeHeaderClockTextYOffset(const GfxRenderer& renderer);
   static Rect buttonMenuTouchTarget(Rect rowRect, Rect menuRect, bool isLastItem, int rowSpacing);
   static void drawBatteryOutline(const GfxRenderer& renderer, int x, int y, int battWidth, int rectHeight,
