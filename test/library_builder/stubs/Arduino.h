@@ -9,7 +9,10 @@ inline uint32_t millis() {
   return ++clock;
 }
 
-inline void delay(unsigned) { fake::delays++; }
+inline void delay(unsigned) {
+  fake::delays++;
+  if (fake::onService) fake::onService();
+}
 
 struct FakeEsp {
   uint32_t getFreeHeap() const { return 100000; }

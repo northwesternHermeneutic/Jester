@@ -84,6 +84,7 @@ class LibraryBuilderTest : public ::testing::Test {
 
   void SetUp() override {
     fake::reset();
+    invalidateLibraryIndex();
     bookMetadata.clear();
     cachedBookMetadata.clear();
     metadataCacheUse.clear();
@@ -809,6 +810,7 @@ TEST_F(LibraryBuilderTest, CreationSortAllocationFailureRetriesOnNextScan) {
     ASSERT_TRUE(index.open(INDEX));
     foundArrivalFallback = (index.header().flags & CLIX_FLAG_ARRIVAL_DEGRADED) != 0;
     if (!foundArrivalFallback) continue;
+    EXPECT_TRUE(libraryIndexNeedsRefresh());
     EXPECT_FALSE(stats.ranksDegraded);
     EXPECT_EQ(pathAt(index, SortOrder::RecentAsc, 0), "/a.txt");
     index.close();
@@ -1037,4 +1039,36 @@ TEST_F(LibraryBuilderTest, PriorDedupDegradationForcesReplacement) {
   LibraryIndexFile index;
   ASSERT_TRUE(index.open(INDEX));
   EXPECT_EQ(index.header().flags & CLIX_FLAG_DEDUP_DEGRADED, 0);
+}
+
+TEST_F(LibraryBuilderTest, DirtyIndexClearsOnSuccessAndRetriesAfterFailure) {
+  EXPECT_TRUE(libraryIndexNeedsRefresh());
+  initial();
+  EXPECT_FALSE(libraryIndexNeedsRefresh());
+  invalidateLibraryIndex();
+  fake::failOpenPath = "/.crosspoint/library.idx";
+  EXPECT_FALSE(buildLibraryIndex("/", stats, true));
+  EXPECT_TRUE(libraryIndexNeedsRefresh());
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_FALSE(libraryIndexNeedsRefresh());
+}
+
+TEST_F(LibraryBuilderTest, InvalidationDuringScanSurvivesSuccessfulPublish) {
+  fake::onService = &invalidateLibraryIndex;
+  initial();
+  EXPECT_GT(fake::delays, 0u);
+  EXPECT_TRUE(libraryIndexNeedsRefresh());
+  fake::onService = nullptr;
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  EXPECT_FALSE(libraryIndexNeedsRefresh());
+}
+
+TEST_F(LibraryBuilderTest, EmptyLibraryStillRecordsMetadataModeChanges) {
+  fake::files.erase("/a.epub");
+  fake::files.erase("/b.epub");
+  ASSERT_TRUE(buildLibraryIndex("/", stats, false));
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+  LibraryIndexFile index;
+  ASSERT_TRUE(index.open(INDEX));
+  EXPECT_EQ(index.header().metadataEnabled, 1);
 }

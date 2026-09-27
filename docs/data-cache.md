@@ -87,8 +87,14 @@ For binary file layout details, see [File Formats](./file-formats.md).
 
 ## Library
 
-Library replaces the Recent Books screen. It reconciles the SD card on entry and
-through the refresh icon in the Library header, reusing metadata for unchanged books.
+Library replaces the Recent Books screen.
+
+The Library reconciles its index with the SD card on the first visit after boot,
+after file changes in File Browser, and after leaving a download or file-transfer
+screen. Ordinary return visits reuse the index. Failed or memory-limited scans are
+retried on the next visit. The Library's refresh action always scans again; use it
+if files were changed externally while the firmware stayed running.
+Unchanged books reuse their cached metadata.
 **Settings > Display > Use Book Metadata** selects embedded EPUB titles and
 authors; disabling it uses filenames. TXT, Markdown and XTC files use filename
 fallbacks. CLX1 version 2 adds a first-name author permutation; older Library

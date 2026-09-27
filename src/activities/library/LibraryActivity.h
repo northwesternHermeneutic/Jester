@@ -78,6 +78,7 @@ class LibraryActivity final : public Activity {
   uint16_t dateGroupForRow(int row);
   bool metadataGroupForRow(int row, std::string& out);
   bool hasActiveFilter() const;
+  void refreshIndexIfNeeded();
   bool rebuildIndex(bool showScanning);
   void resolveRecents();
   void applyFilter();

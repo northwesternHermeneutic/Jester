@@ -53,6 +53,7 @@ struct BuildStats {
   bool indexReplaced = false;
   bool ranksDegraded = false;
   bool dedupDegraded = false;
+  bool arrivalDegraded = false;
 };
 
 // Walk `rootPath`, write `/.crosspoint/library.idx`, and report what happened.
@@ -64,6 +65,12 @@ struct BuildStats {
 // without building the reader's spine, TOC, CSS, or section caches. Unchanged
 // books reuse these values from the prior Library index.
 bool buildLibraryIndex(const char* rootPath, BuildStats& stats, bool readMetadata = false);
+
+// Starts dirty on every boot to reconcile external card edits. File-changing
+// activities must invalidate before returning to Library. A successful scan
+// clears only changes known when it started; failures remain retryable.
+void invalidateLibraryIndex();
+bool libraryIndexNeedsRefresh();
 
 // Live index path, shared by the builder and activity.
 const char* libraryIndexPath();

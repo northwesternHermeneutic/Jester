@@ -80,9 +80,7 @@ void LibraryActivity::onEnter() {
 
   {
     RenderLock lock;
-    // Reconcile on entry as card contents may change through USB, Wi-Fi or an
-    // external card reader. Unchanged books reuse the index's metadata.
-    rebuildIndex(false);
+    refreshIndexIfNeeded();
     initialScanPending = false;
     resetViewport();
     ignoreConfirmRelease = mappedInput.isPressed(MappedInputManager::Button::Confirm);
@@ -94,6 +92,20 @@ void LibraryActivity::onExit() {
   index.close();
   filtered.reset();
   Activity::onExit();
+}
+
+void LibraryActivity::refreshIndexIfNeeded() {
+  // Reuse the index across ordinary visits; still reconcile once per boot, after
+  // file changes, and when the format or metadata setting no longer matches.
+  if (library::libraryIndexNeedsRefresh() || (!index.isOpen() && !index.open(library::libraryIndexPath())) ||
+      index.header().metadataEnabled != static_cast<uint8_t>(SETTINGS.libraryUseMetadata != 0)) {
+    rebuildIndex(false);
+    return;
+  }
+  scanFailed = false;
+  uiReady = false;
+  resolveRecents();
+  applyFilter();
 }
 
 bool LibraryActivity::rebuildIndex(const bool showScanning) {
@@ -346,7 +358,7 @@ void LibraryActivity::resetViewport() {
 }
 
 void LibraryActivity::reloadAfterBookAction() {
-  rebuildIndex(false);
+  refreshIndexIfNeeded();
   selection = std::min(selection, std::max(CONTROL_COUNT, CONTROL_COUNT + rowCount() - 1));
   listNav.selected = selection - CONTROL_COUNT;
   listNav.top = topIndex;
@@ -840,6 +852,7 @@ void LibraryActivity::promptDeleteBook(const RecentBook& book) {
       return;
     }
 
+    library::invalidateLibraryIndex();
     RECENT_BOOKS.removeByPath(path);
     reloadAfterBookAction();
   };

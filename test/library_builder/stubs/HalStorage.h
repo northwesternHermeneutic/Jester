@@ -30,6 +30,7 @@ inline unsigned parses = 0;
 inline unsigned reads = 0;
 inline unsigned seeks = 0;
 inline unsigned delays = 0;
+inline void (*onService)() = nullptr;
 inline std::map<std::string, unsigned> writesByPath;
 inline std::map<std::string, unsigned> directoryEntriesByPath;
 inline bool failureTriggered = false;
@@ -61,6 +62,7 @@ inline void reset() {
   reads = 0;
   seeks = 0;
   delays = 0;
+  onService = nullptr;
   writesByPath.clear();
   directoryEntriesByPath.clear();
   failureTriggered = false;
