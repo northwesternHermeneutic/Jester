@@ -1,6 +1,7 @@
 #include "LibraryActivity.h"
 
 #include <Arduino.h>
+#include <DateFormatting.h>
 #include <HalStorage.h>
 #include <I18n.h>
 #include <LibraryBuilder.h>
@@ -38,6 +39,7 @@ constexpr unsigned long LONG_PRESS_MS = 1000;
 constexpr unsigned long ACTION_FEEDBACK_MS = 1000;
 constexpr int HEADER_CONTROL_SIZE = 44;
 constexpr int HEADER_CONTROL_GAP = 10;
+constexpr int FOOTER_HEIGHT = 28;
 
 int headerControlRightInset() {
   const auto& metrics = UITheme::getInstance().getMetrics();
@@ -672,9 +674,14 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
       if (date == 0) {
         self->groupHeading = "?";
       } else {
-        char heading[11];
-        std::snprintf(heading, sizeof(heading), "%04u-%02u-%02u", 1980u + (date >> 9), (date >> 5) & 15u, date & 31u);
-        self->groupHeading = heading;
+        char heading[20];
+        const char separator = SETTINGS.dateSeparator == CrossPointSettings::DATE_SEPARATOR_PERIOD   ? '.'
+                               : SETTINGS.dateSeparator == CrossPointSettings::DATE_SEPARATOR_HYPHEN ? '-'
+                                                                                                     : '/';
+        self->groupHeading = formatDateParts(heading, sizeof(heading), 1980u + (date >> 9), (date >> 5) & 15u,
+                                             date & 31u, SETTINGS.dateFormat, separator)
+                                 ? heading
+                                 : "?";
       }
       item.sectionHeading = self->groupHeading.c_str();
     }
@@ -789,7 +796,7 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   const int16_t headerBottom =
       static_cast<int16_t>(metrics.topPadding + TouchHeaderBackButton::height(metrics, mappedInput));
   screen.setContentMarginFromScreen(fui::Insets{headerBottom, static_cast<int16_t>(bounds[1]),
-                                                static_cast<int16_t>(metrics.buttonHintsHeight + bounds[2]),
+                                                static_cast<int16_t>(FOOTER_HEIGHT + bounds[2]),
                                                 static_cast<int16_t>(bounds[3])});
   // Every header icon owns a 44px touch box, with 10px of clearance.
   const int16_t controlSize = HEADER_CONTROL_SIZE;
@@ -892,14 +899,13 @@ void LibraryActivity::render(RenderLock&&) {
   }
   uiReady = true;
   if (actionPopup.processRender(renderer, mappedInput)) return;
-  const char* confirmLabel = !mappedInput.hasTouchHardware() && rowCount() == 0 ? ""
-                             : selection < CONTROL_COUNT                        ? tr(STR_SELECT)
-                                                                                : tr(STR_OPEN);
-  const auto labels =
-      mappedInput.mapLabels(mappedInput.withBackArrow(query.empty() ? tr(STR_HOME) : tr(STR_BACK)), confirmLabel,
-                            mappedInput.hasTouchHardware() ? tr(STR_DIR_UP) : tr(STR_SORT),
-                            mappedInput.hasTouchHardware() ? tr(STR_DIR_DOWN) : tr(STR_MENU));
-  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  char footer[32];
+  snprintf(footer, sizeof(footer), tr(STR_LIBRARY_FILES_COUNT), static_cast<unsigned>(rowCount()));
+  int bounds[4]{};
+  renderer.getOrientedViewableTRBL(&bounds[0], &bounds[1], &bounds[2], &bounds[3]);
+  renderer.drawCenteredText(
+      SMALL_FONT_ID,
+      renderer.getScreenHeight() - bounds[2] - (FOOTER_HEIGHT + renderer.getLineHeight(SMALL_FONT_ID)) / 2, footer);
   if (pendingCacheDeletedFeedback) GUI.drawPopup(renderer, tr(STR_BOOK_CACHE_DELETED));
   renderer.displayBuffer();
 }
