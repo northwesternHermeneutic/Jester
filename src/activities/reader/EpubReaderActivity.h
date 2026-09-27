@@ -499,6 +499,7 @@ class EpubReaderActivity final : public Activity {
   // build sitting outside the lookahead window is dormant, and reporting it here would
   // pin the CPU at full clock (no power saving, yield-only loop) for the whole read.
   // Mirrors the tick condition in loop(): catch-up phase, or watermark inside the window.
+  // Caller must own RenderLock: render() can replace or finalize section.
   bool sectionBuildWantsTick() const {
     return section && section->isBuilding() &&
            (!section->activeBuildHasCaughtReadablePages() ||
