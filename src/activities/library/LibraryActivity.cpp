@@ -67,10 +67,12 @@ void LibraryActivity::onEnter() {
     app.on(ACTION_ROW, &LibraryActivity::onRowEvent, this);
     app.on(ACTION_CONTROL, &LibraryActivity::onControlEvent, this);
     app.setScreen(&LibraryActivity::listScreen, this);
-    initialScanPending = !Storage.exists(library::libraryIndexPath());
+    // The index survives a firmware reflash, but its first boot reconciliation
+    // can still take time. Show feedback whenever that scan is due.
+    initialScanPending = library::libraryIndexNeedsRefresh() || !Storage.exists(library::libraryIndexPath());
   }
 
-  // Paint the first-scan message before the main task starts reading the card.
+  // Paint the scan message before the main task starts reading the card.
   // The render task normally paints only after onEnter() returns.
   if (initialScanPending && requestUpdateAndWait() != RequestUpdateResult::Rendered) {
     RenderLock lock;
