@@ -132,7 +132,7 @@ consistent when you change fonts, spacing, orientation, or indexing mode.
 To enable them:
 
 1. Open the reader menu and select **Reader Options**.
-2. Select **Customize Status Bar**.
+2. Select **Status Bars**.
 3. Toggle **Stable Page Numbers** on.
 
 The option appears only when the current EPUB contains valid CrossInk reference

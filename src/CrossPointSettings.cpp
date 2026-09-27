@@ -23,6 +23,7 @@
 #include "SettingsList.h"
 #include "fontIds.h"
 #include "util/FrontlightSchedule.h"
+#include "util/ReaderStatusBarJson.h"
 #include "util/TwoFingerSwipe.h"
 
 void readAndValidate(FsFile& file, uint8_t& member, const uint8_t maxValue) {
@@ -441,6 +442,13 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
     }
   }
 
+  JsonObject bars = doc["readerStatusBars"].to<JsonObject>();
+  bars["version"] = 1;
+  writeReaderStatusBarJson(bars["top"].to<JsonObject>(), topReaderStatusBar);
+  writeReaderStatusBarJson(bars["bottom"].to<JsonObject>(), bottomReaderStatusBar);
+  bars["xtcMode"] = xtcStatusBarMode;
+  bars["legacyXtcTopUsesBottom"] = legacyXtcTopUsesBottom != 0;
+
   // Library-local choices stay out of the resident settings catalog and Web Settings.
   doc["librarySortMethod"] = librarySortMethod;
   doc["librarySortDescending"] = librarySortDescending;
@@ -705,6 +713,36 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
         clamp(doc["statusBarClock"] | LEGACY_SHOW_CLOCK_NEVER, HIDE_CLOCK_MODE_COUNT, LEGACY_SHOW_CLOCK_NEVER);
     hideClock = legacyShowClock == LEGACY_SHOW_CLOCK_NEVER ? HIDE_CLOCK_ALWAYS : HIDE_CLOCK_NEVER;
     needsResave = true;
+  }
+  if (doc["showClockOutsideReader"].isNull()) {
+    showClockOutsideReader = hideClock != HIDE_CLOCK_ALWAYS;
+    needsResave = true;
+  }
+  const JsonVariantConst bars = doc["readerStatusBars"];
+  if (bars["version"] != 1) {
+    bottomReaderStatusBar = migrateBottomStatusBar(
+        {statusBarChapterPageCount != 0, stablePageNumbers != 0, statusBarBookProgressPercentage != 0, statusBarTitle,
+         statusBarTimeLeft, statusBarBattery != 0, statusBarBookPercentageFormat, statusBarProgressBar,
+         statusBarProgressBarThickness});
+    if (halClock.isAvailable() && hideClock == HIDE_CLOCK_NEVER) {
+      topReaderStatusBar.slots[ReaderStatusBarConfig::CENTER] = ReaderStatusBarItem::Clock;
+    }
+    legacyXtcTopUsesBottom = xtcStatusBarMode == XTC_STATUS_BAR_TOP;
+    needsResave = true;
+  } else {
+    needsResave |=
+        repairReaderStatusBarJson(bars["top"], topReaderStatusBar, halClock.isAvailable(), BOOK_PERCENTAGE_FORMAT_COUNT,
+                                  STATUS_BAR_PROGRESS_BAR_COUNT, STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT);
+    needsResave |= repairReaderStatusBarJson(bars["bottom"], bottomReaderStatusBar, halClock.isAvailable(),
+                                             BOOK_PERCENTAGE_FORMAT_COUNT, STATUS_BAR_PROGRESS_BAR_COUNT,
+                                             STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT);
+    const int xtcMode = bars["xtcMode"].as<int>();
+    if (bars["xtcMode"].is<int>() && xtcMode >= 0 && xtcMode < XTC_STATUS_BAR_MODE_COUNT) {
+      xtcStatusBarMode = xtcMode;
+    } else {
+      needsResave = true;
+    }
+    legacyXtcTopUsesBottom = bars["legacyXtcTopUsesBottom"].as<bool>() ? 1 : 0;
   }
   if (doc["sleepTimeoutMinutes"].isNull() && !doc["sleepTimeout"].isNull()) {
     const uint8_t legacyValue =
@@ -980,21 +1018,26 @@ bool CrossPointSettings::loadFromBinaryFile() {
   return true;
 }
 
-CrossPointSettings::StatusBarSpec CrossPointSettings::statusBarSpec() const {
-  StatusBarSpec spec;
-  spec.showChapterPageCount = statusBarChapterPageCount != 0;
-  spec.showBookProgressPercent = statusBarBookProgressPercentage != 0;
-  spec.showStablePageNumbers = stablePageNumbers != 0;
-  spec.titleMode = statusBarTitle;
-  spec.timeLeftMode = statusBarTimeLeft;
-  spec.showBattery = statusBarBattery != 0;
-  spec.showBatteryPercent = hideBatteryPercentage == HIDE_NEVER;
-  spec.showClock = hideClock == HIDE_CLOCK_NEVER;
-  spec.progressBarMode = statusBarProgressBar;
-  spec.progressBarHeightPx =
-      statusBarProgressBar != HIDE_PROGRESS ? static_cast<uint8_t>((statusBarProgressBarThickness + 1) * 2) : 0;
-  spec.xtcMode = xtcStatusBarMode;
-  return spec;
+ReaderStatusBarConfig CrossPointSettings::readerStatusBar(const ReaderStatusBarPosition position) const {
+  std::lock_guard<std::mutex> lock(_mutex);
+  return position == ReaderStatusBarPosition::Top ? topReaderStatusBar : bottomReaderStatusBar;
+}
+
+bool CrossPointSettings::parseReaderStatusBars(JsonVariantConst json, ReaderStatusBarsPayload& config) {
+  return readReaderStatusBarsPayload(json, config, halClock.isAvailable(), BOOK_PERCENTAGE_FORMAT_COUNT,
+                                     STATUS_BAR_PROGRESS_BAR_COUNT, STATUS_BAR_PROGRESS_BAR_THICKNESS_COUNT,
+                                     XTC_STATUS_BAR_MODE_COUNT);
+}
+
+void CrossPointSettings::setReaderStatusBar(const ReaderStatusBarPosition position,
+                                            const ReaderStatusBarConfig& config) {
+  std::lock_guard<std::mutex> lock(_mutex);
+  if (position == ReaderStatusBarPosition::Top) {
+    topReaderStatusBar = config;
+    legacyXtcTopUsesBottom = 0;
+  } else {
+    bottomReaderStatusBar = config;
+  }
 }
 
 ReaderRenderSpec CrossPointSettings::readerRenderSpec(const uint16_t viewportWidth, const uint16_t viewportHeight,

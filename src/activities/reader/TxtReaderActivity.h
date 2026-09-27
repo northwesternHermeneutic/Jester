@@ -44,6 +44,8 @@ class TxtReaderActivity final : public Activity {
   uint8_t cachedVerticalMargin = 0;
   uint8_t cachedHorizontalMargin = 0;
   uint8_t cachedParagraphAlignment = CrossPointSettings::LEFT_ALIGN;
+  int cachedTopStatusBarHeight = 0;
+  int cachedBottomStatusBarHeight = 0;
   int cachedOrientedMarginTop = 0;
   int cachedOrientedMarginRight = 0;
   int cachedOrientedMarginBottom = 0;

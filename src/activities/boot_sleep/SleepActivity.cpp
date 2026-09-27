@@ -54,7 +54,7 @@ bool sleepCoverFilterInvertsGeneratedScreen() {
 }
 
 void hideOverlayBatteryStrip(const GfxRenderer& renderer) {
-  if (!SETTINGS.statusBarBattery) {
+  if (!SETTINGS.readerStatusBar(ReaderStatusBarPosition::Bottom).contains(ReaderStatusBarItem::Battery)) {
     return;
   }
 
@@ -74,7 +74,7 @@ void hideOverlayBatteryStrip(const GfxRenderer& renderer) {
 
   // Reserve the full left-side status indicator lane used by bookmark + battery.
   // This keeps chapter/progress text readable while removing the battery glance target.
-  static constexpr int bookmarkReserveWidth = 13;  // bookmark width + gap from BaseTheme::drawStatusBar()
+  static constexpr int bookmarkReserveWidth = 13;  // bookmark width + gap from BaseTheme::drawReaderStatusBar()
   static constexpr int batteryPercentSpacing = 4;  // matches BaseTheme::batteryPercentSpacing
   const int clearWidth =
       bookmarkReserveWidth + metrics.batteryWidth +

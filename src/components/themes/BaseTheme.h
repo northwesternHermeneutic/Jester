@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "util/ReaderStatusBarConfig.h"
+
 class GfxRenderer;
 struct RecentBook;
 struct BookReadingStats;
@@ -23,6 +25,27 @@ struct Rect {
 struct TabInfo {
   const char* label;
   bool selected;
+};
+
+struct ReaderStatusBarContent {
+  float bookProgress = 0;
+  float chapterProgress = -1;
+  int chapterPage = 0;
+  int chapterPageCount = 0;
+  int stablePage = 0;
+  int stablePageCount = 0;
+  const char* bookTitle = nullptr;
+  const char* chapterTitle = nullptr;
+  const char* timeLeftBook = nullptr;
+  const char* timeLeftChapter = nullptr;
+  const char* previewClock = nullptr;
+  const char* autoTurnLabel = nullptr;
+  bool bookmarked = false;
+  bool showProgress = true;
+  bool pageCountEstimated = false;
+  bool darkMode = false;
+  int edgePadding = 0;
+  int previewOriginY = -1;
 };
 
 enum class ThemeTabBarAppearance : uint8_t {
@@ -262,7 +285,7 @@ class BaseTheme {
                         const std::function<bool(int index)>& isHeader = nullptr, int rowHeightScale = 1,
                         bool showSelection = true) const;
   virtual void drawHeader(const GfxRenderer& renderer, Rect rect, const char* title, const char* subtitle = nullptr,
-                          bool readerContext = false) const;
+                          bool readerContext = false, bool showStatus = true) const;
   virtual void drawSubHeader(const GfxRenderer& renderer, Rect rect, const char* label,
                              const char* rightLabel = nullptr) const;
   virtual void drawTabBar(const GfxRenderer& renderer, Rect rect, const std::vector<TabInfo>& tabs,
@@ -287,12 +310,9 @@ class BaseTheme {
                                int firstOptionIndex = -1) const;
   virtual void fillPopupProgress(const GfxRenderer& renderer, const Rect& layout, const int progress) const;
   // title is borrowed and must stay alive for the call; pass nullptr or "" for none.
-  virtual void drawStatusBar(GfxRenderer& renderer, const float bookProgress, const int currentPage,
-                             const int pageCount, const char* title, const int paddingBottom = 0,
-                             const int textYOffset = 0, const bool isPageBookmarked = false,
-                             const char* timeLeftLabel = nullptr, bool darkMode = false,
-                             float chapterProgressPercent = -1.0f, int stableCurrentPage = 0, int stablePageCount = 0,
-                             bool showProgress = true, bool pageCountEstimated = false) const;
+  virtual void drawReaderStatusBar(GfxRenderer& renderer, ReaderStatusBarPosition position,
+                                   const ReaderStatusBarContent& content,
+                                   const ReaderStatusBarConfig* overrideConfig = nullptr) const;
   virtual void drawTopStatusBarClock(const GfxRenderer& renderer, int topY = -1, const char* previewTime = nullptr,
                                      bool readerContext = true, int textYOffset = 0, bool darkMode = false,
                                      bool forceVisible = false) const;

@@ -12,6 +12,7 @@
 #include "components/UIThemeTokens.h"
 #include "components/UiAppHelpers.h"
 #include "util/ButtonNavigator.h"
+#include "util/ReaderStatusBarConfig.h"
 
 // Reader status bar configuration activity
 class StatusBarSettingsActivity final : public Activity {
@@ -20,9 +21,10 @@ class StatusBarSettingsActivity final : public Activity {
                                      bool stablePageNumbersAvailable = false)
       : Activity("StatusBarSettings", renderer, mappedInput),
         readerContext(readerContext),
-        stablePageNumbersAvailable(stablePageNumbersAvailable),
         uiTarget(makeUiTarget(renderer)),
-        app(uiTarget, uiTarget.deviceContext()) {}
+        app(uiTarget, uiTarget.deviceContext()) {
+    (void)stablePageNumbersAvailable;
+  }
 
   void onEnter() override;
   void onExit() override;
@@ -31,13 +33,14 @@ class StatusBarSettingsActivity final : public Activity {
   bool handleHomeGesture() override;
 
  private:
+  enum class View : uint8_t { Root, Top, Bottom };
   ButtonNavigator buttonNavigator;
   OptionPopup optionPopup;
 
   int selectedIndex = 0;
   int visibleItemCount = 0;
   bool readerContext = false;
-  bool stablePageNumbersAvailable = false;
+  View view = View::Root;
 
   using UiApp = freeink::ui::FreeInkApp<20, 4>;
   static constexpr freeink::ui::ActionId ACTION_ROW = 1;
@@ -47,10 +50,15 @@ class StatusBarSettingsActivity final : public Activity {
   int visibleRows = 1;
   int topIndex = 0;
 
-  int itemForVisibleIndex(int visibleIndex) const;
-  bool selectedItemUsesOptionMenu() const;
   void handleSelection();
   void openOptionPicker();
+  void goBack();
+  ReaderStatusBarPosition selectedPosition() const;
+  int barItemForIndex(int index) const;
+  void refreshItemCount();
+  int previewHeight() const;
+  int topPreviewOriginY() const;
+  Rect settingsHeaderRect() const;
   static void settingsScreen(UiApp::ScreenType& screen, void* user);
   static void onRowEvent(const freeink::ui::ActionEvent& event, void* user);
   void buildSettingsScreen(UiApp::ScreenType& screen);

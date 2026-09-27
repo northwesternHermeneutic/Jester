@@ -21,12 +21,8 @@ constexpr unsigned long GO_HOME_MS = 1000;
 // same gesture cannot drift apart between the two lists.
 constexpr unsigned long DELETE_HOLD_MS = 1000;
 constexpr uint8_t STATUS_BAR_TEXT_PADDING = 3;
-// Gap between the top clock status bar band and the first line of book text.
-// Signed so negative values pull the text up toward the clock (unsigned would wrap
-// a negative to a huge positive). Note the book-text top margin is
-// std::max(screenMarginVertical, reservedClockHeight + TOP_CLOCK_TEXT_PADDING), so this only
-// bites once reservedClockHeight + padding drops below the vertical-margin setting.
-constexpr int8_t TOP_CLOCK_TEXT_PADDING = 0;
+// Gap between the top reader bar and the first line of book text.
+constexpr int8_t TOP_STATUS_BAR_TEXT_PADDING = 0;
 
 inline GfxRenderer::Orientation toRendererOrientation(const uint8_t orientation) {
   switch (orientation) {
@@ -52,7 +48,7 @@ inline void applyOrientation(GfxRenderer& renderer, const uint8_t orientation) {
 // stays centered in every orientation instead of sitting at a fixed portrait offset.
 inline int messageCenterY(const GfxRenderer& renderer) { return renderer.getScreenHeight() / 2; }
 
-inline bool shouldShowTopClockStatusBar() { return halClock.isAvailable() && SETTINGS.shouldShowClockInReader(); }
+inline bool shouldShowTopStatusBar() { return UITheme::getReaderStatusBarHeight(ReaderStatusBarPosition::Top) > 0; }
 
 // Night Mode is applied by the display after normal-polarity reader content is
 // rendered. Keep this compatibility helper for existing reader call sites.
@@ -62,17 +58,8 @@ inline uint8_t readerBackgroundColor() { return readerDarkModeEnabled() ? 0x00 :
 
 inline bool readerForegroundBlack() { return true; }
 
-inline int getTopClockStatusBarHeight() {
-  if (!shouldShowTopClockStatusBar()) {
-    return 0;
-  }
-
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  return std::max(UITheme::getStatusBarHeight(), metrics.statusBarVerticalMargin);
-}
-
-inline int getTopClockStatusBarReservedHeight(const GfxRenderer& renderer) {
-  const int statusBarHeight = getTopClockStatusBarHeight();
+inline int getTopStatusBarReservedHeight(const GfxRenderer& renderer) {
+  const int statusBarHeight = UITheme::getReaderStatusBarHeight(ReaderStatusBarPosition::Top);
   if (statusBarHeight <= 0) {
     return 0;
   }
@@ -80,13 +67,18 @@ inline int getTopClockStatusBarReservedHeight(const GfxRenderer& renderer) {
   return UITheme::getInstance().getMetrics().topPadding + UITheme::getTopStatusBarInset(renderer) + statusBarHeight;
 }
 
+inline bool bottomStatusBarHasTextLane() {
+  return SETTINGS.readerStatusBar(ReaderStatusBarPosition::Bottom).hasTextItems(halClock.isAvailable());
+}
+
 inline int getReaderFooterReservedHeight(const bool automaticPageTurnActive) {
-  const uint8_t statusBarHeight = UITheme::getInstance().getStatusBarHeight();
-  if (automaticPageTurnActive &&
-      (statusBarHeight == 0 || statusBarHeight == UITheme::getInstance().getProgressBarHeight())) {
+  const int statusBarHeight = UITheme::getInstance().getStatusBarHeight();
+  if (automaticPageTurnActive && !bottomStatusBarHasTextLane()) {
+    const int autoTurnBarHeight =
+        readerStatusBarTotalHeight(ReaderStatusBarPosition::Bottom, true, UITheme::getProgressBarHeight(),
+                                   UITheme::getInstance().getMetrics().statusBarVerticalMargin);
     return std::max(static_cast<int>(SETTINGS.screenMarginVertical),
-                    static_cast<int>(statusBarHeight + UITheme::getInstance().getMetrics().statusBarVerticalMargin +
-                                     STATUS_BAR_TEXT_PADDING));
+                    std::max(statusBarHeight, autoTurnBarHeight) + STATUS_BAR_TEXT_PADDING);
   }
   return std::max(static_cast<int>(SETTINGS.screenMarginVertical),
                   static_cast<int>(statusBarHeight + STATUS_BAR_TEXT_PADDING));

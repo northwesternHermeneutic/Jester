@@ -299,7 +299,7 @@ device model and build.
   while a book is open, while leaving touch available in reader menus so you can
   turn it back on.
 
-- **Customize Status Bar**: Configure the status bar displayed while reading:
+- **Status Bars**: Configure the status bars displayed while reading:
   - Chapter Page Count - Show/Hide the current page in the chapter (ex: 5/25). Page count may change based on the font size and margins set.
   - Book Progress Percentage - Show/Hide the current percent progress in the book.
   - Percentage Format - Show book progress as `10%` (default), `10.1%`, or `10.12%`.
@@ -315,7 +315,7 @@ in **Settings > Controls > Taps & Gestures**), tap the status-bar area while
 reading to show or hide the entire status bar for the current reading session.
 This tap is available while **Touch Reader Controls** is enabled. The quick
 toggle does not change the page layout or page breaks; tap the same status-bar
-region again to restore a hidden bar. Use **Customize Status Bar** to choose
+region again to restore a hidden bar. Use **Status Bars** to choose
 which status-bar items are shown.
 
 #### 3.6.3 Controls

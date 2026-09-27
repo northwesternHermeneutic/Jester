@@ -290,6 +290,125 @@ let allSettings = [];
     btn.textContent = 'Save Settings';
   }
 
+  // Reader bars use one complete request so the two layouts change together.
+  let statusBars = null;
+
+  function statusBarSelect(id, choices, value, changed) {
+    return '<select id="' + id + '" onchange="' + changed + '">' +
+      choices.map(function(choice) {
+        return '<option value="' + choice.value + '"' + (choice.value === value ? ' selected' : '') +
+          (choice.disabled ? ' disabled' : '') + '>' + escapeHtml(String(choice.label)) + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function statusBarRow(label, control) {
+    return '<div class="setting-row"><span class="setting-name">' + escapeHtml(label) +
+      '</span><span class="setting-control">' + control + '</span></div>';
+  }
+
+  function renderStatusBar(position) {
+    const bar = statusBars[position];
+    const labels = statusBars.labels;
+    const itemOptions = statusBars.options.map(function(option) {
+      return { value: option.value, label: option.label,
+        disabled: option.value === 1 && !statusBars.clockAvailable };
+    });
+    const slotNames = [labels.left + ' 1', labels.left + ' 2', labels.center,
+      labels.right + ' 1', labels.right + ' 2', labels.right + ' 3'];
+    let html = '<div class="status-bar-editor"><h3>' + escapeHtml(labels[position]) + '</h3>';
+    const slotCount = bar.slots[5] === 0 ? 5 : 6;
+    for (let i = 0; i < slotCount; i++) {
+      html += statusBarRow(slotNames[i], statusBarSelect('bar-' + position + '-slot-' + i,
+        itemOptions, bar.slots[i], 'statusBarChanged()'));
+    }
+    for (const field of [
+      ['percentageFormat', labels.percentageFormat, statusBars.percentageFormats],
+      ['progressBar', labels.progressBar, statusBars.progressModes],
+      ['thickness', labels.thickness, statusBars.thicknesses]
+    ]) {
+      html += statusBarRow(field[1], statusBarSelect('bar-' + position + '-' + field[0],
+        field[2].map(function(label, index) { return { value: index, label: label }; }),
+        bar[field[0]], 'statusBarChanged()'));
+    }
+    html += '<div class="status-bar-preview" id="bar-' + position + '-preview"></div></div>';
+    return html;
+  }
+
+  function readStatusBarForm(position) {
+    const bar = statusBars[position];
+    return {
+      slots: bar.slots.map(function(item, index) {
+        const input = document.getElementById('bar-' + position + '-slot-' + index);
+        return input ? Number(input.value) : item;
+      }),
+      percentageFormat: Number(document.getElementById('bar-' + position + '-percentageFormat').value),
+      progressBar: Number(document.getElementById('bar-' + position + '-progressBar').value),
+      thickness: Number(document.getElementById('bar-' + position + '-thickness').value)
+    };
+  }
+
+  function updateStatusBarPreview(position) {
+    const bar = readStatusBarForm(position);
+    const examples = ['', '10:30', '85%', '2h 15m', '12m', '4/12', '27',
+      (64.12).toFixed(bar.percentageFormat) + '%', 'Book title', 'Chapter title'];
+    const slot = function(index) { return escapeHtml(examples[bar.slots[index]] || ''); };
+    const right = [3, 4, 5].map(slot).filter(Boolean).join(' &nbsp; ');
+    const progressValue = bar.progressBar === 0 ? 64 : 35;
+    const progress = bar.progressBar === 2 ? '' : '<div class="status-bar-preview-progress" style="height:' +
+      ((bar.thickness + 1) * 2) + 'px"><span style="width:' + progressValue + '%"></span></div>';
+    document.getElementById('bar-' + position + '-preview').innerHTML =
+      (position === 'top' ? progress : '') + '<div class="status-bar-preview-items"><span>' +
+      [slot(0), slot(1)].filter(Boolean).join(' &nbsp; ') + '</span><span>' + slot(2) +
+      '</span><span>' + right + '</span></div>' + (position === 'bottom' ? progress : '');
+  }
+
+  function statusBarChanged() {
+    document.getElementById('statusBarsSaveBtn').disabled = false;
+    updateStatusBarPreview('top');
+    updateStatusBarPreview('bottom');
+  }
+
+  async function loadStatusBars() {
+    const container = document.getElementById('status-bars-container');
+    try {
+      const response = await fetch('/api/status-bars');
+      if (!response.ok) throw new Error('Failed to load status bars');
+      statusBars = await response.json();
+      container.innerHTML = '<div class="card"><h2>' + escapeHtml(statusBars.labels.top) + ' / ' +
+        escapeHtml(statusBars.labels.bottom) + '</h2>' + renderStatusBar('top') +
+        renderStatusBar('bottom') +
+        statusBarRow(statusBars.labels.xtcMode, statusBarSelect('bar-xtc-mode',
+          statusBars.xtcModes.map(function(label, index) { return { value: index, label: label }; }),
+          statusBars.xtcMode, 'statusBarChanged()')) +
+        '<div class="save-container"><button class="save-btn" id="statusBarsSaveBtn" ' +
+        'onclick="saveStatusBars()" disabled>Save Status Bars</button></div></div>';
+      updateStatusBarPreview('top');
+      updateStatusBarPreview('bottom');
+    } catch (error) {
+      console.error(error);
+      container.innerHTML = '<div class="card"><p>Failed to load status bars</p></div>';
+    }
+  }
+
+  async function saveStatusBars() {
+    const btn = document.getElementById('statusBarsSaveBtn');
+    btn.disabled = true;
+    try {
+      const response = await fetch('/api/status-bars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ top: readStatusBarForm('top'), bottom: readStatusBarForm('bottom'),
+          xtcMode: Number(document.getElementById('bar-xtc-mode').value) })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      showMessage('Status bars saved.', false);
+      await loadStatusBars();
+    } catch (error) {
+      btn.disabled = false;
+      showMessage('Error: ' + error.message, true);
+    }
+  }
+
   // --- Wi-Fi Network Management ---
   // Renders an editable list of saved Wi-Fi networks using /api/wifi endpoints.
   // Password fields are never pre-filled; when left blank during edit, existing
@@ -530,6 +649,7 @@ let allSettings = [];
   // stall long enough to delay or interrupt a response.
   (async () => {
     await loadSettings();
+    await loadStatusBars();
     await loadWifiNetworks();
     await loadOpdsServers();
   })();

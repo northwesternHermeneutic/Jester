@@ -49,6 +49,8 @@ class UITheme {
   static UIIcon getFileIcon(const std::string& filename);
   static int getStatusBarHeight();
   static int getProgressBarHeight();
+  static int getReaderStatusBarHeight(ReaderStatusBarPosition position);
+  static int getReaderProgressBarHeight(ReaderStatusBarPosition position);
   // Device-specific top offset for the clock, battery, and reserved status-bar lane.
   static int getTopStatusBarInset(const GfxRenderer& renderer);
 

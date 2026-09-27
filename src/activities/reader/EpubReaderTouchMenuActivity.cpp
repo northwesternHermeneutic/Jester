@@ -1859,10 +1859,10 @@ void EpubReaderTouchMenuActivity::renderPreviewText(const ReaderSettingsDraft& p
   (void)orientedRight;
   (void)orientedBottom;
   (void)orientedLeft;
-  const int clockReservation = ReaderUtils::getTopClockStatusBarReservedHeight(renderer);
+  const int clockReservation = ReaderUtils::getTopStatusBarReservedHeight(renderer);
   const int previewYOffset =
       orientedTop + std::max(static_cast<int>(previewSettings.screenMarginVertical),
-                             clockReservation > 0 ? clockReservation + ReaderUtils::TOP_CLOCK_TEXT_PADDING : 0);
+                             clockReservation > 0 ? clockReservation + ReaderUtils::TOP_STATUS_BAR_TEXT_PADDING : 0);
   const int previewWidth =
       std::max(1, renderer.getScreenWidth() - static_cast<int>(previewSettings.screenMarginHorizontal) * 2);
   renderer.beginTextClip(0, 0, renderer.getScreenWidth(), renderer.getScreenHeight() - drawerHeight());
@@ -2107,7 +2107,7 @@ const char* EpubReaderTouchMenuActivity::rowLabel(const RowId row) const {
     case RowId::DeleteBookmarks:
       return tr(STR_DELETE_BOOKMARKS);
     case RowId::StatusBar:
-      return tr(STR_CUSTOMISE_STATUS_BAR);
+      return tr(STR_STATUS_BARS);
     case RowId::BookDictionary:
       return tr(STR_BOOK_DICTIONARY);
     case RowId::RenderMode:
