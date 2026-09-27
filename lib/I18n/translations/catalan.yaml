@@ -593,6 +593,7 @@ STR_CUSTOM_BOOTSCREEN: "Pantalla d’inici pròpia"
 STR_TAP_HIDE_STATUS_BAR: "Toca per amagar l’estat"
 
 STR_LIBRARY_SORT_BY: "Ordena per:"
+STR_SORT: "Ordena"
 STR_LIBRARY_DATE_ADDED: "Data d’addició"
 STR_LIBRARY_SERIES: "Sèrie"
 STR_LIBRARY_GENRE: "Gènere"

@@ -532,6 +532,7 @@ STR_TAP_HIDE_STATUS_BAR: "Atinge pentru a ascunde starea"
 STR_PREV_PAGE: "Pagina anterioară"
 
 STR_LIBRARY_SORT_BY: "Sortare după:"
+STR_SORT: "Sortare"
 STR_LIBRARY_DATE_ADDED: "Data adăugării"
 STR_LIBRARY_SERIES: "Serie"
 STR_LIBRARY_GENRE: "Gen"

@@ -533,6 +533,7 @@ STR_TAP_HIDE_STATUS_BAR: "Tryk skjuler statuslinje"
 STR_PREV_PAGE: "Forrige side"
 
 STR_LIBRARY_SORT_BY: "Sortér efter:"
+STR_SORT: "Sortér"
 STR_LIBRARY_DATE_ADDED: "Tilføjet dato"
 STR_LIBRARY_SERIES: "Serie"
 STR_LIBRARY_GENRE: "Genre"

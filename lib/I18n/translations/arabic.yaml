@@ -712,6 +712,7 @@ STR_CUSTOM_BOOTSCREEN: "شاشة بدء مخصصة"
 STR_TAP_HIDE_STATUS_BAR: "نقر لإخفاء شريط الحالة"
 
 STR_LIBRARY_SORT_BY: "ترتيب حسب:"
+STR_SORT: "ترتيب"
 STR_LIBRARY_DATE_ADDED: "تاريخ الإضافة"
 STR_LIBRARY_SERIES: "سلسلة"
 STR_LIBRARY_GENRE: "تصنيف"

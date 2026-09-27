@@ -532,6 +532,7 @@ STR_TAP_HIDE_STATUS_BAR: "Dokunarak durum çubuğunu gizle"
 STR_PREV_PAGE: "Önceki sayfa"
 
 STR_LIBRARY_SORT_BY: "Sıralama:"
+STR_SORT: "Sırala"
 STR_LIBRARY_DATE_ADDED: "Eklenme tarihi"
 STR_LIBRARY_SERIES: "Seri"
 STR_LIBRARY_GENRE: "Tür"

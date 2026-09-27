@@ -533,6 +533,7 @@ STR_TAP_HIDE_STATUS_BAR: "Bakstelėjus slėpti būsenos juostą"
 STR_PREV_PAGE: "Ankstesnis puslapis"
 
 STR_LIBRARY_SORT_BY: "Rikiuoti pagal:"
+STR_SORT: "Rikiuoti"
 STR_LIBRARY_DATE_ADDED: "Pridėjimo data"
 STR_LIBRARY_SERIES: "Serija"
 STR_LIBRARY_GENRE: "Žanras"

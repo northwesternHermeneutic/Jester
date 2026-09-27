@@ -603,6 +603,7 @@ STR_CUSTOM_BOOTSCREEN: "Schermata avvio personale"
 STR_TAP_HIDE_STATUS_BAR: "Tocca per nascondere lo stato"
 
 STR_LIBRARY_SORT_BY: "Ordina per:"
+STR_SORT: "Ordina"
 STR_LIBRARY_DATE_ADDED: "Data di aggiunta"
 STR_LIBRARY_SERIES: "Serie"
 STR_LIBRARY_GENRE: "Genere"

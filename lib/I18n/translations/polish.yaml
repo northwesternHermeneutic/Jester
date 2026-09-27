@@ -553,6 +553,7 @@ STR_TAP_HIDE_STATUS_BAR: "Dotknij, by ukryć pasek stanu"
 STR_PREV_PAGE: "Poprzednia strona"
 
 STR_LIBRARY_SORT_BY: "Sortuj według:"
+STR_SORT: "Sortuj"
 STR_LIBRARY_DATE_ADDED: "Data dodania"
 STR_LIBRARY_SERIES: "Seria"
 STR_LIBRARY_GENRE: "Gatunek"

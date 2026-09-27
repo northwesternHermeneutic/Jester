@@ -529,6 +529,7 @@ STR_CUSTOM_BOOTSCREEN: "מסך פתיחה מותאם"
 STR_TAP_HIDE_STATUS_BAR: "הקשה להסתרת שורת מצב"
 
 STR_LIBRARY_SORT_BY: "מיון לפי:"
+STR_SORT: "מיון"
 STR_LIBRARY_DATE_ADDED: "תאריך הוספה"
 STR_LIBRARY_SERIES: "סדרה"
 STR_LIBRARY_GENRE: "סוגה"

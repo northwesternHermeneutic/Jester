@@ -600,6 +600,7 @@ STR_CUSTOM_BOOTSCREEN: "Свой экран запуска"
 STR_TAP_HIDE_STATUS_BAR: "Касание скрывает строку состояния"
 
 STR_LIBRARY_SORT_BY: "Сортировать:"
+STR_SORT: "Сортировать"
 STR_LIBRARY_DATE_ADDED: "Дата добавления"
 STR_LIBRARY_SERIES: "Серия"
 STR_LIBRARY_GENRE: "Жанр"

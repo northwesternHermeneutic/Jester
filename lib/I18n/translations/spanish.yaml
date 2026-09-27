@@ -709,6 +709,7 @@ STR_CUSTOM_BOOTSCREEN: "Pantalla de inicio propia"
 STR_TAP_HIDE_STATUS_BAR: "Tocar para ocultar el estado"
 
 STR_LIBRARY_SORT_BY: "Ordenar por:"
+STR_SORT: "Ordenar"
 STR_LIBRARY_DATE_ADDED: "Fecha de adición"
 STR_LIBRARY_SERIES: "Serie"
 STR_LIBRARY_GENRE: "Género"

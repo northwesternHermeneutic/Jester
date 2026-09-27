@@ -350,7 +350,7 @@ void LibraryActivity::applyFilter() {
 }
 
 void LibraryActivity::resetViewport() {
-  selection = rowCount() ? CONTROL_COUNT : 3;
+  selection = rowCount() || !mappedInput.hasTouchHardware() ? CONTROL_COUNT : 3;
   showSelection = !mappedInput.hasTouchHardware();
   topIndex = 0;
   listNav.reset(selection - CONTROL_COUNT);
@@ -391,7 +391,7 @@ void LibraryActivity::openBook(const int row) {
   onSelectBook(book.path);
 }
 
-void LibraryActivity::openSortPicker() {
+void LibraryActivity::openSortPicker(const int selectedIndex) {
   static constexpr StrId choices[] = {StrId::STR_LIBRARY_DATE_ADDED,
                                       StrId::STR_LIBRARY_TITLE,
                                       StrId::STR_LIBRARY_AUTHOR_LAST_NAME,
@@ -399,19 +399,46 @@ void LibraryActivity::openSortPicker() {
                                       StrId::STR_LIBRARY_RECENTLY_OPENED,
                                       StrId::STR_LIBRARY_SERIES,
                                       StrId::STR_LIBRARY_GENRE};
-  sortPopup.setDismissOnOutsideTouchDown(true);
-  sortPopup.show(StrId::STR_LIBRARY_SORT_BY, choices, 7, static_cast<int>(sort), [this](const int selected) {
-    if (selected < 0 || selected > static_cast<int>(Sort::Genre)) return;
-    sort = static_cast<Sort>(selected);
-    descending = sort == Sort::DateAdded || sort == Sort::RecentlyRead;
+  const bool buttonOnly = !mappedInput.hasTouchHardware();
+  auto onSelect = [this, buttonOnly](const int selected) {
+    if (buttonOnly && selected == 0) {
+      descending = !descending;
+    } else {
+      const int method = selected - (buttonOnly ? 1 : 0);
+      if (method < 0 || method > static_cast<int>(Sort::Genre)) return;
+      sort = static_cast<Sort>(method);
+      if (!buttonOnly) descending = sort == Sort::DateAdded || sort == Sort::RecentlyRead;
+    }
     SETTINGS.librarySortMethod = static_cast<uint8_t>(sort);
     SETTINGS.librarySortDescending = descending;
     if (!SETTINGS.saveToFile()) LOG_ERR("LIB", "Cannot save Library sort");
     applyFilter();
     resetViewport();
-  });
+    if (buttonOnly && selected == 0) openSortPicker(0);
+  };
+  actionPopup.setDismissOnOutsideTouchDown(true);
+  if (buttonOnly) {
+    const char* options[] = {descending ? "Z-A" : "A-Z", I18N.get(choices[0]), I18N.get(choices[1]),
+                             I18N.get(choices[2]),       I18N.get(choices[3]), I18N.get(choices[4]),
+                             I18N.get(choices[5]),       I18N.get(choices[6])};
+    actionPopup.show(tr(STR_LIBRARY_SORT_BY), options, 8, selectedIndex < 0 ? 0 : selectedIndex, std::move(onSelect));
+    actionPopup.setDividerAfterOption(0);
+  } else {
+    actionPopup.show(StrId::STR_LIBRARY_SORT_BY, choices, 7, static_cast<int>(sort), std::move(onSelect));
+  }
   if (index.isOpen() && index.header().formatVersion < 4)
-    sortPopup.setDisabledOptions({false, false, false, false, false, true, true});
+    actionPopup.setDisabledOptions(buttonOnly ? std::vector<bool>{false, false, false, false, false, false, true, true}
+                                              : std::vector<bool>{false, false, false, false, false, true, true});
+  requestUpdate();
+}
+
+void LibraryActivity::openMenu() {
+  static constexpr StrId choices[] = {StrId::STR_SEARCH, StrId::STR_SETTINGS_SHORT, StrId::STR_LIBRARY_RESCAN};
+  actionPopup.show(StrId::STR_MENU, choices, 3, 0, [this](const int selected) {
+    if (selected == 0) openSearch();
+    if (selected == 1) openSettings();
+    if (selected == 2) refreshLibrary();
+  });
   requestUpdate();
 }
 
@@ -482,8 +509,8 @@ void LibraryActivity::onControlEvent(const fui::ActionEvent& event, void* user) 
 
 void LibraryActivity::loop() {
   RenderLock lock;
-  if (sortPopup.isActive()) {
-    sortPopup.handleInput(mappedInput, [this] { requestUpdate(); });
+  if (actionPopup.isActive()) {
+    actionPopup.handleInput(mappedInput, [this] { requestUpdate(); });
     return;
   }
   if (pendingCacheDeletedFeedback && millis() - cacheDeletedFeedbackShowTime >= ACTION_FEEDBACK_MS) {
@@ -524,7 +551,7 @@ void LibraryActivity::loop() {
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (selection < CONTROL_COUNT)
       activateControl(selection);
-    else
+    else if (rowCount() > 0)
       openBook(selection - CONTROL_COUNT);
     return;
   }
@@ -548,6 +575,16 @@ void LibraryActivity::loop() {
     requestUpdate();
     return;
   }
+  if (!mappedInput.hasTouchHardware()) {
+    if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
+      openSortPicker();
+      return;
+    }
+    if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
+      openMenu();
+      return;
+    }
+  }
   const int count = rowCount() + CONTROL_COUNT;
   const auto move = [this](const int next) {
     if (!showSelection) {
@@ -564,12 +601,28 @@ void LibraryActivity::loop() {
     }
     requestUpdate();
   };
-  buttonNavigator.onNextRelease([&] { move(ButtonNavigator::nextIndex(selection, count)); });
-  buttonNavigator.onPreviousRelease([&] { move(ButtonNavigator::previousIndex(selection, count)); });
-  buttonNavigator.onNextContinuous(
-      [&] { move(ButtonNavigator::nextPageIndex(selection, count, listNav.pageRowsFor(rowCount()))); });
-  buttonNavigator.onPreviousContinuous(
-      [&] { move(ButtonNavigator::previousPageIndex(selection, count, listNav.pageRowsFor(rowCount()))); });
+  if (mappedInput.hasTouchHardware()) {
+    buttonNavigator.onNextRelease([&] { move(ButtonNavigator::nextIndex(selection, count)); });
+    buttonNavigator.onPreviousRelease([&] { move(ButtonNavigator::previousIndex(selection, count)); });
+    buttonNavigator.onNextContinuous(
+        [&] { move(ButtonNavigator::nextPageIndex(selection, count, listNav.pageRowsFor(rowCount()))); });
+    buttonNavigator.onPreviousContinuous(
+        [&] { move(ButtonNavigator::previousPageIndex(selection, count, listNav.pageRowsFor(rowCount()))); });
+  } else if (rowCount() > 0) {
+    const int bookCount = rowCount();
+    const auto moveBook = [&](const int row) { move(CONTROL_COUNT + row); };
+    buttonNavigator.onRelease({MappedInputManager::Button::Down, MappedInputManager::Button::Down},
+                              [&] { moveBook(ButtonNavigator::nextIndex(selection - CONTROL_COUNT, bookCount)); });
+    buttonNavigator.onRelease({MappedInputManager::Button::Up, MappedInputManager::Button::Up},
+                              [&] { moveBook(ButtonNavigator::previousIndex(selection - CONTROL_COUNT, bookCount)); });
+    buttonNavigator.onContinuous({MappedInputManager::Button::Down, MappedInputManager::Button::Down}, [&] {
+      moveBook(ButtonNavigator::nextPageIndex(selection - CONTROL_COUNT, bookCount, listNav.pageRowsFor(bookCount)));
+    });
+    buttonNavigator.onContinuous({MappedInputManager::Button::Up, MappedInputManager::Button::Up}, [&] {
+      moveBook(
+          ButtonNavigator::previousPageIndex(selection - CONTROL_COUNT, bookCount, listNav.pageRowsFor(bookCount)));
+    });
+  }
 }
 
 void LibraryActivity::listScreen(UiApp::ScreenType& screen, void* user) {
@@ -707,17 +760,21 @@ void LibraryActivity::buildSortHeader(UiApp::ScreenType& screen) {
   button.text = screen.theme().bodyText;
   button.styles = fui::plainStyles();
   button.styles.selected = screen.theme().button.selected;
-  button.state = showSelection && selection == 3 ? fui::StateSelected : fui::StateNormal;
+  button.state =
+      mappedInput.hasTouchHardware() && showSelection && selection == 3 ? fui::StateSelected : fui::StateNormal;
   screen.button(button, method);
   button.label = nullptr;
   button.icon = fui::bitmapFromIcon(descending ? icon_arrow_down_wide_narrow_32 : icon_arrow_up_narrow_wide_32);
-  button.state = showSelection && selection == 4 ? fui::StateSelected : fui::StateNormal;
+  button.state =
+      mappedInput.hasTouchHardware() && showSelection && selection == 4 ? fui::StateSelected : fui::StateNormal;
   screen.button(button, direction);
   const int16_t split = static_cast<int16_t>((method.right() + direction.x) / 2);
-  screen.frame().hit(fui::Rect{band.x, band.y, static_cast<int16_t>(split - band.x), band.height}, ACTION_CONTROL, 3,
-                     fui::InputTouch);
-  screen.frame().hit(fui::Rect{split, band.y, static_cast<int16_t>(band.right() - split), band.height}, ACTION_CONTROL,
-                     4, fui::InputTouch);
+  if (mappedInput.hasTouchHardware()) {
+    screen.frame().hit(fui::Rect{band.x, band.y, static_cast<int16_t>(split - band.x), band.height}, ACTION_CONTROL, 3,
+                       fui::InputTouch);
+    screen.frame().hit(fui::Rect{split, band.y, static_cast<int16_t>(band.right() - split), band.height},
+                       ACTION_CONTROL, 4, fui::InputTouch);
+  }
   uiTarget.fill(fui::Rect{band.x, band.y, band.width, 1}, fui::Paint::solid(fui::Color::Black));
   uiTarget.fill(fui::Rect{band.x, static_cast<int16_t>(band.bottom() - 1), band.width, 1},
                 fui::Paint::solid(fui::Color::Black));
@@ -736,32 +793,34 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   const int16_t controlSize = HEADER_CONTROL_SIZE;
   const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
   const int16_t right = static_cast<int16_t>(renderer.getScreenWidth() - bounds[1] - headerControlRightInset());
-  fui::ButtonProps action;
-  action.action = ACTION_CONTROL;
-  action.inputMask = fui::InputTouch;
-  action.styles = fui::plainStyles();
-  action.styles.selected = screen.theme().button.selected;
-  action.icon = fui::bitmapFromIcon(icon_refresh_cw_32);
-  action.value = 0;
-  action.state = showSelection && selection == 0 ? fui::StateSelected : fui::StateNormal;
-  screen.button(action,
-                fui::Rect{static_cast<int16_t>(right - 3 * controlSize - 2 * HEADER_CONTROL_GAP),
-                          static_cast<int16_t>(header.y + header.height - controlSize), controlSize, controlSize});
-  action.icon = fui::bitmapFromIcon(icon_search_32);
-  action.value = 1;
-  action.state = showSelection && selection == 1 ? fui::StateSelected : fui::StateNormal;
-  screen.button(action,
-                fui::Rect{static_cast<int16_t>(right - 2 * controlSize - HEADER_CONTROL_GAP),
-                          static_cast<int16_t>(header.y + header.height - controlSize), controlSize, controlSize});
-  action.icon = fui::bitmapFromIcon(icon_ellipsis_vertical_32);
-  action.value = 2;
-  action.state = showSelection && selection == 2 ? fui::StateSelected : fui::StateNormal;
-  // Give the small overflow icon a 56px touch target. Keep its bottom edge at
-  // the header boundary so the expanded target cannot steal taps from sorting.
-  if (mappedInput.hasTouchHardware()) action.hitPadding = fui::Insets{12, 6, 0, 6};
-  screen.button(action,
-                fui::Rect{static_cast<int16_t>(right - controlSize),
-                          static_cast<int16_t>(header.y + header.height - controlSize), controlSize, controlSize});
+  if (mappedInput.hasTouchHardware()) {
+    fui::ButtonProps action;
+    action.action = ACTION_CONTROL;
+    action.inputMask = fui::InputTouch;
+    action.styles = fui::plainStyles();
+    action.styles.selected = screen.theme().button.selected;
+    action.icon = fui::bitmapFromIcon(icon_refresh_cw_32);
+    action.value = 0;
+    action.state = showSelection && selection == 0 ? fui::StateSelected : fui::StateNormal;
+    screen.button(action,
+                  fui::Rect{static_cast<int16_t>(right - 3 * controlSize - 2 * HEADER_CONTROL_GAP),
+                            static_cast<int16_t>(header.y + header.height - controlSize), controlSize, controlSize});
+    action.icon = fui::bitmapFromIcon(icon_search_32);
+    action.value = 1;
+    action.state = showSelection && selection == 1 ? fui::StateSelected : fui::StateNormal;
+    screen.button(action,
+                  fui::Rect{static_cast<int16_t>(right - 2 * controlSize - HEADER_CONTROL_GAP),
+                            static_cast<int16_t>(header.y + header.height - controlSize), controlSize, controlSize});
+    action.icon = fui::bitmapFromIcon(icon_ellipsis_vertical_32);
+    action.value = 2;
+    action.state = showSelection && selection == 2 ? fui::StateSelected : fui::StateNormal;
+    // Give the small overflow icon a 56px touch target. Keep its bottom edge at
+    // the header boundary so the expanded target cannot steal taps from sorting.
+    action.hitPadding = fui::Insets{12, 6, 0, 6};
+    screen.button(action,
+                  fui::Rect{static_cast<int16_t>(right - controlSize),
+                            static_cast<int16_t>(header.y + header.height - controlSize), controlSize, controlSize});
+  }
   buildSortHeader(screen);
   if (scanFailed || index.ranksDegraded() || filterFailed) {
     const auto warning = screen.take(fui::LayoutAnchor::Top, uiTarget.lineHeight(screen.theme().smallText.font) + 8);
@@ -830,10 +889,14 @@ void LibraryActivity::render(RenderLock&&) {
     if (!listNav.consumeRebuildNeeded()) break;
   }
   uiReady = true;
-  if (sortPopup.processRender(renderer, mappedInput)) return;
-  const auto labels = mappedInput.mapLabels(mappedInput.withBackArrow(query.empty() ? tr(STR_HOME) : tr(STR_BACK)),
-                                            selection < CONTROL_COUNT ? tr(STR_SELECT) : tr(STR_OPEN), tr(STR_DIR_UP),
-                                            tr(STR_DIR_DOWN));
+  if (actionPopup.processRender(renderer, mappedInput)) return;
+  const char* confirmLabel = !mappedInput.hasTouchHardware() && rowCount() == 0 ? ""
+                             : selection < CONTROL_COUNT                        ? tr(STR_SELECT)
+                                                                                : tr(STR_OPEN);
+  const auto labels =
+      mappedInput.mapLabels(mappedInput.withBackArrow(query.empty() ? tr(STR_HOME) : tr(STR_BACK)), confirmLabel,
+                            mappedInput.hasTouchHardware() ? tr(STR_DIR_UP) : tr(STR_SORT),
+                            mappedInput.hasTouchHardware() ? tr(STR_DIR_DOWN) : tr(STR_MENU));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   if (pendingCacheDeletedFeedback) GUI.drawPopup(renderer, tr(STR_BOOK_CACHE_DELETED));
   renderer.displayBuffer();

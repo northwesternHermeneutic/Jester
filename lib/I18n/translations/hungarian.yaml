@@ -533,6 +533,7 @@ STR_TAP_HIDE_STATUS_BAR: "Állapotsáv elrejtése koppintással"
 STR_PREV_PAGE: "Előző oldal"
 
 STR_LIBRARY_SORT_BY: "Rendezés:"
+STR_SORT: "Rendezés"
 STR_LIBRARY_DATE_ADDED: "Hozzáadás dátuma"
 STR_LIBRARY_SERIES: "Sorozat"
 STR_LIBRARY_GENRE: "Műfaj"

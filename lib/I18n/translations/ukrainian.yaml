@@ -586,6 +586,7 @@ STR_CUSTOM_BOOTSCREEN: "Власний екран запуску"
 STR_TAP_HIDE_STATUS_BAR: "Дотик ховає рядок стану"
 
 STR_LIBRARY_SORT_BY: "Сортувати:"
+STR_SORT: "Сортувати"
 STR_LIBRARY_DATE_ADDED: "Дата додавання"
 STR_LIBRARY_SERIES: "Серія"
 STR_LIBRARY_GENRE: "Жанр"

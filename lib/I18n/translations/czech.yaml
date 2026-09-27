@@ -720,6 +720,7 @@ STR_CUSTOM_BOOTSCREEN: "Vlastní úvodní obrazovka"
 STR_TAP_HIDE_STATUS_BAR: "Klepnutím skrýt stavový řádek"
 
 STR_LIBRARY_SORT_BY: "Řadit podle:"
+STR_SORT: "Řadit"
 STR_LIBRARY_DATE_ADDED: "Datum přidání"
 STR_LIBRARY_SERIES: "Série"
 STR_LIBRARY_GENRE: "Žánr"

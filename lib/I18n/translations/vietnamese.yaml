@@ -590,6 +590,7 @@ STR_CUSTOM_BOOTSCREEN: "Màn hình khởi động riêng"
 STR_TAP_HIDE_STATUS_BAR: "Chạm để ẩn thanh trạng thái"
 
 STR_LIBRARY_SORT_BY: "Sắp xếp theo:"
+STR_SORT: "Sắp xếp"
 STR_LIBRARY_DATE_ADDED: "Ngày thêm"
 STR_LIBRARY_SERIES: "Bộ sách"
 STR_LIBRARY_GENRE: "Thể loại"

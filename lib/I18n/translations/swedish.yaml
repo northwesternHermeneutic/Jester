@@ -588,6 +588,7 @@ STR_CUSTOM_BOOTSCREEN: "Egen startskärm"
 STR_TAP_HIDE_STATUS_BAR: "Tryck döljer statusfältet"
 
 STR_LIBRARY_SORT_BY: "Sortera efter:"
+STR_SORT: "Sortera"
 STR_LIBRARY_DATE_ADDED: "Datum tillagd"
 STR_LIBRARY_SERIES: "Serie"
 STR_LIBRARY_GENRE: "Genre"
