@@ -490,7 +490,7 @@ bool ClippingStore::writeToFile(const std::string* replacementText, const size_t
 
 bool ClippingStore::hasAnyClippings() {
   if (!Storage.exists(CLIPPINGS_DIR)) return false;
-  return !Storage.listFiles(CLIPPINGS_DIR).empty();
+  return !Storage.listFiles(CLIPPINGS_DIR, 1).empty();
 }
 
 bool ClippingStore::getAllClippedBooks(std::vector<ClippedBookEntry>& out) {

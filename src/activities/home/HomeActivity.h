@@ -123,7 +123,7 @@ class HomeActivity final : public Activity {
   int getVisibleRecentBookCount() const;
   bool canSwapHomeBook() const;
   void showNextRecentBookOnHome();
-  void updateHighlightedBookContext(bool allowEpubLoad = true);
+  void updateHighlightedBookContext(bool allowChapterTitleRead = true);
   void loadRecentBooks(int maxBooks);
   void loadAllBookStats();
   void loadRecentCovers(int coverHeight);

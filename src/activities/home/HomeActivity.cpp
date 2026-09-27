@@ -158,7 +158,7 @@ void appendHashedFileStateToKey(std::string& key, const std::string& path) {
 
 std::string getRecentBookCachePath(const RecentBook& book) {
   if (FsHelpers::hasEpubExtension(book.path)) {
-    return Epub::cachePathForFilePath(book.path, "/.crosspoint");
+    return Epub::resolveCachePathForFilePath(book.path, "/.crosspoint");
   }
   if (FsHelpers::hasXtcExtension(book.path)) {
     return "/.crosspoint/xtc_" + std::to_string(std::hash<std::string>{}(book.path));
@@ -178,42 +178,30 @@ BookReadingStats loadRecentBookStats(const RecentBook& book) {
   return BookReadingStats::load(cachePath);
 }
 
-bool loadEpubHighlightedContext(const RecentBook& book, const bool loadProgress, const bool loadChapterTitle,
-                                float* progressPercent, std::string* chapterTitle) {
-  if (!FsHelpers::hasEpubExtension(book.path) || (!loadProgress && !loadChapterTitle)) {
-    return false;
-  }
+float loadRecentBookProgress(const RecentBook& book) {
+  return FsHelpers::hasEpubExtension(book.path) ? RecentBookProgress::loadCachedEpubPercent(book)
+                                                : RecentBookProgress::loadPercent(book);
+}
 
-  Epub epub(book.path, "/.crosspoint");
-  if (!epub.load(false, true)) {
-    return false;
-  }
-
+std::string loadEpubHighlightedChapterTitle(const RecentBook& book) {
+  const std::string cachePath = getRecentBookCachePath(book);
   EpubReaderUtils::Progress progress;
-  if (!EpubReaderUtils::loadProgress(epub, progress, "HOME")) {
-    return false;
+  if (!EpubReaderUtils::readProgressFile("HOME", cachePath + "/progress.bin", progress) &&
+      !EpubReaderUtils::readProgressFile("HOME", cachePath + "/progress.bin.bak", progress)) {
+    return {};
   }
 
-  if (loadProgress && progressPercent) {
-    if (progress.hasPageCount && progress.pageCount > 0) {
-      const float chapterProgress =
-          static_cast<float>(progress.pageNumber + 1) / static_cast<float>(progress.pageCount);
-      *progressPercent =
-          std::clamp(epub.calculateProgress(progress.spineIndex, chapterProgress) * 100.0f, 0.0f, 100.0f);
-    } else {
-      *progressPercent = -1.0f;
-    }
+  // This metadata owner contains several strings and file handles. Keep it off
+  // the small activity stack, and never parse/index a book just to paint Home.
+  auto metadata = makeUniqueNoThrow<BookMetadataCache>(cachePath);
+  if (!metadata) {
+    LOG_ERR("HOME", "Cannot allocate chapter metadata");
+    return {};
   }
-
-  if (loadChapterTitle && chapterTitle) {
-    chapterTitle->clear();
-    const auto spineItem = epub.getSpineItem(progress.spineIndex);
-    if (spineItem.tocIndex >= 0) {
-      *chapterTitle = epub.getTocItem(spineItem.tocIndex).title;
-    }
-  }
-
-  return true;
+  if (!metadata->load() || progress.spineIndex >= metadata->getSpineCount()) return {};
+  const int tocIndex = metadata->getSpineEntry(progress.spineIndex).tocIndex;
+  if (tocIndex < 0 || tocIndex >= metadata->getTocCount()) return {};
+  return metadata->getTocEntry(tocIndex).title;
 }
 
 void updateRecentBookCover(const RecentBook& book) {
@@ -648,7 +636,7 @@ void HomeActivity::loadAllBookStats() {
   const int count = std::min(static_cast<int>(recentBooks.size()), kMaxCachedBooks);
   for (int i = 0; i < count; ++i) {
     cachedBookStats[i] = loadRecentBookStats(recentBooks[i]);
-    cachedBookProgress[i] = RecentBookProgress::loadPercent(recentBooks[i]);
+    cachedBookProgress[i] = loadRecentBookProgress(recentBooks[i]);
   }
   bookStatsCached = true;
   LOG_DBG("HOME", "carousel: cached stats/progress for %d book(s) in %lums", count, millis() - start);
@@ -1043,7 +1031,7 @@ bool HomeActivity::handleFrontlightPanelResult(const FrontlightPanelResult& resu
   return true;
 }
 
-void HomeActivity::updateHighlightedBookContext(const bool allowEpubLoad) {
+void HomeActivity::updateHighlightedBookContext(const bool allowChapterTitleRead) {
   currentBookStats = BookReadingStats{};
   currentBookProgressPercent = -1.0f;
   currentBookChapterTitle.clear();
@@ -1057,20 +1045,14 @@ void HomeActivity::updateHighlightedBookContext(const bool allowEpubLoad) {
     if (useCachedStats) {
       currentBookStats = cachedBookStats[idx];
       currentBookProgressPercent = cachedBookProgress[idx];
-      if (allowEpubLoad && loadChapterTitle && isEpub) {
-        loadEpubHighlightedContext(book, false, true, nullptr, &currentBookChapterTitle);
+      if (allowChapterTitleRead && loadChapterTitle && isEpub) {
+        currentBookChapterTitle = loadEpubHighlightedChapterTitle(book);
       }
     } else {
       currentBookStats = loadRecentBookStats(book);
-      if (isEpub && allowEpubLoad) {
-        loadEpubHighlightedContext(book, true, loadChapterTitle, &currentBookProgressPercent, &currentBookChapterTitle);
-      } else if (!isEpub) {
-        currentBookProgressPercent = RecentBookProgress::loadPercent(book);
-      } else {
-        currentBookProgressPercent = RecentBookProgress::loadCachedEpubPercent(book);
-      }
-      if (loadChapterTitle && !isEpub) {
-        currentBookChapterTitle.clear();
+      currentBookProgressPercent = loadRecentBookProgress(book);
+      if (isEpub && allowChapterTitleRead && loadChapterTitle) {
+        currentBookChapterTitle = loadEpubHighlightedChapterTitle(book);
       }
     }
   }
@@ -1224,7 +1206,7 @@ void HomeActivity::renderCarouselFrameToCurrentBuffer(int bookIdx, BookReadingSt
       frameProgressPercent = cachedBookProgress[bookIdx];
     } else {
       frameStats = loadRecentBookStats(recentBooks[bookIdx]);
-      frameProgressPercent = RecentBookProgress::loadPercent(recentBooks[bookIdx]);
+      frameProgressPercent = loadRecentBookProgress(recentBooks[bookIdx]);
     }
     if (hasAnyBookStats(frameStats)) frameStatsPtr = &frameStats;
   }
