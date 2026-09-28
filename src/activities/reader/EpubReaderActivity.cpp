@@ -1186,6 +1186,8 @@ constexpr std::array<uint8_t ReaderSettingsSnapshot::*, 18> READER_SETTING_FIELD
 constexpr uint32_t SD_FONT_FAMILY_OVERRIDE = 1U << READER_SETTING_FIELDS.size();
 constexpr uint32_t ALL_READER_SETTING_OVERRIDES = (SD_FONT_FAMILY_OVERRIDE << 1) - 1;
 constexpr uint32_t READER_FONT_OVERRIDES = (1U << 0) | (1U << 1) | SD_FONT_FAMILY_OVERRIDE;
+// Anti-aliasing changes the page drawing, but not its saved line/page layout.
+constexpr uint32_t READER_LAYOUT_SETTING_OVERRIDES = ALL_READER_SETTING_OVERRIDES & ~(1U << 11);
 constexpr uint32_t SAFE_MODE_SETTING_OVERRIDES = (1U << 9) | (1U << 15) | (1U << 16);
 
 uint32_t changedReaderSettingsMask(const ReaderSettingsSnapshot& current, const ReaderSettingsSnapshot& global) {
@@ -2194,34 +2196,50 @@ bool EpubReaderActivity::beginGlobalSettingsEdit() {
 }
 
 void EpubReaderActivity::endGlobalSettingsEdit() {
-  if (!bookReaderSettingsSuspendedForGlobalEdit) {
-    return;
+  uint32_t effectiveChanges = 0;
+  const bool restoreBookFont = bookReaderSettingsSuspendedForGlobalEdit;
+  if (restoreBookFont) {
+    // Global Settings is editing SETTINGS while the book-specific reader values
+    // are suspended. Retain every edited reader default before restoring this
+    // book, otherwise the stale snapshot is written back on a later save or
+    // when the reader exits.
+    captureReaderSettings(globalReaderSettingsBeforeBook);
+    // Only fields this book actually owns need the pre-edit snapshot restored,
+    // so its own look survives an unrelated global edit. A book that just
+    // inherits the global font has nothing of its own to protect there, and
+    // restoring the whole snapshot would revert the edit the user just made
+    // for the rest of this reading session. Render mode is tracked separately
+    // (a build fallback can set it without hasCustomReaderSettings), so it is
+    // restored on its own whenever this book owns it.
+    ReaderSettingsSnapshot effectiveSettings = globalReaderSettingsBeforeBook;
+    applyReaderSettingsOverrides(effectiveSettings, suspendedBookReaderSettings,
+                                 initialBookReaderSettings.readerSettingsOverrideMask);
+    applyReaderSettings(effectiveSettings);
+    if (initialBookReaderSettings.hasSafeModeOverride) {
+      applySafeModeReaderSettings();
+    }
+    if (bookHasRenderModeOverride) {
+      SETTINGS.epubRenderMode = normalizeRenderModeRaw(suspendedBookReaderSettings.epubRenderMode);
+    }
+    captureReaderSettings(initialBookReaderSettings.readerSettings);
+    effectiveChanges = changedReaderSettingsMask(initialBookReaderSettings.readerSettings, suspendedBookReaderSettings);
+    bookReaderSettingsSuspendedForGlobalEdit = false;
   }
 
-  // Global Settings is editing SETTINGS while the book-specific reader values
-  // are suspended. Retain every edited reader default before restoring this
-  // book, otherwise the stale snapshot is written back on a later save or
-  // when the reader exits.
-  captureReaderSettings(globalReaderSettingsBeforeBook);
-  // Only fields this book actually owns need the pre-edit snapshot restored,
-  // so its own look survives an unrelated global edit. A book that just
-  // inherits the global font has nothing of its own to protect there, and
-  // restoring the whole snapshot would revert the edit the user just made
-  // for the rest of this reading session. Render mode is tracked separately
-  // (a build fallback can set it without hasCustomReaderSettings), so it is
-  // restored on its own whenever this book owns it.
-  ReaderSettingsSnapshot effectiveSettings = globalReaderSettingsBeforeBook;
-  applyReaderSettingsOverrides(effectiveSettings, suspendedBookReaderSettings,
-                               initialBookReaderSettings.readerSettingsOverrideMask);
-  applyReaderSettings(effectiveSettings);
-  if (initialBookReaderSettings.hasSafeModeOverride) {
-    applySafeModeReaderSettings();
+  RenderLock lock(*this);
+  // The global font picker may have unloaded this book's SD font even when
+  // its override kept the effective font setting unchanged.
+  if (restoreBookFont) ensureReaderSdFontLoaded(renderer);
+  ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
+  const ReaderViewportLayout layout = computeReaderViewportLayout(
+      renderer, automaticPageTurnActive, activeFootnotePreview || !pendingFootnotePreviewAnchor.empty());
+  // Reflow only when this book's effective layout changed. Its per-book fields
+  // stay protected, while inherited global fields and status-bar space update.
+  if (section && ((effectiveChanges & READER_LAYOUT_SETTING_OVERRIDES) || layout.viewportWidth != buildViewportWidth ||
+                  layout.viewportHeight != buildViewportHeight)) {
+    prepareCurrentSectionForRelayout();
+    section.reset();
   }
-  if (bookHasRenderModeOverride) {
-    SETTINGS.epubRenderMode = normalizeRenderModeRaw(suspendedBookReaderSettings.epubRenderMode);
-  }
-  captureReaderSettings(initialBookReaderSettings.readerSettings);
-  bookReaderSettingsSuspendedForGlobalEdit = false;
 }
 
 void EpubReaderActivity::saveReaderOptionsForBook(void* ctx) {
