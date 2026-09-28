@@ -174,10 +174,86 @@ TEST(ReaderStatusBarConfig, RepairsDamagedSavedValuesWithoutDroppingValidSlots) 
   EXPECT_EQ(repaired.progressBarThickness, 1);
 }
 
-TEST(ReaderStatusBarConfig, WrongLengthSavedBarKeepsCurrentDefault) {
+TEST(ReaderStatusBarConfig, MigratesSavedSixSlotBarsAndResavesSevenSlots) {
+  JsonDocument saved;
+  JsonArray topSlots = saved["top"]["slots"].to<JsonArray>();
+  for (const auto item : {ReaderStatusBarItem::Clock, ReaderStatusBarItem::Battery, ReaderStatusBarItem::TitleBook,
+                          ReaderStatusBarItem::StablePageNumber, ReaderStatusBarItem::TimeLeftChapter,
+                          ReaderStatusBarItem::BookProgressPercentage}) {
+    topSlots.add(static_cast<int>(item));
+  }
+  saved["top"]["percentageFormat"] = 2;
+  saved["top"]["progressBar"] = 0;
+  saved["top"]["thickness"] = 2;
+
+  JsonArray bottomSlots = saved["bottom"]["slots"].to<JsonArray>();
+  for (const auto item : {ReaderStatusBarItem::Battery, ReaderStatusBarItem::TimeLeftBook,
+                          ReaderStatusBarItem::TitleChapter, ReaderStatusBarItem::ChapterPageCount,
+                          ReaderStatusBarItem::StablePageNumber, ReaderStatusBarItem::BookProgressPercentage}) {
+    bottomSlots.add(static_cast<int>(item));
+  }
+  saved["bottom"]["percentageFormat"] = 1;
+  saved["bottom"]["progressBar"] = 1;
+  saved["bottom"]["thickness"] = 0;
+
+  ReaderStatusBarConfig top;
+  ReaderStatusBarConfig bottom;
+  EXPECT_TRUE(repairReaderStatusBarJson(saved["top"], top, true, 3, 3, 3));
+  EXPECT_TRUE(repairReaderStatusBarJson(saved["bottom"], bottom, true, 3, 3, 3));
+  const std::array expectedTop{ReaderStatusBarItem::Clock,
+                               ReaderStatusBarItem::Battery,
+                               ReaderStatusBarItem::Empty,
+                               ReaderStatusBarItem::TitleBook,
+                               ReaderStatusBarItem::StablePageNumber,
+                               ReaderStatusBarItem::TimeLeftChapter,
+                               ReaderStatusBarItem::BookProgressPercentage};
+  const std::array expectedBottom{ReaderStatusBarItem::Battery,
+                                  ReaderStatusBarItem::TimeLeftBook,
+                                  ReaderStatusBarItem::Empty,
+                                  ReaderStatusBarItem::TitleChapter,
+                                  ReaderStatusBarItem::ChapterPageCount,
+                                  ReaderStatusBarItem::StablePageNumber,
+                                  ReaderStatusBarItem::BookProgressPercentage};
+  EXPECT_EQ(top.slots, expectedTop);
+  EXPECT_EQ(bottom.slots, expectedBottom);
+  EXPECT_EQ(top.percentageFormat, 2);
+  EXPECT_EQ(top.progressBar, 0);
+  EXPECT_EQ(top.progressBarThickness, 2);
+  EXPECT_EQ(bottom.percentageFormat, 1);
+  EXPECT_EQ(bottom.progressBar, 1);
+  EXPECT_EQ(bottom.progressBarThickness, 0);
+
+  JsonDocument resaved;
+  writeReaderStatusBarJson(resaved["top"].to<JsonObject>(), top);
+  writeReaderStatusBarJson(resaved["bottom"].to<JsonObject>(), bottom);
+  EXPECT_EQ(resaved["top"]["slots"].as<JsonArrayConst>().size(), ReaderStatusBarConfig::SLOT_COUNT);
+  EXPECT_EQ(resaved["bottom"]["slots"].as<JsonArrayConst>().size(), ReaderStatusBarConfig::SLOT_COUNT);
+  EXPECT_FALSE(repairReaderStatusBarJson(resaved["top"], top, true, 3, 3, 3));
+  EXPECT_FALSE(repairReaderStatusBarJson(resaved["bottom"], bottom, true, 3, 3, 3));
+}
+
+TEST(ReaderStatusBarConfig, MigratesValidSixSlotItemsWhenAnotherItemIsInvalid) {
   JsonDocument saved;
   JsonArray slots = saved["slots"].to<JsonArray>();
-  for (int i = 0; i < 6; ++i) slots.add(static_cast<int>(ReaderStatusBarItem::Battery));
+  for (const int item : {2, 1, 9, 5, 99, 7}) slots.add(item);
+  saved["progressBar"] = 0;
+
+  ReaderStatusBarConfig config;
+  EXPECT_TRUE(repairReaderStatusBarJson(saved.as<JsonVariantConst>(), config, false, 3, 3, 3));
+  EXPECT_EQ(config.slots[0], ReaderStatusBarItem::Battery);
+  EXPECT_EQ(config.slots[1], ReaderStatusBarItem::Empty);
+  EXPECT_EQ(config.slots[2], ReaderStatusBarItem::Empty);
+  EXPECT_EQ(config.slots[3], ReaderStatusBarItem::TitleChapter);
+  EXPECT_EQ(config.slots[4], ReaderStatusBarItem::ChapterPageCount);
+  EXPECT_EQ(config.slots[5], ReaderStatusBarItem::Empty);
+  EXPECT_EQ(config.slots[6], ReaderStatusBarItem::BookProgressPercentage);
+  EXPECT_EQ(config.progressBar, 0);
+}
+
+TEST(ReaderStatusBarConfig, UnknownLengthSavedBarKeepsCurrentDefault) {
+  JsonDocument saved;
+  JsonArray slots = saved["slots"].to<JsonArray>();
+  for (int i = 0; i < 5; ++i) slots.add(static_cast<int>(ReaderStatusBarItem::Battery));
   ReaderStatusBarConfig config;
   config.slots[ReaderStatusBarConfig::CENTER] = ReaderStatusBarItem::TitleChapter;
 

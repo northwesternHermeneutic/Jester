@@ -65,12 +65,15 @@ inline bool repairReaderStatusBarJson(const JsonVariantConst source, ReaderStatu
     return false;
   }
   const JsonArrayConst slots = source["slots"].as<JsonArrayConst>();
-  if (slots.size() != ReaderStatusBarConfig::SLOT_COUNT) return true;
+  // The previous layout had two left slots, one center slot, and three right slots.
+  constexpr unsigned LEGACY_SLOT_COUNT = ReaderStatusBarConfig::SLOT_COUNT - 1;
+  if (slots.size() != LEGACY_SLOT_COUNT && slots.size() != ReaderStatusBarConfig::SLOT_COUNT) return true;
   ReaderStatusBarConfig repaired;
-  for (unsigned i = 0; i < ReaderStatusBarConfig::SLOT_COUNT; ++i) {
+  for (unsigned i = 0; i < slots.size(); ++i) {
     const int item = slots[i].as<int>();
     if (slots[i].is<int>() && validReaderStatusBarItemValue(item, clockAvailable)) {
-      repaired.slots[i] = static_cast<ReaderStatusBarItem>(item);
+      const unsigned target = slots.size() == LEGACY_SLOT_COUNT && i >= 2 ? i + 1 : i;
+      repaired.slots[target] = static_cast<ReaderStatusBarItem>(item);
     }
   }
   const auto choice = [](const JsonVariantConst value, const int count, const uint8_t fallback) {
