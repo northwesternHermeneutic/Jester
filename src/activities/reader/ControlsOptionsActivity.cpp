@@ -193,7 +193,7 @@ void ControlsOptionsActivity::openEnumOptionPicker(const SettingInfo& setting) {
   std::vector<std::string> options;
   options.reserve(optionCount);
   for (uint8_t i = 0; i < optionCount; i++) {
-    options.push_back(settingEnumOptionLabel(setting, i));
+    options.push_back(sideButtonOptionLabel(setting, i));
   }
 
   uint8_t currentIndex = 0;
@@ -379,6 +379,8 @@ void ControlsOptionsActivity::buildOptionsScreen(UiApp::ScreenType& screen) {
   }
 
   const auto& currentSettingsList = *currentSettings;
+  const std::string leftUpLabel = sideButtonGroupLabel(true);
+  const std::string rightDownLabel = sideButtonGroupLabel(false);
   std::vector<std::string> values(currentSettingsList.size());
   std::vector<fui::ListItem> items;
   items.reserve(currentSettingsList.size());
@@ -390,7 +392,7 @@ void ControlsOptionsActivity::buildOptionsScreen(UiApp::ScreenType& screen) {
       values[i] = SETTINGS.*(setting.valuePtr) ? tr(STR_STATE_ON) : tr(STR_STATE_OFF);
     } else if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
       const uint8_t displayValue = enumDisplayIndexForRawValue(setting, SETTINGS.*(setting.valuePtr));
-      values[i] = settingEnumOptionLabel(setting, displayValue < settingEnumOptionCount(setting) ? displayValue : 0);
+      values[i] = sideButtonOptionLabel(setting, displayValue < settingEnumOptionCount(setting) ? displayValue : 0);
     } else if (setting.type == SettingType::VALUE && setting.valuePtr != nullptr) {
       values[i] = std::to_string(SETTINGS.*(setting.valuePtr));
     }
@@ -398,7 +400,11 @@ void ControlsOptionsActivity::buildOptionsScreen(UiApp::ScreenType& screen) {
     const bool isSectionHeader = setting.type == SettingType::SECTION_HEADER;
     fui::ListItem item;
     const fui::BitmapRef directionIcon = twoFingerSwipeIcon(setting.nameId);
-    item.label = isSectionHeader ? uiListSectionHeaderLabel(values[i], I18N.get(setting.nameId))
+    const char* sectionLabel =
+        activeSubmenu == SettingAction::ControlsSideButtons
+            ? (setting.nameId == StrId::STR_DIR_LEFT ? leftUpLabel.c_str() : rightDownLabel.c_str())
+            : I18N.get(setting.nameId);
+    item.label = isSectionHeader ? uiListSectionHeaderLabel(values[i], sectionLabel)
                                  : (directionIcon ? "" : I18N.get(setting.nameId));
     item.icon = directionIcon;
     if (!isSectionHeader && !values[i].empty()) item.value = values[i].c_str();
@@ -421,6 +427,10 @@ void ControlsOptionsActivity::buildOptionsScreen(UiApp::ScreenType& screen) {
   props.valueInset = 8;
   props.labelText = screen.theme().bodyText;
   props.labelText.maxLines = 2;
+  if (activeSubmenu == SettingAction::ControlsSideButtons) {
+    props.headerText = screen.theme().smallText;
+    props.headerText.bold = true;
+  }
   configureUiListSectionHeaders(props, screen.theme());
   const auto rows = configureUiList(props, screen.theme(), screen.body());
   visibleRows = rows > 0 ? rows : 1;

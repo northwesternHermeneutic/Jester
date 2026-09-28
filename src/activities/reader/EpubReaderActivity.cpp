@@ -3148,74 +3148,57 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  // Side button long-press actions use raw Up/Down so the direction stays
-  // physical regardless of the Prev/Next side layout setting.
-  const bool sideLongPressSkipsChapter =
-      SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP;
-  const bool sideLongPressChangesFont =
-      SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_FONT_SIZE;
-  const bool sideLongPressChangesOrientation =
-      SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_ORIENTATION_CHANGE;
-  if (sideLongPressSkipsChapter || sideLongPressChangesFont || sideLongPressChangesOrientation) {
-    const bool topReleased = mappedInput.wasReleased(MappedInputManager::Button::Up);
-    const bool bottomReleased = mappedInput.wasReleased(MappedInputManager::Button::Down);
-    const bool sidePrevReleased = mappedInput.wasReleased(MappedInputManager::Button::PageBack);
-    const bool sideNextReleased = mappedInput.wasReleased(MappedInputManager::Button::PageForward);
-    const bool sideLongPressReleased =
-        sideLongPressSkipsChapter ? (sidePrevReleased || sideNextReleased) : (topReleased || bottomReleased);
-    if (sideButtonLongPressHandled && sideLongPressReleased) {
-      sideButtonLongPressHandled = false;
-      return;
-    }
-
-    const bool longPressReady = mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS;
-    const bool prevLongPressed = longPressReady && mappedInput.isPressed(MappedInputManager::Button::PageBack);
-    const bool nextLongPressed = longPressReady && mappedInput.isPressed(MappedInputManager::Button::PageForward);
-    const bool topLongPressed =
-        longPressReady && (mappedInput.isPressed(MappedInputManager::Button::Up) || topReleased);
-    const bool bottomLongPressed =
-        longPressReady && (mappedInput.isPressed(MappedInputManager::Button::Down) || bottomReleased);
-
-    if (sideLongPressSkipsChapter && !sideButtonLongPressHandled && (prevLongPressed || nextLongPressed)) {
-      sideButtonLongPressHandled = true;
-      clearPendingManualPageTurns();
-      if (!nextLongPressed && section && section->currentPage > 0) {
-        section->currentPage = 0;
-        requestUpdate();
-        return;
-      }
-
-      // We don't want to delete the section mid-render, so grab the semaphore.
-      {
-        RenderLock lock(*this);
-        nextPageNumber = 0;
-        if (nextLongPressed) {
-          currentSpineIndex++;
-        } else if (currentSpineIndex > 0) {
-          currentSpineIndex--;
+  const bool chordPageTurn = mappedInput.hasInjectedRelease(MappedInputManager::Button::Right);
+  const auto side = sideButtonShortcuts.update(mappedInput, millis());
+  if (SideButtonShortcuts::shouldConsume(side, mappedInput)) {
+    if (side.triggered) {
+      if (side.longPress)
+        mappedInput.suppressNextSideRelease(side.up ? MappedInputManager::Button::Up
+                                                    : MappedInputManager::Button::Down);
+      switch (side.action) {
+        case CrossPointSettings::SIDE_PREVIOUS_CHAPTER:
+        case CrossPointSettings::SIDE_NEXT_CHAPTER: {
+          const bool next = side.action == CrossPointSettings::SIDE_NEXT_CHAPTER;
+          clearPendingManualPageTurns();
+          if (!next && section && section->currentPage > 0) {
+            section->currentPage = 0;
+          } else {
+            RenderLock lock(*this);
+            nextPageNumber = 0;
+            if (next)
+              currentSpineIndex++;
+            else if (currentSpineIndex > 0)
+              currentSpineIndex--;
+            section.reset();
+          }
+          requestUpdate();
+          break;
         }
-        section.reset();
-      }
-      requestUpdate();
-      return;
-    }
-
-    if ((sideLongPressChangesFont || sideLongPressChangesOrientation) && !sideButtonLongPressHandled &&
-        (topLongPressed || bottomLongPressed)) {
-      // Top grows the font and rotates counter-clockwise; bottom is its inverse.
-      // Top wins when both are held, matching the previous ordered checks.
-      const bool isTop = topLongPressed;
-      sideButtonLongPressHandled = !(isTop ? topReleased : bottomReleased);
-      if (sideLongPressChangesFont) {
-        if (sdFontSystem.changeReaderFontSize(/*larger=*/isTop)) {
-          reindexCurrentSection();
+        case CrossPointSettings::SIDE_INCREASE_FONT:
+        case CrossPointSettings::SIDE_DECREASE_FONT:
+          if (sdFontSystem.changeReaderFontSize(/*larger=*/side.action == CrossPointSettings::SIDE_INCREASE_FONT))
+            reindexCurrentSection();
+          break;
+        case CrossPointSettings::SIDE_ROTATE_COUNTERCLOCKWISE:
+        case CrossPointSettings::SIDE_ROTATE_CLOCKWISE:
+          applyOrientation(ReaderUtils::rotatedOrientation(SETTINGS.orientation,
+                                                           side.action == CrossPointSettings::SIDE_ROTATE_CLOCKWISE));
+          requestUpdate();
+          break;
+        case CrossPointSettings::IGNORE:
+          break;
+        default: {
+          const auto action = static_cast<CrossPointSettings::SHORT_PWRBTN>(side.action);
+          if (action == CrossPointSettings::QUICK_LOCK)
+            handleGlobalPowerButtonAction(action, SideButtonShortcuts::quickLockTrigger(side));
+          else if (!handleShortcutAction(action))
+            handleGlobalPowerButtonAction(action);
+          break;
         }
-      } else {
-        applyOrientation(ReaderUtils::rotatedOrientation(SETTINGS.orientation, /*clockwise=*/!isTop));
-        requestUpdate();
       }
-      return;
     }
+    if (!side.triggered) drainPendingManualPageTurn();
+    return;
   }
 
   if (consumeLongPowerButtonRelease()) {
@@ -3357,9 +3340,7 @@ void EpubReaderActivity::loop() {
   const unsigned long heldMs = fromTouch ? touch.heldMs : mappedInput.getHeldTime();
   const bool longPress = !fromTilt && heldMs > ReaderUtils::SKIP_HOLD_MS;
   const bool skipChapter =
-      !fromTouch && longPress &&
-      (fromSideBtn ? SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP
-                   : SETTINGS.longPressButtonBehavior == CrossPointSettings::CHAPTER_SKIP);
+      !chordPageTurn && !fromTouch && longPress && SETTINGS.longPressButtonBehavior == CrossPointSettings::CHAPTER_SKIP;
 
   // Don't skip chapter after screenshot
   if (gpio.wasReleased(HalGPIO::BTN_POWER) && gpio.wasReleased(HalGPIO::BTN_DOWN)) {
@@ -3389,7 +3370,7 @@ void EpubReaderActivity::loop() {
     return;
   }
 
-  if (!fromTouch && longPress && !fromSideBtn &&
+  if (!chordPageTurn && !fromTouch && longPress && !fromSideBtn &&
       SETTINGS.longPressButtonBehavior == CrossPointSettings::ORIENTATION_CHANGE) {
     const uint8_t newOrientation =
         nextTriggered ? (SETTINGS.orientation - 1 + SETTINGS.ORIENTATION_COUNT) % SETTINGS.ORIENTATION_COUNT

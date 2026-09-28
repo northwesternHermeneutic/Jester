@@ -40,14 +40,6 @@ struct SideLayoutMap {
   ButtonIndex pageForwardSecondary;
 };
 
-// Order matches CrossPointSettings::SIDE_BUTTON_LAYOUT.
-constexpr SideLayoutMap kSideLayouts[] = {
-    {HalGPIO::BTN_UP, kNoButton, HalGPIO::BTN_DOWN, kNoButton},
-    {HalGPIO::BTN_DOWN, kNoButton, HalGPIO::BTN_UP, kNoButton},
-    {kNoButton, kNoButton, kNoButton, kNoButton},
-    {kNoButton, kNoButton, HalGPIO::BTN_UP, HalGPIO::BTN_DOWN},
-};
-
 bool shouldSwapReaderSideButtons(const bool readerMode) {
   return readerMode && SETTINGS.sideButtonOrientationAware && SETTINGS.orientation != CrossPointSettings::PORTRAIT;
 }
@@ -114,18 +106,6 @@ ButtonIndex mapFrontButtonForReaderOrientation(const ButtonIndex button, const B
   return button;
 }
 
-SideLayoutMap mapSideLayoutForReaderOrientation(SideLayoutMap side, const bool readerMode) {
-  if (shouldSwapReaderSideButtons(readerMode)) {
-    const bool hasPageBack = side.pageBackPrimary != kNoButton || side.pageBackSecondary != kNoButton;
-    const bool hasPageForward = side.pageForwardPrimary != kNoButton || side.pageForwardSecondary != kNoButton;
-    if (hasPageBack && hasPageForward) {
-      std::swap(side.pageBackPrimary, side.pageForwardPrimary);
-      std::swap(side.pageBackSecondary, side.pageForwardSecondary);
-    }
-  }
-  return side;
-}
-
 ButtonIndex mapSideButtonForReaderOrientation(const ButtonIndex button, const bool readerMode) {
   if (!shouldSwapReaderSideButtons(readerMode)) {
     return button;
@@ -139,11 +119,6 @@ ButtonIndex mapSideButtonForReaderOrientation(const ButtonIndex button, const bo
   return button;
 }
 
-bool readMappedSideButtons(const HalGPIO& gpio, bool (HalGPIO::*fn)(uint8_t) const, const ButtonIndex primary,
-                           const ButtonIndex secondary) {
-  return (primary != kNoButton && (gpio.*fn)(primary)) || (secondary != kNoButton && (gpio.*fn)(secondary));
-}
-
 #ifdef SIMULATOR
 size_t buttonIndex(MappedInputManager::Button button) { return static_cast<size_t>(button); }
 #endif
@@ -153,6 +128,17 @@ size_t buttonIndex(MappedInputManager::Button button) { return static_cast<size_
 void MappedInputManager::update() const {
   gpio.update();
   expireReleaseSuppressions();
+  if (!gpio.isPressed(HalGPIO::BTN_UP) && !gpio.wasReleased(HalGPIO::BTN_UP)) suppressPhysicalUpRelease = false;
+  if (!gpio.isPressed(HalGPIO::BTN_DOWN) && !gpio.wasReleased(HalGPIO::BTN_DOWN)) suppressPhysicalDownRelease = false;
+}
+
+void MappedInputManager::suppressNextSideRelease(const Button button) {
+  const ButtonIndex physical =
+      mapSideButtonForReaderOrientation(button == Button::Up ? HalGPIO::BTN_UP : HalGPIO::BTN_DOWN, readerMode);
+  if (physical == HalGPIO::BTN_UP)
+    suppressPhysicalUpRelease = true;
+  else
+    suppressPhysicalDownRelease = true;
 }
 
 bool MappedInputManager::wasPhysicallyReleased(const Button button) const {
@@ -176,8 +162,21 @@ void MappedInputManager::expireReleaseSuppressions() const {
 }
 
 bool MappedInputManager::mapButton(const Button button, bool (HalGPIO::*fn)(uint8_t) const) const {
-  const auto sideLayout = static_cast<CrossPointSettings::SIDE_BUTTON_LAYOUT>(SETTINGS.sideButtonLayout);
-  const auto side = mapSideLayoutForReaderOrientation(kSideLayouts[sideLayout], readerMode);
+  const ButtonIndex up = mapSideButtonForReaderOrientation(HalGPIO::BTN_UP, readerMode);
+  const ButtonIndex down = mapSideButtonForReaderOrientation(HalGPIO::BTN_DOWN, readerMode);
+  const SideLayoutMap side = {
+      SETTINGS.sideButtonUpShort == CrossPointSettings::PREVIOUS_PAGE ? up : kNoButton,
+      SETTINGS.sideButtonDownShort == CrossPointSettings::PREVIOUS_PAGE ? down : kNoButton,
+      SETTINGS.sideButtonUpShort == CrossPointSettings::PAGE_TURN ? up : kNoButton,
+      SETTINGS.sideButtonDownShort == CrossPointSettings::PAGE_TURN ? down : kNoButton,
+  };
+  const auto sideEvent = [&](const ButtonIndex physical) {
+    if (physical == kNoButton) return false;
+    if (fn == &HalGPIO::wasReleased && ((physical == HalGPIO::BTN_UP && suppressPhysicalUpRelease) ||
+                                        (physical == HalGPIO::BTN_DOWN && suppressPhysicalDownRelease)))
+      return false;
+    return (gpio.*fn)(physical);
+  };
 
   const ButtonIndex frontButton = mappedFrontButtonFor(button);
 
@@ -189,19 +188,19 @@ bool MappedInputManager::mapButton(const Button button, bool (HalGPIO::*fn)(uint
       return frontButton != kNoButton && (gpio.*fn)(frontButton);
     case Button::Up:
       // Reader menus should follow the same top/bottom side-button orientation as reader page turns.
-      return (gpio.*fn)(mapSideButtonForReaderOrientation(HalGPIO::BTN_UP, readerMode));
+      return sideEvent(up);
     case Button::Down:
       // Reader menus should follow the same top/bottom side-button orientation as reader page turns.
-      return (gpio.*fn)(mapSideButtonForReaderOrientation(HalGPIO::BTN_DOWN, readerMode));
+      return sideEvent(down);
     case Button::Power:
       // Power button bypasses remapping.
       return (gpio.*fn)(HalGPIO::BTN_POWER);
     case Button::PageBack:
       // Reader page navigation uses side buttons and can be swapped via settings.
-      return readMappedSideButtons(gpio, fn, side.pageBackPrimary, side.pageBackSecondary);
+      return sideEvent(side.pageBackPrimary) || sideEvent(side.pageBackSecondary);
     case Button::PageForward:
       // Reader page navigation uses side buttons and can be swapped via settings.
-      return readMappedSideButtons(gpio, fn, side.pageForwardPrimary, side.pageForwardSecondary);
+      return sideEvent(side.pageForwardPrimary) || sideEvent(side.pageForwardSecondary);
   }
 
   return false;
@@ -891,6 +890,16 @@ bool MappedInputManager::wasReleased(const Button button) const {
 
     return true;
   }
+
+#ifdef SIMULATOR
+  if (simulatedRelease && (button == Button::Up || button == Button::Down)) {
+    const ButtonIndex physical =
+        mapSideButtonForReaderOrientation(button == Button::Up ? HalGPIO::BTN_UP : HalGPIO::BTN_DOWN, readerMode);
+    if ((physical == HalGPIO::BTN_UP && suppressPhysicalUpRelease) ||
+        (physical == HalGPIO::BTN_DOWN && suppressPhysicalDownRelease))
+      return false;
+  }
+#endif
 
   const uint8_t frontButton = mappedFrontButtonFor(button);
   return simulatedRelease || mapButton(button, &HalGPIO::wasReleased) ||

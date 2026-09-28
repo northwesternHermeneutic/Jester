@@ -19,10 +19,12 @@
 #include "activities/reader/EpubReaderMenuActivity.h"
 #include "activities/reader/ReaderOptionsActivity.h"
 #include "activities/reader/ReaderUtils.h"
+#include "activities/reader/SideButtonShortcuts.h"
 #include "activities/settings/QuickActionsActivity.h"
 #include "components/TouchHeaderBackButton.h"
 #include "components/UITheme.h"
 #include "simulator/SimulatorHomeKeyInput.h"
+#include "util/ButtonShortcutController.h"
 
 extern ActivityManager activityManager;
 extern GfxRenderer renderer;
@@ -37,6 +39,7 @@ enum class SmokeStep : uint8_t {
   FileBrowserSettings,
   RecentBooks,
   Settings,
+  SideButtons,
   ReaderOptions,
   ReaderMenu,
   Sleep,
@@ -336,6 +339,9 @@ class SimulatorSmokeTest {
     };
     verifyLibraryChoice("shortPwrBtn", ShortcutOptionCatalog::PowerButton);
     verifyLibraryChoice("longPwrBtn", ShortcutOptionCatalog::PowerButton);
+    for (const char* key : {"sideButtonUpShort", "sideButtonUpLong", "sideButtonDownShort", "sideButtonDownLong"}) {
+      verifyLibraryChoice(key, ShortcutOptionCatalog::SideButton);
+    }
     verifyLibraryChoice("powerChordAction", ShortcutOptionCatalog::ButtonChord);
     verifyLibraryChoice("longPressMenuAction", ShortcutOptionCatalog::LongPress);
     verifyLibraryChoice("longPressBackAction", ShortcutOptionCatalog::LongPress);
@@ -356,6 +362,111 @@ class SimulatorSmokeTest {
         QuickActions::actionLabel(CrossPointSettings::LIBRARY) != StrId::STR_LIBRARY) {
       fail("Library is missing from Quick Actions choices");
     }
+
+    const uint8_t savedTrackReadingStats = SETTINGS.trackReadingStats;
+    SETTINGS.trackReadingStats = 0;
+    const auto statsDisabledSettings = getSettingsList();
+    SETTINGS.trackReadingStats = savedTrackReadingStats;
+    for (const char* key : {"sideButtonUpShort", "sideButtonUpLong", "sideButtonDownShort", "sideButtonDownLong"}) {
+      const auto setting = std::find_if(statsDisabledSettings.begin(), statsDisabledSettings.end(),
+                                        [key](const SettingInfo& candidate) { return settingKeyIs(candidate, key); });
+      if (setting == statsDisabledSettings.end() ||
+          std::find(setting->enumRawValues.begin(), setting->enumRawValues.end(), CrossPointSettings::READING_STATS) !=
+              setting->enumRawValues.end()) {
+        fail("Reading Stats remains available in %s while tracking is disabled", key);
+      }
+    }
+  }
+
+  static void verifySideButtonMigrationAndInput() {
+    JsonDocument original;
+    SETTINGS.toJson(original);
+    JsonDocument legacy;
+    SETTINGS.toJson(legacy);
+    for (const char* key : {"sideButtonUpShort", "sideButtonUpLong", "sideButtonDownShort", "sideButtonDownLong"}) {
+      legacy[key] = nullptr;
+    }
+    legacy["sideButtonLayout"] = CrossPointSettings::NEXT_PREV;
+    legacy["sideButtonLongPress"] = CrossPointSettings::SIDE_LONG_CHAPTER_SKIP;
+    SETTINGS.fromJson(legacy.as<JsonVariantConst>());
+    if (SETTINGS.sideButtonUpShort != CrossPointSettings::PAGE_TURN ||
+        SETTINGS.sideButtonDownShort != CrossPointSettings::PREVIOUS_PAGE ||
+        SETTINGS.sideButtonUpLong != CrossPointSettings::SIDE_NEXT_CHAPTER ||
+        SETTINGS.sideButtonDownLong != CrossPointSettings::SIDE_PREVIOUS_CHAPTER)
+      fail("Swapped side-button layout migration failed");
+
+    legacy["sideButtonLayout"] = CrossPointSettings::SIDE_BUTTONS_DISABLED;
+    legacy["sideButtonLongPress"] = CrossPointSettings::SIDE_LONG_FONT_SIZE;
+    SETTINGS.fromJson(legacy.as<JsonVariantConst>());
+    if (SETTINGS.sideButtonUpShort != CrossPointSettings::IGNORE ||
+        SETTINGS.sideButtonDownShort != CrossPointSettings::IGNORE ||
+        SETTINGS.sideButtonUpLong != CrossPointSettings::SIDE_INCREASE_FONT ||
+        SETTINGS.sideButtonDownLong != CrossPointSettings::SIDE_DECREASE_FONT)
+      fail("Disabled layout with font hold migration failed");
+
+    legacy["sideButtonUpShort"] = CrossPointSettings::LIBRARY;
+    SETTINGS.fromJson(legacy.as<JsonVariantConst>());
+    if (SETTINGS.sideButtonUpShort != CrossPointSettings::LIBRARY ||
+        SETTINGS.sideButtonDownShort != CrossPointSettings::IGNORE)
+      fail("Partially migrated side-button choices were overwritten");
+
+    SETTINGS.fromJson(original.as<JsonVariantConst>());
+    const auto sideSettings = buildControlsSideButtonSettingsList(getSettingsList());
+    const size_t expected = 7 + (deviceSupportsSideButtonChord(gpio) ? 1u : 0u);
+    if (sideSettings.size() != expected) fail("Side-button menu row count mismatch");
+    for (const char* key : {"sideButtonUpShort", "sideButtonUpLong", "sideButtonDownShort", "sideButtonDownLong"}) {
+      if (std::find_if(sideSettings.begin(), sideSettings.end(),
+                       [key](const SettingInfo& setting) { return settingKeyIs(setting, key); }) == sideSettings.end())
+        fail("Side-button menu is missing an individual shortcut");
+    }
+
+    SideButtonShortcuts shortcuts;
+    mappedInputManager.simulatorInjectPress(MappedInputManager::Button::Up);
+    const auto heldUp = shortcuts.update(mappedInputManager, 1000);
+    if (!heldUp.consumed) fail("Side-button press was not captured");
+    mappedInputManager.injectRelease(MappedInputManager::Button::Right);
+    if (SideButtonShortcuts::shouldConsume(heldUp, mappedInputManager))
+      fail("Side-button hold swallowed a chord page turn");
+    mappedInputManager.clearInjectedReleases();
+    mappedInputManager.simulatorClearInputFrame();
+    mappedInputManager.simulatorInjectRelease(MappedInputManager::Button::Up);
+    const auto shortResult = shortcuts.update(mappedInputManager, 1200);
+    if (!shortResult.triggered || shortResult.longPress || shortResult.action != SETTINGS.sideButtonUpShort)
+      fail("Side-button short action did not dispatch once");
+    mappedInputManager.simulatorClearInputFrame();
+    if (shortcuts.update(mappedInputManager, 1300).triggered) fail("Side-button release dispatched twice");
+
+    mappedInputManager.simulatorInjectPress(MappedInputManager::Button::Down);
+    shortcuts.update(mappedInputManager, 2000);
+    mappedInputManager.simulatorClearInputFrame();
+    const auto longResult = shortcuts.update(mappedInputManager, 2800);
+    if (!longResult.triggered || !longResult.longPress || longResult.action != SETTINGS.sideButtonDownLong)
+      fail("Side-button long action did not dispatch");
+    mappedInputManager.suppressNextSideRelease(MappedInputManager::Button::Down);
+    mappedInputManager.simulatorInjectRelease(MappedInputManager::Button::Down);
+    if (mappedInputManager.wasReleased(MappedInputManager::Button::Down) ||
+        shortcuts.update(mappedInputManager, 2900).triggered)
+      fail("Side-button long release leaked into the next activity");
+    mappedInputManager.simulatorClearInputFrame();
+    if (shortcuts.update(mappedInputManager, 3000).triggered) fail("Side-button long action dispatched twice");
+
+    ButtonShortcutController lock;
+    lock.toggleQuickLock(4000, QuickLockTrigger::SideUpShort);
+    if (lock.tryUnlockSide(4100, true, true, false, true, false, false, false, true, ReaderUtils::SKIP_HOLD_MS) ||
+        !lock.isQuickLocked())
+      fail("Side-button Quick Lock unlocked on press instead of release");
+    if (!lock.tryUnlockSide(4200, false, false, true, true, false, false, false, true, ReaderUtils::SKIP_HOLD_MS) ||
+        lock.isQuickLocked())
+      fail("Side-button short Quick Lock did not unlock on a fresh release");
+    lock.toggleQuickLock(5000, QuickLockTrigger::SideDownLong);
+    if (lock.tryUnlockSide(5100, false, false, false, true, true, false, false, true, ReaderUtils::SKIP_HOLD_MS))
+      fail("An inherited side-button hold unlocked Quick Lock");
+    lock.tryUnlockSide(5200, false, false, false, true, false, false, true, true, ReaderUtils::SKIP_HOLD_MS);
+    lock.tryUnlockSide(5300, false, false, false, true, true, true, false, true, ReaderUtils::SKIP_HOLD_MS);
+    if (!lock.tryUnlockSide(6000, false, false, false, true, true, false, false, true, ReaderUtils::SKIP_HOLD_MS) ||
+        lock.isQuickLocked())
+      fail("Side-button long Quick Lock did not unlock on a fresh hold");
+    LOG_INF("SMOKE", "Side-button migration and press/release checks passed");
   }
 
   [[noreturn]] static void fail(const char* message) {
@@ -408,6 +519,7 @@ class SimulatorSmokeTest {
           fail("Simulator Home key timing contract failed");
         }
         verifyUpDownShortcutAvailability();
+        verifySideButtonMigrationAndInput();
         verifyReaderControlsSettings();
         verifyMixedPageGestures();
         applyRequestedTheme();
@@ -447,6 +559,22 @@ class SimulatorSmokeTest {
 
       case SmokeStep::Settings:
         renderer.setOrientation(GfxRenderer::Orientation::Portrait);
+        if (!mappedInputManager.hasTouchHardware()) {
+          inputScript.clear();
+          scriptIndex = 0;
+          inputCompletionStep = SmokeStep::SideButtons;
+          addTap(MappedInputManager::Button::Confirm);  // Reader tab
+          addTap(MappedInputManager::Button::Confirm);  // Controls tab
+          addTap(MappedInputManager::Button::Down);     // Power Button
+          addTap(MappedInputManager::Button::Down);     // Front Buttons
+          addTap(MappedInputManager::Button::Down);     // Side Buttons
+          addTap(MappedInputManager::Button::Confirm);
+          inputScript.push_back(render("Side Button Settings", 250));
+          step = SmokeStep::ReaderInput;
+          break;
+        }
+        [[fallthrough]];
+      case SmokeStep::SideButtons:
         activityManager.replaceActivity(std::make_unique<ReaderOptionsActivity>(renderer, mappedInputManager));
         queueStep("Reader Options", SmokeStep::ReaderOptions);
         break;

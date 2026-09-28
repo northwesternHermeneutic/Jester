@@ -95,6 +95,7 @@ inline esp_sleep_wakeup_cause_t esp_sleep_get_wakeup_cause() { return ESP_SLEEP_
 #include "activities/boot_sleep/ImageFolderIndex.h"
 #include "activities/home/BookActions.h"
 #include "activities/reader/KOReaderSyncActivity.h"
+#include "activities/reader/ReaderUtils.h"
 #include "activities/reader/ReadingStatsUtils.h"
 #include "activities/reader/StatsBackup.h"
 #include "activities/settings/FontDownloadActivity.h"
@@ -1714,6 +1715,19 @@ void loop() {
     const bool longPowerPressed =
         powerPressed && gpio.getPowerButtonHeldTime() >= SETTINGS.getPowerButtonLongPressDuration();
     if (buttonShortcutController.tryUnlockLongPower(millis(), longPowerPressed)) {
+      notifyQuickLockChanged();
+      lastActivityTime = millis();
+      return;
+    }
+    if (buttonShortcutController.tryUnlockSide(millis(), mappedInputManager.isPressed(MappedInputManager::Button::Up),
+                                               mappedInputManager.wasPressed(MappedInputManager::Button::Up),
+                                               mappedInputManager.wasReleased(MappedInputManager::Button::Up),
+                                               SETTINGS.sideButtonUpLong != CrossPointSettings::IGNORE,
+                                               mappedInputManager.isPressed(MappedInputManager::Button::Down),
+                                               mappedInputManager.wasPressed(MappedInputManager::Button::Down),
+                                               mappedInputManager.wasReleased(MappedInputManager::Button::Down),
+                                               SETTINGS.sideButtonDownLong != CrossPointSettings::IGNORE,
+                                               ReaderUtils::SKIP_HOLD_MS)) {
       notifyQuickLockChanged();
       lastActivityTime = millis();
       return;

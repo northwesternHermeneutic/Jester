@@ -196,15 +196,8 @@ inline bool isTouchMenuDismissGesture(const MappedInputManager& input) {
 }
 
 inline PageTurnResult detectPageTurn(const MappedInputManager& input) {
-  // Side buttons fire on press only when long-press action is OFF (nothing to detect).
-  const bool sideUsePress = SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_OFF;
-
   const bool tiltNext = SETTINGS.tiltPageTurn && halTiltSensor.wasTiltedForward();
   const bool tiltPrev = SETTINGS.tiltPageTurn && halTiltSensor.wasTiltedBack();
-  const bool sidePrev = sideUsePress ? input.wasPressed(MappedInputManager::Button::PageBack)
-                                     : input.wasReleased(MappedInputManager::Button::PageBack);
-  const bool sideNext = sideUsePress ? input.wasPressed(MappedInputManager::Button::PageForward)
-                                     : input.wasReleased(MappedInputManager::Button::PageForward);
 
   const bool frontPrev = input.wasReleased(MappedInputManager::Button::Left);
   const bool powerReleased = input.wasReleased(MappedInputManager::Button::Power);
@@ -215,9 +208,8 @@ inline PageTurnResult detectPageTurn(const MappedInputManager& input) {
   const bool powerTurn = shortPowerTurn || longPowerTurn;
   const bool frontNext = input.wasReleased(MappedInputManager::Button::Right) || powerTurn;
 
-  // fromSideBtn is true when only side buttons contributed to this page turn.
-  const bool fromSide = (sidePrev || sideNext) && !(frontPrev || frontNext);
-  return {tiltPrev || sidePrev || frontPrev, tiltNext || sideNext || frontNext, fromSide, tiltPrev || tiltNext};
+  // Side-button actions are resolved by SideButtonShortcuts in each reader.
+  return {tiltPrev || frontPrev, tiltNext || frontNext, false, tiltPrev || tiltNext};
 }
 
 // One helper, blocking or deferred: the async form starts the refresh and

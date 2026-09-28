@@ -69,7 +69,7 @@ constexpr size_t controlsHomeButtonCount = 4;
 constexpr size_t controlsPowerMinCount = 2;
 constexpr size_t controlsPowerMaxCount = 3;
 constexpr size_t controlsFrontButtonCount = 6;
-constexpr size_t controlsSideButtonBaseCount = 3;
+constexpr size_t controlsSideButtonBaseCount = 7;
 
 void formatFrontlightScheduleTime(const uint16_t timeOfDay, char* const buf, const size_t len) {
   const FrontlightSchedule::TimeOfDay time = FrontlightSchedule::timeOfDayFromMinutes(timeOfDay);
@@ -528,7 +528,7 @@ void SettingsActivity::openEnumOptionPicker(const SettingInfo& setting) {
   std::vector<std::string> options;
   options.reserve(optionCount);
   for (uint8_t i = 0; i < optionCount; i++) {
-    options.push_back(settingEnumOptionLabel(setting, i));
+    options.push_back(sideButtonOptionLabel(setting, i));
   }
 
   uint8_t currentIndex = 0;
@@ -1261,7 +1261,7 @@ std::string SettingsActivity::settingValueText(const SettingInfo& setting) {
   }
   if (setting.type == SettingType::ENUM && setting.valuePtr != nullptr) {
     const uint8_t displayIndex = enumDisplayIndexForRawValue(setting, SETTINGS.*(setting.valuePtr));
-    return settingEnumOptionLabel(setting, displayIndex);
+    return sideButtonOptionLabel(setting, displayIndex);
   }
   if (setting.type == SettingType::ENUM && setting.valueGetter) {
     return settingEnumOptionLabel(setting, setting.valueGetter());
@@ -1445,6 +1445,8 @@ void SettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
 
   // Settings rows. Values are built per render and owned for the draw only.
   const auto& settings = *currentSettings;
+  const std::string leftUpLabel = sideButtonGroupLabel(true);
+  const std::string rightDownLabel = sideButtonGroupLabel(false);
   std::vector<std::string> values(settings.size());
   std::vector<fui::ListItem> items;
   items.reserve(settings.size());
@@ -1455,7 +1457,11 @@ void SettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
     const fui::BitmapRef directionIcon = twoFingerSwipeIcon(settings[i].nameId);
     const fui::BitmapRef endpointIcon = frontlightScheduleEndpointIcon(settings[i]);
     const fui::BitmapRef itemIcon = directionIcon ? directionIcon : endpointIcon;
-    item.label = isSectionHeader ? uiListSectionHeaderLabel(values[i], I18N.get(settings[i].nameId))
+    const char* sectionLabel =
+        activeSubmenu == SettingAction::ControlsSideButtons
+            ? (settings[i].nameId == StrId::STR_DIR_LEFT ? leftUpLabel.c_str() : rightDownLabel.c_str())
+            : I18N.get(settings[i].nameId);
+    item.label = isSectionHeader ? uiListSectionHeaderLabel(values[i], sectionLabel)
                                  : (directionIcon ? "" : I18N.get(settings[i].nameId));
     item.icon = itemIcon;
     if (!isSectionHeader && !values[i].empty()) item.value = values[i].c_str();
@@ -1480,6 +1486,10 @@ void SettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
   // File Browser, reader menus, and the other list-style screens.
   props.labelText = screen.theme().bodyText;
   props.labelText.maxLines = 2;
+  if (activeSubmenu == SettingAction::ControlsSideButtons) {
+    props.headerText = screen.theme().smallText;
+    props.headerText.bold = true;
+  }
   configureUiListSectionHeaders(props, screen.theme());
   const auto rows = configureUiList(props, screen.theme(), screen.body());
   visibleRows = rows > 0 ? rows : 1;

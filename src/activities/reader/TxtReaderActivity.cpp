@@ -273,42 +273,43 @@ void TxtReaderActivity::loop() {
     return;
   }
 
-  const bool sideLongPressChangesFont =
-      SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_FONT_SIZE;
-  const bool sideLongPressChangesOrientation =
-      SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_ORIENTATION_CHANGE;
-  if (sideLongPressChangesFont || sideLongPressChangesOrientation) {
-    const bool topReleased = mappedInput.wasReleased(MappedInputManager::Button::Up);
-    const bool bottomReleased = mappedInput.wasReleased(MappedInputManager::Button::Down);
-    if (sideButtonLongPressHandled && (topReleased || bottomReleased)) {
-      sideButtonLongPressHandled = false;
-      return;
-    }
-
-    const bool longPressReady = mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS;
-    const bool topLongPressed =
-        longPressReady && (mappedInput.isPressed(MappedInputManager::Button::Up) || topReleased);
-    const bool bottomLongPressed =
-        longPressReady && (mappedInput.isPressed(MappedInputManager::Button::Down) || bottomReleased);
-
-    if (!sideButtonLongPressHandled && (topLongPressed || bottomLongPressed)) {
-      sideButtonLongPressHandled = !(topReleased || bottomReleased);
-      if (sideLongPressChangesFont) {
-        changeReaderFontSize(/*larger=*/topLongPressed);
-        return;
+  const auto side = sideButtonShortcuts.update(mappedInput, millis());
+  if (SideButtonShortcuts::shouldConsume(side, mappedInput)) {
+    if (side.triggered) {
+      if (side.longPress)
+        mappedInput.suppressNextSideRelease(side.up ? MappedInputManager::Button::Up
+                                                    : MappedInputManager::Button::Down);
+      switch (side.action) {
+        case CrossPointSettings::PAGE_TURN:
+          if (currentPage < totalPages - 1) {
+            currentPage++;
+            requestUpdate();
+          }
+          break;
+        case CrossPointSettings::SIDE_INCREASE_FONT:
+        case CrossPointSettings::SIDE_DECREASE_FONT:
+          changeReaderFontSize(side.action == CrossPointSettings::SIDE_INCREASE_FONT);
+          break;
+        case CrossPointSettings::SIDE_ROTATE_COUNTERCLOCKWISE:
+        case CrossPointSettings::SIDE_ROTATE_CLOCKWISE:
+          handleTwoFingerRotation(side.action == CrossPointSettings::SIDE_ROTATE_CLOCKWISE);
+          break;
+        case CrossPointSettings::SIDE_PREVIOUS_CHAPTER:
+        case CrossPointSettings::SIDE_NEXT_CHAPTER:
+        case CrossPointSettings::IGNORE:
+          // Plain text has no chapter model.
+          break;
+        default: {
+          const auto action = static_cast<CrossPointSettings::SHORT_PWRBTN>(side.action);
+          if (action == CrossPointSettings::QUICK_LOCK)
+            handleGlobalPowerButtonAction(action, SideButtonShortcuts::quickLockTrigger(side));
+          else if (!handleShortcutAction(action))
+            handleGlobalPowerButtonAction(action);
+          break;
+        }
       }
-      SETTINGS.orientation = ReaderUtils::rotatedOrientation(SETTINGS.orientation, /*clockwise=*/bottomLongPressed);
-      SETTINGS.saveToFile();
-      {
-        RenderLock lock(*this);
-        ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
-        pageOffsets.clear();
-        currentPageLines.clear();
-        initialized = false;
-      }
-      requestUpdate();
-      return;
     }
+    return;
   }
 
   const bool frontLongPressChangesFont = SETTINGS.longPressButtonBehavior == CrossPointSettings::FONT_SIZE_CHANGE;

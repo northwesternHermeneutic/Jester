@@ -177,6 +177,17 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     SIDE_LONG_PRESS_COUNT
   };
 
+  // Side-button actions share shortcut IDs with Power. These extra IDs are
+  // reader-only actions; keep their persisted values separate and stable.
+  enum SIDE_BUTTON_ACTION : uint8_t {
+    SIDE_PREVIOUS_CHAPTER = 64,
+    SIDE_NEXT_CHAPTER,
+    SIDE_INCREASE_FONT,
+    SIDE_DECREASE_FONT,
+    SIDE_ROTATE_COUNTERCLOCKWISE,
+    SIDE_ROTATE_CLOCKWISE,
+  };
+
   // Font family options (built-in fonts only; SD card fonts use sdFontFamilyName)
   // Jester ships one built-in family. CrossInk's LEXENDDECA=0 / BITTER=1 are
   // gone; value 0 now means IBM Plex Serif, which is why Jester never imports
@@ -542,13 +553,17 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // EPUB reading orientation settings
   // 0 = portrait (default), 1 = landscape clockwise, 2 = inverted, 3 = landscape counter-clockwise
   uint8_t orientation = LANDSCAPE_CCW;  // Jester default (feature 9)
-  // Button layouts (front layout retained for migration only)
+  // Legacy layouts are retained for migration only.
   uint8_t frontButtonLayout = BACK_CONFIRM_LEFT_RIGHT;
   uint8_t sideButtonLayout = PREV_NEXT;
   uint8_t frontButtonOrientationAware = FRONT_ORIENTATION_AWARE_OFF;
   uint8_t sideButtonOrientationAware = 0;
-  // Action performed when side buttons are long-pressed in reader
+  // Legacy shared side-button long action, retained for migration only.
   uint8_t sideButtonLongPress = SIDE_LONG_CHAPTER_SKIP;
+  uint8_t sideButtonUpShort = PREVIOUS_PAGE;
+  uint8_t sideButtonUpLong = SIDE_PREVIOUS_CHAPTER;
+  uint8_t sideButtonDownShort = PAGE_TURN;
+  uint8_t sideButtonDownLong = SIDE_NEXT_CHAPTER;
   // Front button remap (logical -> hardware)
   // Used by MappedInputManager to translate logical buttons into physical front buttons.
   uint8_t frontButtonBack = FRONT_HW_BACK;

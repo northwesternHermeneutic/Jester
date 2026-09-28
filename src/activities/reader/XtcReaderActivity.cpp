@@ -196,10 +196,14 @@ void XtcReaderActivity::loop() {
   }
   if (quickActionsPopup.handleInput(mappedInput, [this] { requestUpdate(); })) return;
 
-  const bool shortcutPageTurn = shortcutPageTurnPending;
+  bool shortcutPageTurn = shortcutPageTurnPending;
+  bool shortcutPageTurnFromSide = shortcutPageTurnPendingFromSide;
   shortcutPageTurnPending = false;
-  const bool shortcutPreviousPage = shortcutPreviousPagePending;
+  shortcutPageTurnPendingFromSide = false;
+  bool shortcutPreviousPage = shortcutPreviousPagePending;
+  bool shortcutPreviousPageFromSide = shortcutPreviousPagePendingFromSide;
   shortcutPreviousPagePending = false;
+  shortcutPreviousPagePendingFromSide = false;
 
   const auto touch = ReaderUtils::detectTouchPageTurn(renderer, mappedInput);
   const int bottomHeight = UITheme::getReaderStatusBarHeight(ReaderStatusBarPosition::Bottom);
@@ -326,73 +330,72 @@ void XtcReaderActivity::loop() {
     return;
   }
 
-  const bool sideLongPressSkipsChapter =
-      SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP;
-  if (sideLongPressSkipsChapter) {
-    const bool sidePrevReleased = mappedInput.wasReleased(MappedInputManager::Button::PageBack);
-    const bool sideNextReleased = mappedInput.wasReleased(MappedInputManager::Button::PageForward);
-    if (sideButtonLongPressHandled && (sidePrevReleased || sideNextReleased)) {
-      sideButtonLongPressHandled = false;
-      return;
-    }
-
-    const bool longPressReady = mappedInput.getHeldTime() > ReaderUtils::SKIP_HOLD_MS;
-    const bool prevLongPressed = longPressReady && mappedInput.isPressed(MappedInputManager::Button::PageBack);
-    const bool nextLongPressed = longPressReady && mappedInput.isPressed(MappedInputManager::Button::PageForward);
-    if (!sideButtonLongPressHandled && (prevLongPressed || nextLongPressed)) {
-      sideButtonLongPressHandled = true;
-
-      bool goHome = false;
-      bool needsUpdate = false;
-      {
-        RenderLock lock(*this);
-        const uint32_t pageCount = xtc->getPageCount();
-        if (currentPage >= pageCount) {
-          if (nextLongPressed) {
-            goHome = true;
-          } else {
-            currentPage = pageCount > 0 ? pageCount - 1 : 0;
-            needsUpdate = true;
-          }
-        } else {
-          uint32_t forwardReadSeconds = 0;
-          const bool shouldRecordForwardRead =
-              nextLongPressed && forwardPageReadElapsed(forwardReadSeconds, "side_long_press");
-          recordCurrentPageReadingTime("side_long_press");
-          if (prevLongPressed) {
-            currentPage = currentPage >= 10 ? currentPage - 10 : 0;
-          } else {
-            currentPage += 10;
+  const bool chordPageTurn = mappedInput.hasInjectedRelease(MappedInputManager::Button::Right);
+  const auto side = sideButtonShortcuts.update(mappedInput, millis());
+  if (SideButtonShortcuts::shouldConsume(side, mappedInput)) {
+    if (side.triggered) {
+      if (side.longPress)
+        mappedInput.suppressNextSideRelease(side.up ? MappedInputManager::Button::Up
+                                                    : MappedInputManager::Button::Down);
+      switch (side.action) {
+        case CrossPointSettings::PAGE_TURN:
+          shortcutPageTurn = true;
+          shortcutPageTurnFromSide = true;
+          break;
+        case CrossPointSettings::PREVIOUS_PAGE:
+          shortcutPreviousPage = true;
+          shortcutPreviousPageFromSide = true;
+          break;
+        case CrossPointSettings::SIDE_PREVIOUS_CHAPTER:
+        case CrossPointSettings::SIDE_NEXT_CHAPTER: {
+          // Fixed-page books keep the established ten-page chapter-skip step.
+          const bool next = side.action == CrossPointSettings::SIDE_NEXT_CHAPTER;
+          bool goHome = false;
+          {
+            RenderLock lock(*this);
+            const uint32_t pageCount = xtc->getPageCount();
             if (currentPage >= pageCount) {
-              currentPage = pageCount;
-            }
-            if (shouldRecordForwardRead) {
-              recordForwardPageTurn(forwardReadSeconds, false);
+              if (next)
+                goHome = true;
+              else
+                currentPage = pageCount > 0 ? pageCount - 1 : 0;
+            } else {
+              uint32_t forwardReadSeconds = 0;
+              const bool recordForward = next && forwardPageReadElapsed(forwardReadSeconds, "side_long_press");
+              recordCurrentPageReadingTime("side_long_press");
+              currentPage =
+                  next ? std::min<uint32_t>(currentPage + 10, pageCount) : (currentPage >= 10 ? currentPage - 10 : 0);
+              if (recordForward) recordForwardPageTurn(forwardReadSeconds, false);
             }
           }
-          needsUpdate = true;
+          if (goHome)
+            onGoHome();
+          else
+            requestUpdate();
+          break;
+        }
+        case CrossPointSettings::SIDE_INCREASE_FONT:
+        case CrossPointSettings::SIDE_DECREASE_FONT:
+        case CrossPointSettings::SIDE_ROTATE_COUNTERCLOCKWISE:
+        case CrossPointSettings::SIDE_ROTATE_CLOCKWISE:
+        case CrossPointSettings::IGNORE:
+          // XTC pages are pre-rendered; font size and rotation do not apply.
+          break;
+        default: {
+          const auto action = static_cast<CrossPointSettings::SHORT_PWRBTN>(side.action);
+          if (action == CrossPointSettings::QUICK_LOCK)
+            handleGlobalPowerButtonAction(action, SideButtonShortcuts::quickLockTrigger(side));
+          else if (!handleShortcutAction(action))
+            handleGlobalPowerButtonAction(action);
+          break;
         }
       }
-      if (goHome) {
-        onGoHome();
-        return;
-      }
-      if (needsUpdate) {
-        requestUpdate();
-      }
-      return;
     }
+    if (!shortcutPageTurn && !shortcutPreviousPage) return;
   }
-
-  // Side buttons fire on press only when long-press action is OFF.
-  const bool sideUsePress = SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_OFF;
 
   const bool tiltNext = SETTINGS.tiltPageTurn && halTiltSensor.wasTiltedForward();
   const bool tiltPrev = SETTINGS.tiltPageTurn && halTiltSensor.wasTiltedBack();
-  const bool sidePrev = sideUsePress ? mappedInput.wasPressed(MappedInputManager::Button::PageBack)
-                                     : mappedInput.wasReleased(MappedInputManager::Button::PageBack);
-  const bool sideNext = sideUsePress ? mappedInput.wasPressed(MappedInputManager::Button::PageForward)
-                                     : mappedInput.wasReleased(MappedInputManager::Button::PageForward);
   const bool frontPrev = mappedInput.wasReleased(MappedInputManager::Button::Left);
   const bool powerReleased = mappedInput.wasReleased(MappedInputManager::Button::Power);
   if (longPowerPageTurnHandled && (powerReleased || !mappedInput.isPressed(MappedInputManager::Button::Power))) {
@@ -488,10 +491,9 @@ void XtcReaderActivity::loop() {
     }
   }
 
-  const bool fromSideBtn = (sidePrev || sideNext) && !(frontPrev || frontNext);
   const bool fromTilt = tiltPrev || tiltNext;
-  bool prevTriggered = tiltPrev || sidePrev || frontPrev;
-  bool nextTriggered = tiltNext || sideNext || frontNext;
+  bool prevTriggered = tiltPrev || frontPrev;
+  bool nextTriggered = tiltNext || frontNext;
   prevTriggered = prevTriggered || touch.prev || shortcutPreviousPage;
   nextTriggered = nextTriggered || touch.next || shortcutPageTurn;
 
@@ -505,28 +507,24 @@ void XtcReaderActivity::loop() {
   const bool fromTouch = touch.prev || touch.next;
   const unsigned long heldMs = fromTouch ? touch.heldMs : mappedInput.getHeldTime();
 
-  // XTC pages are fixed-size bitmaps, so the orientation long-press action is
-  // consumed here instead of rotating/clipping the pre-rendered page image.
-  if (fromSideBtn &&
-      SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_ORIENTATION_CHANGE &&
-      heldMs > ReaderUtils::SKIP_HOLD_MS) {
-    return;
-  }
-
   // Mirror EPUB's manual-turn guard: the render task updates the panel
   // concurrently, so accepting another turn before it owns RenderLock can mix
   // two pages. The short time gap covers that request-to-render startup window.
   constexpr unsigned long kMinManualTurnGapMs = 200;
   const unsigned long now = millis();
   if (RenderLock::peek() || (now - lastPageTurnTime) < kMinManualTurnGapMs) {
+    shortcutPageTurnPending = shortcutPageTurnPending || shortcutPageTurn;
+    shortcutPageTurnPendingFromSide = shortcutPageTurnPendingFromSide || shortcutPageTurnFromSide;
+    shortcutPreviousPagePending = shortcutPreviousPagePending || shortcutPreviousPage;
+    shortcutPreviousPagePendingFromSide = shortcutPreviousPagePendingFromSide || shortcutPreviousPageFromSide;
     return;
   }
   lastPageTurnTime = now;
 
-  const bool skipPages =
-      !fromTouch && !fromTilt && !powerPageTurn && heldMs > ReaderUtils::SKIP_HOLD_MS &&
-      (fromSideBtn ? SETTINGS.sideButtonLongPress == CrossPointSettings::SIDE_LONG_PRESS::SIDE_LONG_CHAPTER_SKIP
-                   : SETTINGS.longPressButtonBehavior == CrossPointSettings::CHAPTER_SKIP);
+  const bool sideShortcutPageTurn = shortcutPageTurnFromSide || shortcutPreviousPageFromSide;
+  const bool skipPages = !chordPageTurn && !sideShortcutPageTurn && !fromTouch && !fromTilt && !powerPageTurn &&
+                         heldMs > ReaderUtils::SKIP_HOLD_MS &&
+                         SETTINGS.longPressButtonBehavior == CrossPointSettings::CHAPTER_SKIP;
   const int skipAmount = skipPages ? 10 : 1;
 
   bool goHome = false;

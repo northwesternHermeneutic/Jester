@@ -1517,7 +1517,12 @@ void CrossPointWebServer::handleGetSettings() const {
 
     doc.clear();
     doc["key"] = s.key;
-    doc["name"] = I18N.get(s.nameId);
+    if (isSideButtonActionSetting(s)) {
+      const bool up = settingKeyIs(s, "sideButtonUpShort") || settingKeyIs(s, "sideButtonUpLong");
+      doc["name"] = sideButtonGroupLabel(up) + " " + I18N.get(s.nameId);
+    } else {
+      doc["name"] = I18N.get(s.nameId);
+    }
     doc["category"] = I18N.get(s.category);
 
     switch (s.type) {
@@ -1573,7 +1578,7 @@ void CrossPointWebServer::handleGetSettings() const {
         } else {
           for (size_t optionIndex = 0; optionIndex < s.enumValues.size(); ++optionIndex) {
             if (isWebEnumOptionAvailable(s, optionIndex)) {
-              options.add(I18N.get(s.enumValues[optionIndex]));
+              options.add(sideButtonOptionLabel(s, static_cast<uint8_t>(optionIndex)));
             }
           }
         }

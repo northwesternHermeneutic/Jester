@@ -19,6 +19,7 @@
 #include "GlobalReadingStats.h"
 #include "ManualPageTurnQueue.h"
 #include "ReaderProgressSaveDebouncer.h"
+#include "SideButtonShortcuts.h"
 #include "activities/Activity.h"
 #include "components/OptionPopup.h"
 #if CROSSINK_APP_CAP_TOUCH
@@ -203,7 +204,7 @@ class EpubReaderActivity final : public Activity {
   bool longPressBackHandled = false;
   bool longPowerButtonHandled = false;
   OptionPopup quickActionsPopup;
-  bool sideButtonLongPressHandled = false;
+  SideButtonShortcuts sideButtonShortcuts;
   bool frontButtonLongPressHandled = false;
   bool touchDictionaryLookupHandled = false;
   int pageLoadRetryCount = 0;

@@ -28,6 +28,10 @@ enum class Trigger : uint8_t {
   LongPressHome,
   DoubleTapHome,
   UpDown,
+  SideUpShort,
+  SideUpLong,
+  SideDownShort,
+  SideDownLong,
 };
 
 // CrossPointSettings::quickActionsTrigger defaults to this raw value; it cannot
@@ -171,6 +175,10 @@ inline void synchronize(CrossPointSettings& settings, Trigger preferred = Trigge
   const bool tapHome = settings.homeButtonTapAction == CrossPointSettings::QUICK_ACTIONS;
   const bool longPressHome = settings.homeButtonLongPressAction == CrossPointSettings::QUICK_ACTIONS;
   const bool doubleTapHome = settings.homeButtonDoubleTapAction == CrossPointSettings::QUICK_ACTIONS;
+  const bool sideUpShort = settings.sideButtonUpShort == CrossPointSettings::QUICK_ACTIONS;
+  const bool sideUpLong = settings.sideButtonUpLong == CrossPointSettings::QUICK_ACTIONS;
+  const bool sideDownShort = settings.sideButtonDownShort == CrossPointSettings::QUICK_ACTIONS;
+  const bool sideDownLong = settings.sideButtonDownLong == CrossPointSettings::QUICK_ACTIONS;
 
   Trigger owner = preferred;
   if (owner == Trigger::None) {
@@ -192,6 +200,14 @@ inline void synchronize(CrossPointSettings& settings, Trigger preferred = Trigge
       owner = Trigger::LongPressHome;
     else if (doubleTapHome)
       owner = Trigger::DoubleTapHome;
+    else if (sideUpShort)
+      owner = Trigger::SideUpShort;
+    else if (sideUpLong)
+      owner = Trigger::SideUpLong;
+    else if (sideDownShort)
+      owner = Trigger::SideDownShort;
+    else if (sideDownLong)
+      owner = Trigger::SideDownLong;
   }
 
   if (owner != Trigger::ShortPower && shortPower) settings.shortPwrBtn = CrossPointSettings::IGNORE;
@@ -207,6 +223,10 @@ inline void synchronize(CrossPointSettings& settings, Trigger preferred = Trigge
   if (owner != Trigger::DoubleTapHome && doubleTapHome) {
     settings.homeButtonDoubleTapAction = CrossPointSettings::HOME_BUTTON_TOGGLE_FRONTLIGHT;
   }
+  if (owner != Trigger::SideUpShort && sideUpShort) settings.sideButtonUpShort = CrossPointSettings::IGNORE;
+  if (owner != Trigger::SideUpLong && sideUpLong) settings.sideButtonUpLong = CrossPointSettings::IGNORE;
+  if (owner != Trigger::SideDownShort && sideDownShort) settings.sideButtonDownShort = CrossPointSettings::IGNORE;
+  if (owner != Trigger::SideDownLong && sideDownLong) settings.sideButtonDownLong = CrossPointSettings::IGNORE;
   settings.quickActionsTrigger = static_cast<uint8_t>(owner);
 }
 
@@ -234,6 +254,14 @@ inline void applyTrigger(CrossPointSettings& settings, const Trigger trigger) {
   if (settings.homeButtonDoubleTapAction == CrossPointSettings::QUICK_ACTIONS) {
     settings.homeButtonDoubleTapAction = CrossPointSettings::HOME_BUTTON_TOGGLE_FRONTLIGHT;
   }
+  if (settings.sideButtonUpShort == CrossPointSettings::QUICK_ACTIONS)
+    settings.sideButtonUpShort = CrossPointSettings::IGNORE;
+  if (settings.sideButtonUpLong == CrossPointSettings::QUICK_ACTIONS)
+    settings.sideButtonUpLong = CrossPointSettings::IGNORE;
+  if (settings.sideButtonDownShort == CrossPointSettings::QUICK_ACTIONS)
+    settings.sideButtonDownShort = CrossPointSettings::IGNORE;
+  if (settings.sideButtonDownLong == CrossPointSettings::QUICK_ACTIONS)
+    settings.sideButtonDownLong = CrossPointSettings::IGNORE;
 
   if (trigger == Trigger::ShortPower) settings.shortPwrBtn = CrossPointSettings::QUICK_ACTIONS;
   if (trigger == Trigger::LongPower) settings.longPwrBtn = CrossPointSettings::QUICK_ACTIONS;
@@ -244,6 +272,10 @@ inline void applyTrigger(CrossPointSettings& settings, const Trigger trigger) {
   if (trigger == Trigger::TapHome) settings.homeButtonTapAction = CrossPointSettings::QUICK_ACTIONS;
   if (trigger == Trigger::LongPressHome) settings.homeButtonLongPressAction = CrossPointSettings::QUICK_ACTIONS;
   if (trigger == Trigger::DoubleTapHome) settings.homeButtonDoubleTapAction = CrossPointSettings::QUICK_ACTIONS;
+  if (trigger == Trigger::SideUpShort) settings.sideButtonUpShort = CrossPointSettings::QUICK_ACTIONS;
+  if (trigger == Trigger::SideUpLong) settings.sideButtonUpLong = CrossPointSettings::QUICK_ACTIONS;
+  if (trigger == Trigger::SideDownShort) settings.sideButtonDownShort = CrossPointSettings::QUICK_ACTIONS;
+  if (trigger == Trigger::SideDownLong) settings.sideButtonDownLong = CrossPointSettings::QUICK_ACTIONS;
   settings.quickActionsTrigger = static_cast<uint8_t>(trigger);
 }
 
@@ -257,6 +289,10 @@ inline Trigger triggerForSetting(uint8_t CrossPointSettings::* member) {
   if (member == &CrossPointSettings::homeButtonTapAction) return Trigger::TapHome;
   if (member == &CrossPointSettings::homeButtonLongPressAction) return Trigger::LongPressHome;
   if (member == &CrossPointSettings::homeButtonDoubleTapAction) return Trigger::DoubleTapHome;
+  if (member == &CrossPointSettings::sideButtonUpShort) return Trigger::SideUpShort;
+  if (member == &CrossPointSettings::sideButtonUpLong) return Trigger::SideUpLong;
+  if (member == &CrossPointSettings::sideButtonDownShort) return Trigger::SideDownShort;
+  if (member == &CrossPointSettings::sideButtonDownLong) return Trigger::SideDownLong;
   return Trigger::None;
 }
 
