@@ -15,6 +15,14 @@
 
 using namespace library;
 
+std::vector<std::string> preservedCacheClears;
+bool preserveCacheState = true;
+
+bool clearBookCachePreservingUserState(const std::string& path) {
+  preservedCacheClears.push_back(path);
+  return preserveCacheState;
+}
+
 namespace {
 
 constexpr char INDEX[] = "/.crosspoint/library.idx";
@@ -88,6 +96,8 @@ class LibraryBuilderTest : public ::testing::Test {
     bookMetadata.clear();
     cachedBookMetadata.clear();
     metadataCacheUse.clear();
+    preservedCacheClears.clear();
+    preserveCacheState = true;
     fake::add("/a.epub");
     fake::add("/b.epub");
   }
@@ -109,6 +119,31 @@ TEST_F(LibraryBuilderTest, UnchangedRebuildReusesMetadataAndDoesNotReplaceIndex)
   EXPECT_EQ(stats.metadataReused, 2);
   EXPECT_FALSE(stats.indexReplaced);
   EXPECT_EQ(fake::files[INDEX]->bytes, old);
+}
+
+TEST_F(LibraryBuilderTest, MissingModificationDateClearsDerivedCacheThroughStatePreservingPath) {
+  fake::files["/a.epub"]->time = 0;
+  initial();
+  preservedCacheClears.clear();
+  metadataCacheUse.clear();
+
+  ASSERT_TRUE(buildLibraryIndex("/", stats, true));
+
+  EXPECT_EQ(preservedCacheClears, std::vector<std::string>{"/a.epub"});
+  ASSERT_EQ(metadataCacheUse.size(), 1u);
+  EXPECT_FALSE(metadataCacheUse.front());
+}
+
+TEST_F(LibraryBuilderTest, ChangedEpubAbortsIndexRefreshIfReadingStateCannotBePreserved) {
+  initial();
+  fake::files["/a.epub"]->time++;
+  preserveCacheState = false;
+  fake::parses = 0;
+
+  EXPECT_FALSE(buildLibraryIndex("/", stats, true));
+  EXPECT_EQ(preservedCacheClears, std::vector<std::string>{"/a.epub"});
+  EXPECT_EQ(fake::parses, 0u);
+  EXPECT_TRUE(Storage.exists(INDEX));
 }
 
 TEST_F(LibraryBuilderTest, FolderHeavyUnchangedReconciliationIoScalesLinearly) {

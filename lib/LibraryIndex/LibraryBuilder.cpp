@@ -18,6 +18,7 @@
 #include <cstring>
 #include <limits>
 
+#include "../../src/util/BookCacheUtils.h"
 #include "LibraryFileTypes.h"
 #include "LibraryIndexFile.h"
 #include "LibraryText.h"
@@ -436,6 +437,11 @@ int findPrior(WalkState& st, const uint64_t pathHash) {
         modificationTime == 0 ||
         (priorIndex >= 0 && (st.prior[priorIndex].fileSize != fileSize || priorRecord.modificationTime == 0 ||
                              priorRecord.modificationTime != modificationTime));
+    if (sourceChanged && !clearBookCachePreservingUserState(fullPath)) {
+      LOG_ERR("LIBIDX", "Cannot invalidate stale EPUB cache while preserving reading state: %s", fullPath.c_str());
+      st.failed = true;
+      return false;
+    }
     if (epub.loadMetadata(bookTitle, author, !sourceChanged, &series, &genre, &seriesIndex)) {
       entry.record.metadataStatus = CLIX_METADATA_EXTRACTED;
       entry.seriesPosition = parseSeriesPosition(seriesIndex);

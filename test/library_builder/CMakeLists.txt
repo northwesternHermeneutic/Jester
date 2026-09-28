@@ -14,3 +14,13 @@ target_include_directories(LibraryBuilderTest PRIVATE
 )
 target_link_libraries(LibraryBuilderTest PRIVATE crosspoint_test_common GTest::gtest_main)
 gtest_discover_tests(LibraryBuilderTest)
+
+add_executable(BookCacheUtilsTest
+  BookCacheUtilsTest.cpp
+  ${REPO_ROOT}/src/util/BookCacheUtils.cpp
+)
+target_include_directories(BookCacheUtilsTest PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/stubs
+)
+target_link_libraries(BookCacheUtilsTest PRIVATE crosspoint_test_common GTest::gtest_main)
+gtest_discover_tests(BookCacheUtilsTest)

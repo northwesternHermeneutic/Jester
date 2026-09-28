@@ -124,8 +124,9 @@ class Epub {
             XLocationLoadMode xLocationLoadMode = XLocationLoadMode::Immediate, bool cacheCumulativeSpineSizes = false);
   // Title and author only, without building the spine/TOC/CSS/cover caches
   // load() does. Reuses an existing metadata cache when there is one unless
-  // allowCachedMetadata is false; that path invalidates a stale full cache and
-  // stops the OPF parse at </metadata>, before the manifest. Used by the
+  // allowCachedMetadata is false. Cache invalidation is the caller's job, so
+  // metadata reads cannot delete per-book progress or settings. Parsing stops
+  // at </metadata>, before the manifest. Used by the
   // Library index builder, which reads every EPUB on the card and cannot
   // afford a full load() per book.
   bool loadMetadata(std::string& title, std::string& author, bool allowCachedMetadata = true,

@@ -1135,9 +1135,6 @@ bool Epub::loadMetadata(std::string& title, std::string& author, const bool allo
     if (!metadataCache) {
       LOG_ERR("EBP", "Could not allocate metadata cache reader");
     }
-  } else if (!allowCachedMetadata && !clearCache()) {
-    LOG_ERR("EBP", "Could not invalidate stale metadata cache");
-    return false;
   }
 
   BookMetadataCache::BookMetadata metadata;

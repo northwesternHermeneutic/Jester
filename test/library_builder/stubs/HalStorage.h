@@ -20,6 +20,7 @@ inline std::map<std::string, std::shared_ptr<Node>> files;
 inline int failRead = -1;
 inline int failWrite = -1;
 inline int failRename = -1;
+inline std::string failRenameToPath;
 inline int failAlloc = -1;
 inline bool failDirectorySeek = false;
 inline std::string failDirectoryIterationPath;
@@ -52,6 +53,7 @@ inline void reset() {
   failRead = -1;
   failWrite = -1;
   failRename = -1;
+  failRenameToPath.clear();
   failAlloc = -1;
   failDirectorySeek = false;
   failDirectoryIterationPath.clear();
@@ -190,6 +192,7 @@ class HalFile {
     return size;
   }
   size_t write(const void* data, const size_t size) { return write(static_cast<const uint8_t*>(data), size); }
+  bool sync() { return bool(node); }
 };
 
 class HalStorage {
@@ -232,12 +235,29 @@ class HalStorage {
     return openFileForWrite(module, path.c_str(), file);
   }
   bool remove(const char* path) { return fake::files.erase(path) != 0; }
+  bool removeDir(const char* path) {
+    if (!exists(path)) return false;
+    const std::string prefix = std::string(path) + "/";
+    for (auto it = fake::files.begin(); it != fake::files.end();) {
+      if (it->first == path || it->first.starts_with(prefix))
+        it = fake::files.erase(it);
+      else
+        ++it;
+    }
+    return true;
+  }
   bool rename(const char* from, const char* to) {
+    if (!fake::failRenameToPath.empty() && fake::failRenameToPath == to) {
+      fake::failRenameToPath.clear();
+      return false;
+    }
     if (fake::fail(fake::failRename) || !exists(from) || exists(to)) return false;
     fake::files[to] = fake::files[from];
     fake::files.erase(from);
     return true;
   }
 };
+
+using FsFile = HalFile;
 
 #define Storage HalStorage::getInstance()

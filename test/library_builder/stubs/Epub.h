@@ -25,6 +25,12 @@ class Epub {
  public:
   Epub(const std::string& path, const char*) : path(path) {}
 
+  std::string getCachePath() const { return "/.crosspoint/cache_" + path.substr(1); }
+  bool clearCache() const {
+    const std::string cachePath = getCachePath();
+    return !Storage.exists(cachePath.c_str()) || Storage.removeDir(cachePath.c_str());
+  }
+
   bool loadMetadata(std::string& title, std::string& author, const bool allowCachedMetadata = true,
                     std::string* series = nullptr, std::string* genre = nullptr, std::string* seriesIndex = nullptr) {
     ++fake::parses;
