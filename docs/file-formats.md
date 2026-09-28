@@ -303,6 +303,19 @@ Binary layout:
 
 ## `section.bin`
 
+### Version 79
+
+Version 79 keeps the version 78 serialized layout. Korean words now wrap at
+spaces by default; with hyphenation enabled, they can also split at a legal
+CJK boundary at a line end without a visible hyphen. Justification stretches
+word spaces only. Full caches (byte `79`) and suspended partial caches
+(`0xF4`) both rebuild because earlier page positions are no longer valid.
+
+### Version 78
+
+Version 78 changed layout for inline CSS padding. Full and suspended partial
+section caches rebuild together.
+
 ### Version 77
 
 Version 77 keeps the serialized layout unchanged. It was bumped because ordered
@@ -426,7 +439,7 @@ import std.mem;
 import std.string;
 import std.core;
 
-#define EXPECTED_VERSION 77
+#define EXPECTED_VERSION 79
 #define MAX_STRING_LENGTH 65535
 #define FOOTNOTE_NUMBER_LEN 32
 #define FOOTNOTE_HREF_LEN 96
