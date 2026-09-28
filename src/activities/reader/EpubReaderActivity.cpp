@@ -2417,9 +2417,11 @@ void EpubReaderActivity::onExit() {
   releaseGrayscaleStripScratch(true);
   ImageBlock::releaseSessionPixelCache();
 
-  // SD-font caches live in the renderer singleton, so leaving them resident after
-  // the reader exits can fragment the contiguous heap needed for Home cover images.
-  releaseReaderSdFontCachesForLowMemory(renderer, "ERS", "reader exit");
+  // SD-font caches live in the renderer singleton and can fragment the Home heap.
+  // Release every rebuildable cache, including fonts used before the current one.
+  if (auto* fontCache = renderer.getFontCacheManager()) {
+    fontCache->releaseSdFontCaches();
+  }
   MemoryBudget::logEpubHeapPools("reader exit after caches");
   Activity::onExit();
 

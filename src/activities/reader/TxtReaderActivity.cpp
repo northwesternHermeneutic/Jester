@@ -149,6 +149,9 @@ void TxtReaderActivity::onEnter() {
 void TxtReaderActivity::onExit() {
   mappedInput.setReaderTouchscreenOverride(false);
   Activity::onExit();
+  if (auto* fontCache = renderer.getFontCacheManager()) {
+    fontCache->releaseSdFontCaches();
+  }
 
   // Deactivate reader-specific front button mapping.
   mappedInput.setReaderMode(false);
