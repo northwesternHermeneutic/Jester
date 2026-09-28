@@ -57,6 +57,10 @@ void LibraryActivity::onEnter() {
   {
     RenderLock lock;
     Activity::onEnter();
+    renderer.setOrientation(GfxRenderer::Orientation::Portrait);
+    // The activity can be constructed while a landscape reader is still active.
+    // Refresh FreeInkUI's captured screen size and safe area after rotating.
+    app.setDevice(uiTarget.deviceContext());
     if (RECENT_BOOKS.pruneMissing()) RECENT_BOOKS.saveToFile();
     applySharedUiTheme(app, uiTarget);
     seriesScratch.reserve(128);
