@@ -795,8 +795,9 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   renderer.getOrientedViewableTRBL(&bounds[0], &bounds[1], &bounds[2], &bounds[3]);
   const int16_t headerBottom =
       static_cast<int16_t>(metrics.topPadding + TouchHeaderBackButton::height(metrics, mappedInput));
+  const int buttonHintsHeight = mappedInput.hasTouchHardware() ? 0 : metrics.buttonHintsHeight;
   screen.setContentMarginFromScreen(fui::Insets{headerBottom, static_cast<int16_t>(bounds[1]),
-                                                static_cast<int16_t>(FOOTER_HEIGHT + bounds[2]),
+                                                static_cast<int16_t>(FOOTER_HEIGHT + buttonHintsHeight + bounds[2]),
                                                 static_cast<int16_t>(bounds[3])});
   // Every header icon owns a 44px touch box, with 10px of clearance.
   const int16_t controlSize = HEADER_CONTROL_SIZE;
@@ -899,13 +900,24 @@ void LibraryActivity::render(RenderLock&&) {
   }
   uiReady = true;
   if (actionPopup.processRender(renderer, mappedInput)) return;
+  const char* confirmLabel = !mappedInput.hasTouchHardware() && rowCount() == 0 ? ""
+                             : selection < CONTROL_COUNT                        ? tr(STR_SELECT)
+                                                                                : tr(STR_OPEN);
+  const auto labels =
+      mappedInput.mapLabels(mappedInput.withBackArrow(query.empty() ? tr(STR_HOME) : tr(STR_BACK)), confirmLabel,
+                            mappedInput.hasTouchHardware() ? tr(STR_DIR_UP) : tr(STR_SORT),
+                            mappedInput.hasTouchHardware() ? tr(STR_DIR_DOWN) : tr(STR_MENU));
+  GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   char footer[32];
   snprintf(footer, sizeof(footer), tr(STR_LIBRARY_FILES_COUNT), static_cast<unsigned>(rowCount()));
   int bounds[4]{};
   renderer.getOrientedViewableTRBL(&bounds[0], &bounds[1], &bounds[2], &bounds[3]);
-  renderer.drawCenteredText(
-      SMALL_FONT_ID,
-      renderer.getScreenHeight() - bounds[2] - (FOOTER_HEIGHT + renderer.getLineHeight(SMALL_FONT_ID)) / 2, footer);
+  const int buttonHintsHeight =
+      mappedInput.hasTouchHardware() ? 0 : UITheme::getInstance().getMetrics().buttonHintsHeight;
+  renderer.drawCenteredText(SMALL_FONT_ID,
+                            renderer.getScreenHeight() - bounds[2] - buttonHintsHeight -
+                                (FOOTER_HEIGHT + renderer.getLineHeight(SMALL_FONT_ID)) / 2,
+                            footer);
   if (pendingCacheDeletedFeedback) GUI.drawPopup(renderer, tr(STR_BOOK_CACHE_DELETED));
   renderer.displayBuffer();
 }
