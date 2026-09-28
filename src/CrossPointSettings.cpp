@@ -445,6 +445,7 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
   doc["librarySortMethod"] = librarySortMethod;
   doc["librarySortDescending"] = librarySortDescending;
   doc["libraryListExpanded"] = libraryListExpanded;
+  doc["recentBooksView"] = recentBooksView;
   doc["libraryShowSeries"] = libraryShowSeries;
   doc["libraryShowGenre"] = libraryShowGenre;
   doc["libraryShowEpub"] = libraryShowEpub;
@@ -594,6 +595,9 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
   readLibraryChoice("librarySortMethod", librarySortMethod, 7);
   readLibraryChoice("librarySortDescending", librarySortDescending, 2);
   readLibraryChoice("libraryListExpanded", libraryListExpanded, 2);
+  // A missing or corrupt legacy choice uses List, even if this object loaded another document earlier.
+  recentBooksView = RECENT_BOOKS_LIST;
+  readLibraryChoice("recentBooksView", recentBooksView, RECENT_BOOKS_VIEW_COUNT);
   readLibraryChoice("libraryShowSeries", libraryShowSeries, 2);
   readLibraryChoice("libraryShowGenre", libraryShowGenre, 2);
   readLibraryChoice("libraryShowEpub", libraryShowEpub, 2);

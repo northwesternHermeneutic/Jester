@@ -575,7 +575,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t longPressButtonBehavior = OFF;
   // UI Theme
   uint8_t uiTheme = LYRA;
-  // Legacy Recent Books layout; retained for binary settings compatibility.
+  // Recently Opened layout in Library; keep the original raw values for older settings.
   uint8_t recentBooksView = RECENT_BOOKS_LIST;
   // UI scale (list fonts + row heights); touch boards default one step larger
   uint8_t uiScale = UI_SCALE_SMALL;  // Jester default (feature 10)

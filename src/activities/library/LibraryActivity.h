@@ -37,6 +37,13 @@ class LibraryActivity final : public Activity {
   int selection = CONTROL_COUNT;
   bool showSelection = true;
   int topIndex = 0;
+  int gridPageStart = 0;
+  int loadedGridPageStart = -1;
+  int nextGridCoverRow = -1;
+  int16_t gridCoverWidth = 0;
+  int16_t gridCoverHeight = 0;
+  int gridProgressRow = -1;
+  float gridProgress = -1.0f;
   bool uiReady = false;
   bool initialScanPending = false;
   bool longPressFired = false;
@@ -67,6 +74,11 @@ class LibraryActivity final : public Activity {
   static void onControlEvent(const freeink::ui::ActionEvent& event, void* user);
   static void provideRow(void* user, uint16_t row, freeink::ui::ListItem& item);
   void buildListScreen(UiApp::ScreenType& screen);
+  void buildGrid(UiApp::ScreenType& screen);
+  void loadGridPageCovers();
+  bool loadGridCover(int row);
+  void loadGridProgress();
+  bool gridEnabled() const;
   void buildSortHeader(UiApp::ScreenType& screen);
   const char* sortLabel() const;
   library::SortOrder indexOrder() const;
