@@ -87,6 +87,9 @@ void LibrarySettingsActivity::loop() {
     return;
   }
   if (ignoreConfirmRelease) {
+    // Consume the menu selection's release even when this screen ignores it.
+    // Otherwise its one-shot suppression can swallow the next quick Select.
+    (void)mappedInput.wasReleased(MappedInputManager::Button::Confirm);
     if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) ignoreConfirmRelease = false;
     return;
   }
