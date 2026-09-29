@@ -281,13 +281,14 @@ const char* SdCardFontRegistry::findFamilyRoot(const char* familyName) {
 }
 
 const char* SdCardFontRegistry::defaultWriteRoot() {
-  // If exactly one of the roots already exists, keep using it. Otherwise
-  // (neither exists, or both exist) prefer the hidden root for new installs.
+  // Use whichever root already exists; if both exist the hidden one wins,
+  // since a user creates it deliberately. Jester defaults new installs to
+  // the visible root (feature 12).
   bool hiddenExists = Storage.exists(FONTS_DIR_HIDDEN);
   bool visibleExists = Storage.exists(FONTS_DIR_VISIBLE);
   if (hiddenExists) return FONTS_DIR_HIDDEN;
   if (visibleExists) return FONTS_DIR_VISIBLE;
-  return FONTS_DIR_HIDDEN;
+  return FONTS_DIR_VISIBLE;
 }
 
 const SdCardFontFamilyInfo* SdCardFontRegistry::findSummary(const std::string& name) const {

@@ -213,6 +213,17 @@ EpdFontFamily ui10FontFamily(&plexserif10RegularFont, &plexserif10BoldFont, null
 EpdFontFamily ui12FontFamily(&plexserif12RegularFont, &plexserif12BoldFont, nullptr, nullptr,
                              &uiSymbols10Font);
 
+// Feature 12: create a user-facing SD root only when neither its hidden nor its
+// visible form exists, so an existing hidden root is never shadowed by an
+// empty visible duplicate. The registries resolve the hidden form first, so a
+// user can hide either directory by renaming it with a leading period.
+static void ensureVisibleSdRoot(const char* hiddenPath, const char* visiblePath) {
+  if (Storage.exists(hiddenPath) || Storage.exists(visiblePath)) return;
+  if (!Storage.mkdir(visiblePath)) {
+    LOG_ERR("MAIN", "Failed to create %s", visiblePath);
+  }
+}
+
 const char* resetReasonName(const esp_reset_reason_t reason) {
   switch (reason) {
     case ESP_RST_POWERON:
@@ -1300,6 +1311,10 @@ void setup() {
     return;
   }
   logBootHeap("storage ready");
+  // Paths match DictionaryRegistry::DICT_ROOT_CANDIDATES and
+  // SdCardFontRegistry::FONTS_DIR_{HIDDEN,VISIBLE}.
+  ensureVisibleSdRoot("/.dictionaries", "/dictionaries");
+  ensureVisibleSdRoot("/.fonts", "/fonts");
 
   HalSystem::checkPanic();
 
