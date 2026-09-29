@@ -1972,8 +1972,11 @@ void EpubReaderActivity::loadBookReaderSettings() {
   if (data.hasCustomReaderSettings) {
     applyReaderSettings(data.readerSettings);
   }
+  // Feature 9: a book the user has changed keeps its own mode; any other book
+  // opens in Balanced. This line, not the settings initializer, is what seeds
+  // the mode on every book open.
   SETTINGS.epubRenderMode = data.hasRenderModeOverride ? normalizeRenderModeRaw(data.renderMode)
-                                                       : static_cast<uint8_t>(EpubRenderMode::CrossInkDefault);
+                                                       : static_cast<uint8_t>(EpubRenderMode::Balanced);
 }
 
 void EpubReaderActivity::saveCurrentBookReaderSettings() {

@@ -421,7 +421,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   static uint8_t defaultUiScale();
 
   // Sleep screen settings
-  uint8_t sleepScreen = DARK;
+  uint8_t sleepScreen = OVERLAY;  // Jester default (feature 10)
   // Night mode: inverted output polarity, applied to every activity per render
   // by ActivityManager. Quick Resume preserves it; other sleep screens remain normal.
   uint8_t screenInverted = 0;
@@ -431,9 +431,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t sleepScreenCoverFilter = NO_FILTER;
   // Status bar settings (statusBar retained for migration only)
   uint8_t statusBar = FULL;
-  uint8_t statusBarChapterPageCount = 1;
+  uint8_t statusBarChapterPageCount = 0;  // Jester default (feature 9)
   uint8_t statusBarBookProgressPercentage = 1;
-  uint8_t statusBarBookPercentageFormat = BOOK_PERCENTAGE_WHOLE;
+  uint8_t statusBarBookPercentageFormat = BOOK_PERCENTAGE_ONE_DECIMAL;  // Jester default (feature 2/9)
   uint8_t stablePageNumbers = 0;
   uint8_t statusBarProgressBar = HIDE_PROGRESS;
   uint8_t statusBarProgressBarThickness = PROGRESS_BAR_NORMAL;
@@ -460,7 +460,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // time-only syncs do not unlock date display with stale RTC date registers.
   uint8_t clockDateHasBeenSynced = 0;
   // Text rendering settings
-  uint8_t extraParagraphSpacing = 1;
+  uint8_t extraParagraphSpacing = 0;  // Jester default (feature 9)
   uint8_t forceParagraphIndents = 0;
   uint8_t textAntiAliasing = 1;
   // Touch screen reader zones/gestures on boards with a touch controller.
@@ -482,7 +482,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t twoFingerSwipeLeft = TWO_FINGER_SWIPE_NOT_SET;
   uint8_t twoFingerSwipeRight = TWO_FINGER_SWIPE_NOT_SET;
   // Short power button action behaviour
-  uint8_t shortPwrBtn = IGNORE;
+  uint8_t shortPwrBtn = TOGGLE_BOOKMARK;  // Jester default (feature 10)
   // Long power button action behaviour
   uint8_t longPwrBtn = SLEEP;
   // Power + Up shortcut action. Disabled by default so the established
@@ -501,7 +501,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t homeButtonInReaderEnabled = 1;
   // EPUB reading orientation settings
   // 0 = portrait (default), 1 = landscape clockwise, 2 = inverted, 3 = landscape counter-clockwise
-  uint8_t orientation = PORTRAIT;
+  uint8_t orientation = LANDSCAPE_CCW;  // Jester default (feature 9)
   // Button layouts (front layout retained for migration only)
   uint8_t frontButtonLayout = BACK_CONFIRM_LEFT_RIGHT;
   uint8_t sideButtonLayout = PREV_NEXT;
@@ -526,25 +526,25 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t fontFamily = PLEXSERIF;
   // The physical reader size selected by the user. Built-in and SD-card font
   // families resolve this to their closest available file.
-  uint8_t readerFontPointSize = 14;
+  uint8_t readerFontPointSize = 12;  // Jester default (feature 9)
   // Transient compatibility state for JSON settings written before fontSize
   // stored a point size. SdCardFontSystem resolves it once the family catalog
   // is available, then persists readerFontPointSize.
   uint8_t legacySdFontSizeStep = UINT8_MAX;
   uint8_t sdFontSizeRange = SD_FONT_RANGE_TINY;
   uint8_t lineSpacing = NORMAL;  // migration only; new saves use lineHeightPercent
-  uint8_t lineHeightPercent = 100;
+  uint8_t lineHeightPercent = 88;  // Jester default (feature 9)
   uint8_t wordSpacing = 0;
   uint8_t paragraphAlignment = JUSTIFIED;
   // Auto-sleep timeout setting (default 10 minutes). Legacy sleepTimeout enum values are migration-only.
-  uint8_t sleepTimeoutMinutes = 10;
+  uint8_t sleepTimeoutMinutes = 7;  // Jester default (feature 10)
   // E-ink refresh frequency (default 15 pages)
-  uint8_t refreshFrequency = REFRESH_15;
-  uint8_t hyphenationEnabled = 0;
+  uint8_t refreshFrequency = REFRESH_5;  // Jester default (feature 10)
+  uint8_t hyphenationEnabled = 1;  // Jester default (feature 9)
 
   // Reader screen margins. Legacy single-axis settings initialize both values.
-  uint8_t screenMarginVertical = 5;
-  uint8_t screenMarginHorizontal = 5;
+  uint8_t screenMarginVertical = 20;  // Jester default (feature 9)
+  uint8_t screenMarginHorizontal = 48;  // Jester default (feature 9)
   // Show EPUB publisher pagebreak labels in the reader margin when present.
   uint8_t publisherPageNumbers = 0;
   // OPDS browser settings
@@ -556,7 +556,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Nearby file receive destination (empty = SD root).
   char nearbyReceiveFolder[64] = "";
   // Hide battery percentage
-  uint8_t hideBatteryPercentage = HIDE_NEVER;
+  uint8_t hideBatteryPercentage = HIDE_READER;  // Jester default (feature 9/10)
   // Long-press page turn button behavior
   uint8_t longPressButtonBehavior = OFF;
   // UI Theme
@@ -564,21 +564,23 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Recent Books screen layout
   uint8_t recentBooksView = RECENT_BOOKS_LIST;
   // UI scale (list fonts + row heights); touch boards default one step larger
-  uint8_t uiScale = defaultUiScale();
+  uint8_t uiScale = UI_SCALE_SMALL;  // Jester default (feature 10)
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
   // Quick-return from footnotes when a footnote shortcut is active.
   uint8_t pwrBtnFootnoteBack = 1;
   // Use book's embedded CSS styles for EPUB rendering (1 = enabled, 0 = disabled)
-  uint8_t embeddedStyle = 1;
+  uint8_t embeddedStyle = 0;  // Jester default (feature 9)
   // EPUB section indexing policy. The current chapter keeps its active build.
-  uint8_t indexingMethod = INDEXING_FULL_SECTION;
+  uint8_t indexingMethod = INDEXING_INCREMENTAL;  // Jester default (feature 9)
   // Focus Reading - emphasizes the first part of words with bold
   uint8_t focusReadingEnabled = 0;
   // Guide Dots - places a middle dot between words to guide the eye
   uint8_t guideReadingEnabled = 0;
   // Per-book EPUB render mode runtime value. This is intentionally not saved as a global setting.
-  uint8_t epubRenderMode = 0;
+  // Seeded on each book open in EpubReaderActivity (Balanced unless the book overrides it);
+  // this initializer only covers the interval before any book is opened.
+  uint8_t epubRenderMode = 1;  // EpubRenderMode::Balanced (feature 9)
   // SD card font family name, including optional range suffix (empty = use built-in fontFamily)
   char sdFontFamilyName[64] = "";
   // Global dictionary SD-card font (empty = use the reader font).
@@ -602,13 +604,15 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Image rendering mode in EPUB reader
   uint8_t imageRendering = IMAGES_DISPLAY;
   // Long-press Confirm (menu button) quick action in reader (0 = off)
-  uint8_t longPressMenuAction = LONG_MENU_OFF;
+  uint8_t longPressMenuAction = LONG_MENU_QUICK_ACTIONS;  // Jester default (feature 10)
   // Long-press Back quick action in reader (defaults to the historical file browser shortcut)
-  uint8_t longPressBackAction = LONG_MENU_FILE_BROWSER;
+  uint8_t longPressBackAction = LONG_MENU_LOOKUP_WORD;  // Jester default (feature 10)
   // Five reusable reader commands and their single owning shortcut. Keep these
   // adjacent so old settings files simply retain their default-initialized tail.
   uint8_t quickActionSlots[5] = {IGNORE, IGNORE, IGNORE, IGNORE, IGNORE};
-  uint8_t quickActionsTrigger = 0;
+  // Raw QuickActions::Trigger::LongMenu (static_assert in QuickActions.h). Must agree
+  // with longPressMenuAction so two gestures never claim the Quick Actions menu.
+  uint8_t quickActionsTrigger = 4;  // Jester default (feature 10)
   // Tilt-based page turning on devices with a supported IMU (X3 and Sticky).
   uint8_t tiltPageTurn = TILT_OFF;
   uint8_t tiltPageTurnDirection = TILT_LEFT_RIGHT;
@@ -636,7 +640,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Custom KOReader sync device display name. Empty means use the hardware default.
   char deviceName[21] = "";
   // Quick Resume: keep current content visible with moon icon instead of showing a static sleep screen.
-  uint8_t quickResumeSleepScreen = QUICK_RESUME_NEVER;
+  uint8_t quickResumeSleepScreen = QUICK_RESUME_AFTER_TIMEOUT;  // Jester default (feature 10)
 #ifdef CROSSINK_ENABLE_READING_STATS_TOGGLE
   // Debug/test builds can disable stat writes so navigation tests do not affect personal reading stats.
   uint8_t trackReadingStats = 1;
