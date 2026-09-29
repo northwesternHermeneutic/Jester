@@ -105,9 +105,8 @@ void FontSelectionActivity::onEnter() {
   fonts_.clear();
   fonts_.reserve(CrossPointSettings::BUILTIN_FONT_COUNT + (registry_ ? registry_->getFamilyCount() : 0));
 
-  constexpr FontFamilyPointSizeRange builtinRange{10, 16};
-  fonts_.push_back({fontFamilyLabel(I18N.get(StrId::STR_LEXEND_DECA), builtinRange), true, 0});
-  fonts_.push_back({fontFamilyLabel(I18N.get(StrId::STR_BITTER), builtinRange), true, 1});
+  constexpr FontFamilyPointSizeRange builtinRange{8, 14};
+  fonts_.push_back({fontFamilyLabel(I18N.get(StrId::STR_IBM_PLEX_SERIF), builtinRange), true, 0});
 
   if (registry_) {
     const auto& families = registry_->getFamilies();

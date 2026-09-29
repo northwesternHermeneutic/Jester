@@ -10,9 +10,11 @@ echo ""
 
 # Hash one or more font header files into a signed 32-bit int.
 hash_files() {
-  ruby -rdigest -e \
-    'puts ARGV.map{|f| Digest::SHA256.hexdigest(File.read(f)).to_i(16) }.sum % (2 ** 32) - (2 ** 31)' \
-    "$@"
+  python3 -c '
+import hashlib, sys
+total = sum(int(hashlib.sha256(open(f, "rb").read()).hexdigest(), 16) for f in sys.argv[1:])
+print(total % (2 ** 32) - (2 ** 31))
+' "$@"
 }
 
 emit_hash_define() {
@@ -23,34 +25,23 @@ emit_hash_define() {
 }
 
 # Reading fonts
-emit_hash_define LEXENDDECA_10_FONT_ID \
-  ./lexenddeca_10_regular.h ./lexenddeca_10_bold.h ./lexenddeca_10_bolditalic.h ./lexenddeca_10_italic.h
-emit_hash_define LEXENDDECA_12_FONT_ID \
-  ./lexenddeca_12_regular.h ./lexenddeca_12_bold.h ./lexenddeca_12_bolditalic.h ./lexenddeca_12_italic.h
-emit_hash_define LEXENDDECA_14_FONT_ID \
-  ./lexenddeca_14_regular.h ./lexenddeca_14_bold.h ./lexenddeca_14_bolditalic.h ./lexenddeca_14_italic.h
-emit_hash_define LEXENDDECA_16_FONT_ID \
-  ./lexenddeca_16_regular.h ./lexenddeca_16_bold.h ./lexenddeca_16_bolditalic.h ./lexenddeca_16_italic.h
-emit_hash_define BITTER_10_FONT_ID \
-  ./bitter_10_regular.h ./bitter_10_bold.h ./bitter_10_bolditalic.h ./bitter_10_italic.h
-emit_hash_define BITTER_12_FONT_ID \
-  ./bitter_12_regular.h ./bitter_12_bold.h ./bitter_12_bolditalic.h ./bitter_12_italic.h
-emit_hash_define BITTER_14_FONT_ID \
-  ./bitter_14_regular.h ./bitter_14_bold.h ./bitter_14_bolditalic.h ./bitter_14_italic.h
-emit_hash_define BITTER_16_FONT_ID \
-  ./bitter_16_regular.h ./bitter_16_bold.h ./bitter_16_bolditalic.h ./bitter_16_italic.h
+for size in 8 10 12 14; do
+  emit_hash_define "PLEXSERIF_${size}_FONT_ID" \
+    "./plexserif_${size}_regular.h" "./plexserif_${size}_bold.h" \
+    "./plexserif_${size}_bolditalic.h" "./plexserif_${size}_italic.h"
+done
 
-# UI fonts
-emit_hash_define UI_10_FONT_ID ./inter_10_regular.h ./inter_10_bold.h ./ui_symbols_10.h
-emit_hash_define UI_12_FONT_ID ./inter_12_regular.h ./inter_12_bold.h ./ui_symbols_10.h
-emit_hash_define SMALL_FONT_ID ./inter_8_regular.h
+# UI fonts. UI_12 shares the full-coverage reading face; UI_10 and SMALL use
+# the base-coverage faces. All three attach the shared symbol fallback.
+emit_hash_define UI_10_FONT_ID ./plexserif_10_regular.h ./plexserif_10_bold.h ./ui_symbols_10.h
+emit_hash_define UI_12_FONT_ID ./plexserif_12_regular.h ./plexserif_12_bold.h ./ui_symbols_10.h
+emit_hash_define SMALL_FONT_ID ./plexserif_8_regular.h ./ui_symbols_10.h
 
 echo ""
 echo "// Font ID 0 is reserved as the \"not found\" sentinel."
 echo "// Guard against any hash accidentally producing 0."
 for id in \
-  LEXENDDECA_10_FONT_ID LEXENDDECA_12_FONT_ID LEXENDDECA_14_FONT_ID LEXENDDECA_16_FONT_ID \
-  BITTER_10_FONT_ID BITTER_12_FONT_ID BITTER_14_FONT_ID BITTER_16_FONT_ID \
+  PLEXSERIF_8_FONT_ID PLEXSERIF_10_FONT_ID PLEXSERIF_12_FONT_ID PLEXSERIF_14_FONT_ID \
   UI_10_FONT_ID UI_12_FONT_ID SMALL_FONT_ID; do
   echo "static_assert(${id} != 0, \"Font ID collision with sentinel\");"
 done

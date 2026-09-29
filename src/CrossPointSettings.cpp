@@ -126,13 +126,8 @@ CrossPointSettings::FONT_SIZE firstAvailableReaderFontSize() {
 }
 
 int getFallbackReaderFontIdForFamily(const CrossPointSettings::FONT_FAMILY family) {
-  switch (family) {
-    case CrossPointSettings::BITTER:
-      return BITTER_10_FONT_ID;
-    case CrossPointSettings::LEXENDDECA:
-    default:
-      return LEXENDDECA_10_FONT_ID;
-  }
+  (void)family;  // one built-in family
+  return PLEXSERIF_12_FONT_ID;
 }
 
 // Convert legacy front button layout into explicit logical->hardware mapping.
@@ -390,28 +385,15 @@ uint8_t CrossPointSettings::legacyLineSpacingToPercent(const uint8_t legacyValue
     }
   }
 
-  switch (fontFamily) {
-    case BITTER:
-      switch (legacyValue) {
-        case TIGHT:
-          return 95;
-        case WIDE:
-          return 130;
-        case NORMAL:
-        default:
-          return 110;
-      }
-    case LEXENDDECA:
+  // Legacy lineSpacing enum -> percent. Single built-in family.
+  switch (legacyValue) {
+    case TIGHT:
+      return 90;
+    case WIDE:
+      return 120;
+    case NORMAL:
     default:
-      switch (legacyValue) {
-        case TIGHT:
-          return 90;
-        case WIDE:
-          return 120;
-        case NORMAL:
-        default:
-          return 100;
-      }
+      return 100;
   }
 }
 
@@ -1092,14 +1074,14 @@ uint8_t CrossPointSettings::getStoredReaderFontSize(const FONT_SIZE size) {
 uint8_t CrossPointSettings::getReaderFontPointSize(const FONT_SIZE size) {
   switch (size) {
     case TINY:
-      return 10;
+      return 8;
     case SMALL:
-      return 12;
+      return 10;
     case MEDIUM:
     default:
-      return 14;
+      return 12;
     case LARGE:
-      return 16;
+      return 14;
   }
 }
 
@@ -1158,36 +1140,18 @@ int CrossPointSettings::getReaderFontId() const {
 }
 
 int CrossPointSettings::getBuiltInReaderFontId() const {
-  const FONT_SIZE effectiveSize = getEffectiveReaderFontSize();
-
-  switch (fontFamily) {
-    case LEXENDDECA:
+  // One built-in family, four sizes. Only size 12 carries the full reading
+  // coverage; 8, 10 and 14 are base coverage (ASCII plus General Punctuation)
+  // and will show missing glyphs on accented or non-Latin text.
+  switch (getEffectiveReaderFontSize()) {
+    case TINY:
+      return PLEXSERIF_8_FONT_ID;
+    case SMALL:
+      return PLEXSERIF_10_FONT_ID;
+    case MEDIUM:
     default:
-      switch (effectiveSize) {
-        case TINY:
-          return LEXENDDECA_10_FONT_ID;
-        case SMALL:
-          return LEXENDDECA_12_FONT_ID;
-        case MEDIUM:
-        default:
-          return LEXENDDECA_14_FONT_ID;
-        case LARGE:
-          return LEXENDDECA_16_FONT_ID;
-      }
-      return getFallbackReaderFontIdForFamily(LEXENDDECA);
-    case BITTER:
-      switch (effectiveSize) {
-        case TINY:
-          return BITTER_10_FONT_ID;
-        case SMALL:
-          return BITTER_12_FONT_ID;
-        case MEDIUM:
-        default:
-          return BITTER_14_FONT_ID;
-        case LARGE:
-          return BITTER_16_FONT_ID;
-      }
-      return getFallbackReaderFontIdForFamily(BITTER);
+      return PLEXSERIF_12_FONT_ID;
+    case LARGE:
+      return PLEXSERIF_14_FONT_ID;
   }
-  return getFallbackReaderFontIdForFamily(static_cast<FONT_FAMILY>(fontFamily));
 }
