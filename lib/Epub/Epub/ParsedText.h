@@ -18,6 +18,14 @@ template <typename T>
 class ArenaVector;
 
 class ParsedText {
+ public:
+  struct InlineImagePlacement {
+    uint16_t id;
+    int16_t x;
+    uint16_t height;
+  };
+
+ private:
   // words/rubyTexts are std::deque, not std::vector: a paragraph can hold thousands
   // of tokens (CJK splits every character), and a vector grows by reallocating its
   // whole element array into one contiguous block (32 B/std::string -> 64-128 KB at
@@ -84,6 +92,7 @@ class ParsedText {
   std::vector<uint8_t> lineBackgroundBlackScratch;
   std::vector<int16_t> lineLeadingPaddingScratch;
   std::vector<uint16_t> visualOrderScratch;
+  std::vector<InlineImagePlacement> lineImagesScratch;
 
   void reserveTokenCapacity(size_t additionalTokens);
   int resolveFirstLineIndent(bool isFirstLine, const GfxRenderer& renderer, int fontId) const;
@@ -138,6 +147,9 @@ class ParsedText {
   void addWord(std::string word, EpdFontFamily::Style fontStyle, bool underline = false, bool attachToPrevious = false,
                bool backgroundBlack = false, uint8_t linkId = 0, uint32_t visibleTextOffset = 0,
                uint32_t referenceTextOffset = 0, int16_t leadingPadding = 0);
+  void addInlineImage(uint16_t id, uint16_t width, uint16_t height, bool attachToPrevious, uint32_t visibleTextOffset,
+                      uint32_t referenceTextOffset);
+  const std::vector<InlineImagePlacement>& currentLineImages() const { return lineImagesScratch; }
   void setRubyForWordAt(size_t index, const std::string& ruby);
   void setRubyGroupAt(size_t startIndex, size_t count, const std::string& ruby);
   EpdFontFamily::Style getWordStyleAt(size_t index) const {
@@ -150,6 +162,7 @@ class ParsedText {
   size_t size() const { return words.size(); }
   bool isEmpty() const { return words.empty(); }
   bool isContinuation() const { return isContinuation_; }
+  void setContinuation(bool continuation) { isContinuation_ = continuation; }
   bool layoutAndExtractLines(const GfxRenderer& renderer, int fontId, uint16_t viewportWidth,
                              const std::function<void(std::shared_ptr<TextBlock>, uint32_t, uint32_t)>& processLine,
                              bool includeLastLine = true);

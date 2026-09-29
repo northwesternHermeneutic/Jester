@@ -16,10 +16,12 @@
 #include <GfxRenderer.h>
 
 namespace {
-constexpr uint8_t kFullVersion = 78;
-constexpr uint8_t kPartialVersion = 0xF2;
-constexpr uint8_t kPreviousFullVersion = 77;
-constexpr uint8_t kPreviousPartialVersion = 0xF3;
+constexpr uint8_t kFullVersion = 80;
+constexpr uint8_t kPartialVersion = 0xC1;
+constexpr uint8_t kPreviousFullVersion = 79;
+constexpr uint8_t kPreviousPartialVersion = 0xF4;
+constexpr uint8_t kOlderFullVersion = 78;
+constexpr uint8_t kOlderPartialVersion = 0xF2;
 
 ReaderRenderSpec renderSpec() {
   ReaderRenderSpec spec;
@@ -152,7 +154,8 @@ TEST_F(SectionPersistenceTest, FailedCommitKeepsThePreviousReadableCache) {
 }
 
 TEST_F(SectionPersistenceTest, RejectsCachesFromPreviousLayoutRevisions) {
-  for (const uint8_t staleVersion : {kPreviousFullVersion, kPreviousPartialVersion}) {
+  for (const uint8_t staleVersion :
+       {kPreviousFullVersion, kPreviousPartialVersion, kOlderFullVersion, kOlderPartialVersion}) {
     SectionHarness harness;
     harness.begin();
     harness.appendPages(1);

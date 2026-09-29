@@ -303,6 +303,14 @@ Binary layout:
 
 ## `section.bin`
 
+### Version 80
+
+Version 80 places small inline images within text lines while keeping larger
+images as centered blocks. Page-image records add a one-byte inline flag after
+their coordinates; full section caches (byte `80`) and suspended partial caches (`0xC1`) rebuild so
+existing books receive the new layout. The CSS rule cache moves to version `19`
+so `display: inline` rules retain their meaning.
+
 ### Version 79
 
 Version 79 keeps the version 78 serialized layout. Korean words now wrap at

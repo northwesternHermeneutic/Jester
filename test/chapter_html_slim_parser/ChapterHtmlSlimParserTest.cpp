@@ -115,6 +115,130 @@ TEST_F(ChapterHtmlSlimParserTest, UsesOptimizerImageDimensionsWithoutReadingTheC
   const auto& image = static_cast<const PageImage&>(*parser.currentPage->elements.front()).getImageBlock();
   EXPECT_EQ(image.getWidth(), 480);
   EXPECT_EQ(image.getHeight(), 4);
+  EXPECT_FALSE(static_cast<const PageImage&>(*parser.currentPage->elements.front()).isInlineImage());
+}
+
+TEST_F(ChapterHtmlSlimParserTest, PlacesSmallImageInsideTextLine) {
+  epub.optimizerImageAvailable = true;
+  epub.optimizerImageWidth = 16;
+  epub.optimizerImageHeight = 16;
+  const XML_Char* attributes[] = {"src", "icon.jpg", nullptr};
+
+  ChapterHtmlSlimParser::characterData(&parser, "Before", 6);
+  ChapterHtmlSlimParser::startElement(&parser, "img", attributes);
+  ChapterHtmlSlimParser::endElement(&parser, "img");
+  ChapterHtmlSlimParser::characterData(&parser, "After", 5);
+  parser.flushPartWordBuffer();
+  parser.makePages();
+
+  ASSERT_NE(parser.currentPage, nullptr);
+  ASSERT_EQ(parser.currentPage->elements.size(), 2u);
+  EXPECT_EQ(parser.currentPage->elements[0]->getTag(), TAG_PageLine);
+  EXPECT_EQ(parser.currentPage->elements[1]->getTag(), TAG_PageImage);
+  const auto& line = static_cast<const PageLine&>(*parser.currentPage->elements[0]);
+  EXPECT_EQ(line.getBlock()->wordCount(), 2u);
+  const auto& image = static_cast<const PageImage&>(*parser.currentPage->elements[1]);
+  EXPECT_TRUE(image.isInlineImage());
+  EXPECT_EQ(image.yPos, parser.currentPage->elements[0]->yPos);
+  EXPECT_EQ(image.getImageBlock().getWidth(), 16);
+  EXPECT_TRUE(parser.pendingInlineImages.empty());
+}
+
+TEST_F(ChapterHtmlSlimParserTest, WrapsTextAfterInlineImageWithoutSplittingTheImage) {
+  renderer.textAdvancePerChar = 4;
+  parser.viewportWidth = 22;
+  epub.optimizerImageAvailable = true;
+  epub.optimizerImageWidth = 16;
+  epub.optimizerImageHeight = 16;
+  const XML_Char* attributes[] = {"src", "icon.jpg", nullptr};
+
+  ChapterHtmlSlimParser::characterData(&parser, "A", 1);
+  ChapterHtmlSlimParser::startElement(&parser, "img", attributes);
+  ChapterHtmlSlimParser::endElement(&parser, "img");
+  ChapterHtmlSlimParser::characterData(&parser, "B", 1);
+  parser.flushPartWordBuffer();
+  parser.makePages();
+
+  ASSERT_NE(parser.currentPage, nullptr);
+  ASSERT_EQ(parser.currentPage->elements.size(), 3u);
+  EXPECT_EQ(parser.currentPage->elements[0]->getTag(), TAG_PageLine);
+  EXPECT_EQ(parser.currentPage->elements[1]->getTag(), TAG_PageImage);
+  EXPECT_EQ(parser.currentPage->elements[2]->getTag(), TAG_PageLine);
+  EXPECT_EQ(parser.currentPage->elements[1]->xPos, 4);
+  EXPECT_EQ(parser.currentPage->elements[0]->yPos, parser.currentPage->elements[1]->yPos);
+  EXPECT_EQ(parser.currentPage->elements[2]->yPos, 16);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, AlignsTextWithTallerInlineImage) {
+  epub.optimizerImageAvailable = true;
+  epub.optimizerImageWidth = 20;
+  epub.optimizerImageHeight = 32;
+  const XML_Char* attributes[] = {"src", "icon.jpg", nullptr};
+
+  ChapterHtmlSlimParser::characterData(&parser, "A", 1);
+  ChapterHtmlSlimParser::startElement(&parser, "img", attributes);
+  ChapterHtmlSlimParser::endElement(&parser, "img");
+  parser.makePages();
+
+  ASSERT_EQ(parser.currentPage->elements.size(), 2u);
+  EXPECT_EQ(parser.currentPage->elements[0]->getTag(), TAG_PageLine);
+  EXPECT_EQ(parser.currentPage->elements[1]->getTag(), TAG_PageImage);
+  EXPECT_EQ(parser.currentPage->elements[0]->yPos, 16);
+  EXPECT_EQ(parser.currentPage->elements[1]->yPos, 0);
+  EXPECT_EQ(parser.currentPageNextY, 32);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, HonorsExplicitBlockDisplayForSmallImage) {
+  epub.optimizerImageAvailable = true;
+  epub.optimizerImageWidth = 16;
+  epub.optimizerImageHeight = 16;
+  const XML_Char* attributes[] = {"src", "icon.jpg", "style", "display: block", nullptr};
+
+  ChapterHtmlSlimParser::characterData(&parser, "A", 1);
+  ChapterHtmlSlimParser::startElement(&parser, "img", attributes);
+
+  ASSERT_NE(parser.currentPage, nullptr);
+  ASSERT_EQ(parser.currentPage->elements.size(), 2u);
+  EXPECT_EQ(parser.currentPage->elements[0]->getTag(), TAG_PageLine);
+  EXPECT_EQ(parser.currentPage->elements[1]->getTag(), TAG_PageImage);
+  EXPECT_GE(parser.currentPage->elements[1]->yPos, 16);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, HonorsExplicitInlineDisplayForTallerImage) {
+  epub.optimizerImageAvailable = true;
+  epub.optimizerImageWidth = 20;
+  epub.optimizerImageHeight = 48;
+  const XML_Char* attributes[] = {"src", "icon.jpg", "style", "display: inline", nullptr};
+
+  ChapterHtmlSlimParser::characterData(&parser, "A", 1);
+  ChapterHtmlSlimParser::startElement(&parser, "img", attributes);
+  ChapterHtmlSlimParser::endElement(&parser, "img");
+  parser.makePages();
+
+  ASSERT_EQ(parser.currentPage->elements.size(), 2u);
+  EXPECT_EQ(parser.currentPage->elements[0]->getTag(), TAG_PageLine);
+  EXPECT_EQ(parser.currentPage->elements[1]->getTag(), TAG_PageImage);
+  EXPECT_EQ(parser.currentPage->elements[0]->yPos, 32);
+  EXPECT_EQ(parser.currentPage->elements[1]->yPos, 0);
+  EXPECT_EQ(parser.currentPageNextY, 48);
+}
+
+TEST_F(ChapterHtmlSlimParserTest, BoundsPendingImagesInAnIconOnlyParagraph) {
+  epub.optimizerImageAvailable = true;
+  epub.optimizerImageWidth = 1;
+  epub.optimizerImageHeight = 1;
+  const XML_Char* attributes[] = {"src", "icon.jpg", nullptr};
+
+  for (int i = 0; i < 40; ++i) {
+    ChapterHtmlSlimParser::startElement(&parser, "img", attributes);
+    ChapterHtmlSlimParser::endElement(&parser, "img");
+    EXPECT_LT(parser.pendingInlineImages.size(), parser.MAX_PENDING_INLINE_IMAGES);
+  }
+  parser.makePages();
+
+  ASSERT_NE(parser.currentPage, nullptr);
+  EXPECT_TRUE(parser.pendingInlineImages.empty());
+  EXPECT_EQ(parser.currentPage->elements.size(), 40u);
 }
 
 TEST_F(ChapterHtmlSlimParserTest, HiddenElementsSuppressContentAndResumeVisibleText) {

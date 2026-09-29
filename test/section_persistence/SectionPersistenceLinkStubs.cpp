@@ -41,4 +41,4 @@ std::unique_ptr<Page> Page::deserialize(FsFile& file) {
   return std::make_unique<Page>();
 }
 
-uint16_t Page::imageEstimateUnits(uint16_t) const { return 0; }
+uint16_t Page::imageEstimateUnits(uint16_t, uint16_t) const { return 0; }

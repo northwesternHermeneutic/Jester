@@ -2,6 +2,7 @@
 #include <Epub/Page.h>
 #include <Epub/blocks/TextBlock.h>
 #include <Epub/converters/ImageDecoderFactory.h>
+#include <Epub/converters/ImageDimsProbe.h>
 #include <Epub/hyphenation/Hyphenator.h>
 #include <Epub/parsers/PreviewBlockLocator.h>
 #include <Epub/tables/CompactTableLayout.h>
@@ -35,6 +36,10 @@ TextBlock::TextBlock(const std::vector<std::string>& words, const std::vector<in
 bool TextBlock::hasRuby() const { return false; }
 
 bool ImageDecoderFactory::isFormatSupported(const std::string& path) { return path.ends_with(".jpg"); }
+ImageToFramebufferDecoder* ImageDecoderFactory::getDecoder(const std::string&) { return nullptr; }
+size_t ImageDimsProbe::write(uint8_t) { return 0; }
+size_t ImageDimsProbe::write(const uint8_t*, size_t) { return 0; }
+bool ImageDimsProbe::getDimensions(ImageDimensions&) const { return false; }
 
 ImageBlock::ImageBlock(std::string imagePath, std::string sourcePath, const int16_t width, const int16_t height)
     : imagePath(std::move(imagePath)), sourcePath(std::move(sourcePath)), width(width), height(height) {}
@@ -45,6 +50,7 @@ bool PageImage::serialize(FsFile&) { return false; }
 
 PreviewBlockLocator::PreviewBlockLocator(const char*, IsBlockTagFn) {}
 PreviewBlockLocator::~PreviewBlockLocator() = default;
+bool PreviewBlockLocator::feed(const char*, int, bool) { return false; }
 
 CompactTableLayout::CompactTableLayout(GfxRenderer& renderer, int, uint16_t, uint16_t, uint16_t, uint8_t,
                                        BlockStyle tableStyle)
