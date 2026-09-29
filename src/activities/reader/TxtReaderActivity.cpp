@@ -294,6 +294,9 @@ void TxtReaderActivity::loop() {
         case CrossPointSettings::SIDE_ROTATE_CLOCKWISE:
           handleTwoFingerRotation(side.action == CrossPointSettings::SIDE_ROTATE_CLOCKWISE);
           break;
+        case CrossPointSettings::SIDE_ROTATE_FLIP:
+          applyReaderOrientation(ReaderUtils::flippedOrientation(SETTINGS.orientation));
+          break;
         case CrossPointSettings::SIDE_PREVIOUS_CHAPTER:
         case CrossPointSettings::SIDE_NEXT_CHAPTER:
         case CrossPointSettings::IGNORE:
@@ -433,7 +436,11 @@ bool TxtReaderActivity::handleTwoFingerSwipeAction(const CrossPointSettings::TWO
 }
 
 bool TxtReaderActivity::handleTwoFingerRotation(const bool clockwise) {
-  SETTINGS.orientation = ReaderUtils::rotatedOrientation(SETTINGS.orientation, clockwise);
+  return applyReaderOrientation(ReaderUtils::rotatedOrientation(SETTINGS.orientation, clockwise));
+}
+
+bool TxtReaderActivity::applyReaderOrientation(const uint8_t orientation) {
+  SETTINGS.orientation = orientation;
   SETTINGS.saveToFile();
   {
     RenderLock lock(*this);

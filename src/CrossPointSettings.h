@@ -186,6 +186,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     SIDE_DECREASE_FONT,
     SIDE_ROTATE_COUNTERCLOCKWISE,
     SIDE_ROTATE_CLOCKWISE,
+    SIDE_ROTATE_FLIP,
   };
 
   // Font family options (built-in fonts only; SD card fonts use sdFontFamilyName)

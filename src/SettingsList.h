@@ -94,9 +94,10 @@ inline std::string sideButtonOptionLabel(const SettingInfo& setting, const uint8
   if (isSideButtonActionSetting(setting) && displayIndex < setting.enumRawValues.size()) {
     const uint8_t action = setting.enumRawValues[displayIndex];
     if (action == CrossPointSettings::SIDE_ROTATE_COUNTERCLOCKWISE ||
-        action == CrossPointSettings::SIDE_ROTATE_CLOCKWISE) {
-      return std::string(tr(STR_ORIENTATION)) + " (" +
-             (action == CrossPointSettings::SIDE_ROTATE_CLOCKWISE ? tr(STR_DIR_RIGHT) : tr(STR_DIR_LEFT)) + ")";
+        action == CrossPointSettings::SIDE_ROTATE_CLOCKWISE || action == CrossPointSettings::SIDE_ROTATE_FLIP) {
+      if (action == CrossPointSettings::SIDE_ROTATE_CLOCKWISE) return tr(STR_ROTATE_CW);
+      if (action == CrossPointSettings::SIDE_ROTATE_FLIP) return tr(STR_ROTATE_FLIP);
+      return tr(STR_ROTATE_CCW);
     }
   }
   return settingEnumOptionLabel(setting, displayIndex);
@@ -584,6 +585,7 @@ inline SettingInfo buildSideButtonActionSetting(const StrId nameId, uint8_t Cros
       {CrossPointSettings::SIDE_DECREASE_FONT, StrId::STR_DECREASE_FONT_SIZE},
       {CrossPointSettings::SIDE_ROTATE_COUNTERCLOCKWISE, StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION},
       {CrossPointSettings::SIDE_ROTATE_CLOCKWISE, StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION},
+      {CrossPointSettings::SIDE_ROTATE_FLIP, StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION},
   };
   for (const auto& [action, label] : readerActions) {
     setting.enumValues.push_back(label);

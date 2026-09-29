@@ -92,6 +92,10 @@ inline uint8_t rotatedOrientation(const uint8_t orientation, const bool clockwis
                    : (orientation + CrossPointSettings::ORIENTATION_COUNT - 1) % CrossPointSettings::ORIENTATION_COUNT;
 }
 
+inline uint8_t flippedOrientation(const uint8_t orientation) {
+  return (orientation + 2) % CrossPointSettings::ORIENTATION_COUNT;
+}
+
 struct PageTurnResult {
   bool prev;
   bool next;

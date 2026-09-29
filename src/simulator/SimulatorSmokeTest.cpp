@@ -341,6 +341,27 @@ class SimulatorSmokeTest {
     verifyLibraryChoice("longPwrBtn", ShortcutOptionCatalog::PowerButton);
     for (const char* key : {"sideButtonUpShort", "sideButtonUpLong", "sideButtonDownShort", "sideButtonDownLong"}) {
       verifyLibraryChoice(key, ShortcutOptionCatalog::SideButton);
+      const auto setting = std::find_if(allSettings.begin(), allSettings.end(),
+                                        [key](const SettingInfo& candidate) { return settingKeyIs(candidate, key); });
+      for (const auto [action, suffix] :
+           {std::pair{CrossPointSettings::SIDE_ROTATE_COUNTERCLOCKWISE, StrId::STR_ROTATE_CCW},
+            std::pair{CrossPointSettings::SIDE_ROTATE_CLOCKWISE, StrId::STR_ROTATE_CW},
+            std::pair{CrossPointSettings::SIDE_ROTATE_FLIP, StrId::STR_ROTATE_FLIP}}) {
+        const auto choice = std::find(setting->enumRawValues.begin(), setting->enumRawValues.end(), action);
+        const std::string expected = I18N.get(suffix);
+        if (choice == setting->enumRawValues.end() ||
+            sideButtonOptionLabel(*setting, static_cast<uint8_t>(choice - setting->enumRawValues.begin())) !=
+                expected) {
+          fail("Orientation shortcut is missing or mislabeled in %s", key);
+        }
+      }
+    }
+    for (uint8_t orientation = 0; orientation < CrossPointSettings::ORIENTATION_COUNT; ++orientation) {
+      if (ReaderUtils::flippedOrientation(ReaderUtils::flippedOrientation(orientation)) != orientation ||
+          ReaderUtils::flippedOrientation(orientation) !=
+              ReaderUtils::rotatedOrientation(ReaderUtils::rotatedOrientation(orientation, true), true)) {
+        fail("Flip must turn the screen 180 degrees from every orientation");
+      }
     }
     verifyLibraryChoice("powerChordAction", ShortcutOptionCatalog::ButtonChord);
     verifyLibraryChoice("longPressMenuAction", ShortcutOptionCatalog::LongPress);

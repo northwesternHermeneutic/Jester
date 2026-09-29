@@ -378,6 +378,7 @@ void XtcReaderActivity::loop() {
         case CrossPointSettings::SIDE_DECREASE_FONT:
         case CrossPointSettings::SIDE_ROTATE_COUNTERCLOCKWISE:
         case CrossPointSettings::SIDE_ROTATE_CLOCKWISE:
+        case CrossPointSettings::SIDE_ROTATE_FLIP:
         case CrossPointSettings::IGNORE:
           // XTC pages are pre-rendered; font size and rotation do not apply.
           break;
