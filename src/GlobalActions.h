@@ -10,6 +10,10 @@
 // X4's vendor FULL waveform visibly inverts the whole panel several times.
 // Keep its manual shortcut on the clean HALF waveform used before the manual
 // refresh change; X3 and every other device retain the explicit full refresh.
+// Clean Screen (feature 15) drives this many black/white full-refresh pairs.
+// Fixed rather than user-selectable.
+inline constexpr int CLEAN_SCREEN_PASSES = 3;
+
 inline HalDisplay::RefreshMode manualScreenRefreshMode() {
 #if FREEINK_DEVICE_X4
   if (gpio.deviceIsX4()) {
@@ -24,6 +28,7 @@ inline bool isPowerButtonActionAvailableOutsideReader(const CrossPointSettings::
     case CrossPointSettings::SHORT_PWRBTN::SLEEP:
     case CrossPointSettings::SHORT_PWRBTN::QUICK_LOCK:
     case CrossPointSettings::SHORT_PWRBTN::FORCE_REFRESH:
+    case CrossPointSettings::SHORT_PWRBTN::CLEAN_SCREEN:
     case CrossPointSettings::SHORT_PWRBTN::SYNC_PROGRESS:
     case CrossPointSettings::SHORT_PWRBTN::SCREENSHOT:
     case CrossPointSettings::SHORT_PWRBTN::FILE_TRANSFER:

@@ -57,15 +57,18 @@ inline constexpr std::array<StrId, CrossPointSettings::QUICK_ACTION_SLOT_ACTION_
 
 // Shared display order for shortcut pickers. The values remain the persisted
 // SHORT_PWRBTN IDs; only their presentation order is centralized here.
-inline constexpr std::array<CrossPointSettings::SHORT_PWRBTN, 30> shortcutActionOrder = {
+inline constexpr std::array<CrossPointSettings::SHORT_PWRBTN, 33> shortcutActionOrder = {
     CrossPointSettings::IGNORE,
     CrossPointSettings::SLEEP,
     CrossPointSettings::PAGE_TURN,
     CrossPointSettings::PREVIOUS_PAGE,
     CrossPointSettings::TOGGLE_BOOKMARK,
+    CrossPointSettings::DOG_EAR,
     CrossPointSettings::READING_STATS,
     CrossPointSettings::MARK_FINISHED,
     CrossPointSettings::FORCE_REFRESH,
+    CrossPointSettings::CLEAN_SCREEN,
+    CrossPointSettings::LANDSCAPE_FLIP,
     CrossPointSettings::TOGGLE_FONT,
     CrossPointSettings::TOGGLE_GUIDE_DOTS,
     CrossPointSettings::TOGGLE_FOCUS_READING,
@@ -92,8 +95,33 @@ inline constexpr std::array<CrossPointSettings::SHORT_PWRBTN, 30> shortcutAction
 
 inline bool supportsTiltPageTurn() { return halTiltSensor.isAvailable(); }
 
+// Actions whose feature Jester removed. The raw values stay reserved so a
+// future port can re-expose them by deleting the entry here; hiding rather
+// than deleting also keeps every other action's persisted value unchanged.
+inline bool isActionRemovedInJester(const uint8_t action) {
+  switch (action) {
+    case CrossPointSettings::TOGGLE_GUIDE_DOTS:       // feature 17
+    case CrossPointSettings::TOGGLE_FOCUS_READING:    // feature 17
+    case CrossPointSettings::READING_STATS:           // feature 17
+    case CrossPointSettings::CYCLE_PAGE_TURN:         // feature 17 (auto page turn)
+    case CrossPointSettings::SYNC_PROGRESS:           // feature 16 (KOReader Sync)
+    case CrossPointSettings::FILE_TRANSFER:           // feature 16 (Create Hotspot only)
+    case CrossPointSettings::CALIBRE_WIRELESS:        // feature 16
+    case CrossPointSettings::JOIN_NETWORK:            // feature 16 (no station mode)
+    case CrossPointSettings::NEARBY_POSITION_SYNC:    // feature 16
+      return true;
+    default:
+      return false;
+  }
+}
+
 inline bool isActionAvailable(const uint8_t action) {
-  if (action == CrossPointSettings::PREVIOUS_PAGE || action == CrossPointSettings::NEARBY_POSITION_SYNC) return true;
+  if (isActionRemovedInJester(action)) return false;
+  // JESTER-TODO: flip to true when features 4 and 7 land.
+  if (action == CrossPointSettings::DOG_EAR) return false;
+  if (action == CrossPointSettings::LANDSCAPE_FLIP) return false;
+  if (action == CrossPointSettings::CLEAN_SCREEN) return true;
+  if (action == CrossPointSettings::PREVIOUS_PAGE) return true;
   if (action == CrossPointSettings::QUICK_ACTIONS || action == CrossPointSettings::QUICK_LOCK) return true;
   if (action == CrossPointSettings::TOGGLE_FRONTLIGHT) return Frontlight.present();
   if (action == CrossPointSettings::TOGGLE_TOUCHSCREEN) return gpio.hasTouch();
@@ -114,6 +142,9 @@ inline StrId actionLabel(const uint8_t action) {
   // Use the directional label for the legacy page-turn action ID.
   if (action == CrossPointSettings::PAGE_TURN) return StrId::STR_NEXT_PAGE;
   if (action < CrossPointSettings::QUICK_ACTION_SLOT_ACTION_COUNT) return actionLabels[action];
+  if (action == CrossPointSettings::DOG_EAR) return StrId::STR_DOG_EAR;
+  if (action == CrossPointSettings::CLEAN_SCREEN) return StrId::STR_CLEAN_SCREEN;
+  if (action == CrossPointSettings::LANDSCAPE_FLIP) return StrId::STR_LANDSCAPE_FLIP;
   if (action == CrossPointSettings::QUICK_ACTIONS) return StrId::STR_QUICK_ACTIONS;
   if (action == CrossPointSettings::TOGGLE_FRONTLIGHT) return StrId::STR_TOGGLE_FRONTLIGHT;
   if (action == CrossPointSettings::TOGGLE_TOUCHSCREEN) return StrId::STR_TOGGLE_TOUCHSCREEN;

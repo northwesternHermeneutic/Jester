@@ -603,6 +603,24 @@ bool handleGlobalPowerButtonAction(const CrossPointSettings::SHORT_PWRBTN action
       renderer.displayBuffer(manualScreenRefreshMode());
       return true;
     }
+    case CrossPointSettings::SHORT_PWRBTN::CLEAN_SCREEN: {
+      {
+        RenderLock lock;
+        // Unlike Refresh Screen, this deliberately uses the vendor FULL waveform
+        // on X4 (see manualScreenRefreshMode()): its whole-panel inversion is what
+        // scrubs ghosting. Alternating black and white drives every pixel through
+        // both end states.
+        for (int pass = 0; pass < CLEAN_SCREEN_PASSES; ++pass) {
+          renderer.clearScreen(0x00);
+          renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+          renderer.clearScreen(0xFF);
+          renderer.displayBuffer(HalDisplay::FULL_REFRESH);
+        }
+      }
+      // The framebuffer now holds the final white pass; repaint the activity.
+      activityManager.requestUpdate(true);
+      return true;
+    }
     case CrossPointSettings::SHORT_PWRBTN::SCREENSHOT: {
       if (activityManager.canSnapshotForSleepOverlay()) {
         return false;

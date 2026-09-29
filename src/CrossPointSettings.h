@@ -264,6 +264,11 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     // raw values or they can silently change an existing binding's behavior.
     PREVIOUS_PAGE = 31,
     NEARBY_POSITION_SYNC = 32,
+    // Jester actions. Appended above every CrossInk value so a settings file
+    // written by either firmware keeps the same meaning for shared actions.
+    DOG_EAR = 33,
+    CLEAN_SCREEN = 34,
+    LANDSCAPE_FLIP = 35,
     SHORT_PWRBTN_COUNT
   };
 
