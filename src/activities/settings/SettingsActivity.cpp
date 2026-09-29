@@ -1298,6 +1298,8 @@ void SettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
       fui::Insets{static_cast<int16_t>(tabTop - safe.y), 0, static_cast<int16_t>(metrics.buttonHintsHeight), 0});
 
   if (isFileBrowserView()) {
+    const int16_t listInset = static_cast<int16_t>(metrics.listInset);
+    screen.insetContent(fui::Insets{0, listInset, 0, listInset});
     screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
     visibleRows = settingsCount;
     topIndex = 0;
@@ -1309,6 +1311,7 @@ void SettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
       row.valueId = static_cast<int16_t>(i);
       row.labelText = screen.theme().bodyText;
       row.valueText = screen.theme().bodyText;
+      row.sidePadding = static_cast<int16_t>(metrics.listSidePadding);
       row.state = showSettingSelection && selectedSettingIndex == i + 1 ? fui::StateSelected : fui::StateNormal;
       if (setting.type == SettingType::TOGGLE && setting.valuePtr != nullptr) {
         fui::ToggleRowProps toggle;
