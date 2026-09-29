@@ -36,8 +36,7 @@ void readAndValidate(FsFile& file, uint8_t& member, const uint8_t maxValue) {
 namespace {
 constexpr uint8_t SETTINGS_FILE_VERSION = 2;
 constexpr char SETTINGS_FILE_BIN[] = "/.crosspoint/settings.bin";
-constexpr char SETTINGS_FILE_JSON[] = "/.crosspoint/crossink-settings.json";
-constexpr char LEGACY_SETTINGS_FILE_JSON[] = "/.crosspoint/settings.json";
+constexpr char SETTINGS_FILE_JSON[] = "/.crosspoint/jester-settings.json";
 constexpr char SETTINGS_FILE_BAK[] = "/.crosspoint/settings.bin.bak";
 constexpr char LANG_FILE_BIN[] = "/.crosspoint/language.bin";
 constexpr char LANG_FILE_BAK[] = "/.crosspoint/language.bin.bak";
@@ -247,10 +246,10 @@ const char* CrossPointSettings::getDefaultDeviceName() {
   return "X4 Classic";
 #endif
   if (BoardConfig::isSticky()) return "Sticky";
-  if (BoardConfig::isX4Pro()) return "CrossInk X4 Pro";
-  if (gpio.deviceIsX3()) return "CrossInk X3";
-  if (gpio.deviceIsX4()) return "CrossInk X4";
-  return "CrossInk";
+  if (BoardConfig::isX4Pro()) return "Jester X4 Pro";
+  if (gpio.deviceIsX3()) return "Jester X3";
+  if (gpio.deviceIsX4()) return "Jester X4";
+  return "Jester";
 }
 
 const char* CrossPointSettings::getEffectiveDeviceName() const {
@@ -805,11 +804,9 @@ bool CrossPointSettings::loadFromFile() {
       }
       if (result && (resave || migrateToCurrentPath)) {
         if (saveToFile()) {
-          LOG_DBG("CPS", migrateToCurrentPath ? "Migrated legacy settings.json to crossink-settings.json"
-                                              : "Resaved settings to update format");
+          LOG_DBG("CPS", "Resaved settings to update format");
         } else {
-          LOG_ERR("CPS", migrateToCurrentPath ? "Failed to save migrated settings to crossink-settings.json"
-                                              : "Failed to resave settings after format update");
+          LOG_ERR("CPS", "Failed to resave settings after format update");
         }
       }
       migrateLanguageBinaryFile();
@@ -818,30 +815,17 @@ bool CrossPointSettings::loadFromFile() {
     return JsonLoadStatus::MissingOrEmpty;
   };
 
-  // Prefer CrossInk's namespaced settings file. Use the old generic file only
-  // as a migration fallback so other firmware can keep its own settings.json.
-  JsonLoadStatus jsonStatus = loadJsonSettings(SETTINGS_FILE_JSON, false);
+  // Jester uses its own settings file and never inherits CrossInk's or
+  // CrossPoint's. Several enum raw values have been repurposed (side-button
+  // long press, font family, UI theme), so importing a foreign settings file
+  // would silently remap them to different actions.
+  const JsonLoadStatus jsonStatus = loadJsonSettings(SETTINGS_FILE_JSON, false);
   if (jsonStatus != JsonLoadStatus::MissingOrEmpty) return jsonStatus == JsonLoadStatus::Loaded;
 
-  jsonStatus = loadJsonSettings(LEGACY_SETTINGS_FILE_JSON, true);
-  if (jsonStatus != JsonLoadStatus::MissingOrEmpty) return jsonStatus == JsonLoadStatus::Loaded;
+  // No binary (CrossPoint-era) fallback: see the note above. A card without
+  // jester-settings.json starts from Jester defaults.
 
-  // Fall back to binary migration
-  if (Storage.exists(SETTINGS_FILE_BIN)) {
-    if (loadFromBinaryFile()) {
-      migrateLanguageBinaryFile();
-      if (saveToFile()) {
-        Storage.rename(SETTINGS_FILE_BIN, SETTINGS_FILE_BAK);
-        LOG_DBG("CPS", "Migrated settings.bin to crossink-settings.json");
-        return true;
-      } else {
-        LOG_ERR("CPS", "Failed to save migrated settings to JSON");
-        return false;
-      }
-    }
-  }
-
-  // No settings files at all -- check for standalone language.bin
+  // No settings file at all -- check for standalone language.bin
   return migrateLanguageBinaryFile();
 }
 
