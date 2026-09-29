@@ -953,14 +953,16 @@ CrossPointSettings::StatusBarSpec CrossPointSettings::statusBarSpec() const {
   spec.showChapterPageCount = statusBarChapterPageCount != 0;
   spec.showBookProgressPercent = statusBarBookProgressPercentage != 0;
   spec.showStablePageNumbers = stablePageNumbers != 0;
-  spec.titleMode = statusBarTitle;
-  spec.timeLeftMode = statusBarTimeLeft;
+  // Feature 13: title and time left are removed; forced off regardless of the
+  // stored value (which the web settings page could otherwise still set).
+  spec.titleMode = HIDE_TITLE;
+  spec.timeLeftMode = TIME_LEFT_HIDE;
   spec.showBattery = statusBarBattery != 0;
   spec.showBatteryPercent = hideBatteryPercentage == HIDE_NEVER;
   spec.showClock = hideClock == HIDE_CLOCK_NEVER;
-  spec.progressBarMode = statusBarProgressBar;
-  spec.progressBarHeightPx =
-      statusBarProgressBar != HIDE_PROGRESS ? static_cast<uint8_t>((statusBarProgressBarThickness + 1) * 2) : 0;
+  // Feature 13: progress bar and its thickness are removed.
+  spec.progressBarMode = HIDE_PROGRESS;
+  spec.progressBarHeightPx = 0;
   spec.xtcMode = xtcStatusBarMode;
   return spec;
 }

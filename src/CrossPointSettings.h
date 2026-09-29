@@ -437,7 +437,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t stablePageNumbers = 0;
   uint8_t statusBarProgressBar = HIDE_PROGRESS;
   uint8_t statusBarProgressBarThickness = PROGRESS_BAR_NORMAL;
-  uint8_t statusBarTitle = CHAPTER_TITLE;
+  uint8_t statusBarTitle = HIDE_TITLE;
   uint8_t statusBarTimeLeft = TIME_LEFT_HIDE;
   uint8_t statusBarBattery = 1;
   uint8_t xtcStatusBarMode = XTC_STATUS_BAR_HIDE;

@@ -204,13 +204,34 @@ std::string valueTextForItem(const int item) {
   }
 }
 
+// Feature 13: Jester removes the progress bar, its thickness, the title and
+// time left. Chapter page count, book percentage and battery remain, and the
+// XTC status bar is kept. The MenuItem enum is left intact so every per-item
+// switch below keeps its meaning; items are only hidden from the list.
+bool isStatusBarItemShown(const int item, const bool stablePageNumbersAvailable) {
+  switch (item) {
+    case ITEM_PROGRESS_BAR:
+    case ITEM_PROGRESS_BAR_THICKNESS:
+    case ITEM_TITLE:
+    case ITEM_TIME_LEFT:
+      return false;
+    case ITEM_STABLE_PAGE_NUMBERS:
+      return stablePageNumbersAvailable;
+    default:
+      return true;
+  }
+}
+
 }  // namespace
 
 void StatusBarSettingsActivity::onEnter() {
   Activity::onEnter();
 
   selectedIndex = 0;
-  visibleItemCount = stablePageNumbersAvailable ? ITEM_COUNT : ITEM_COUNT - 1;
+  visibleItemCount = 0;
+  for (int item = 0; item < ITEM_COUNT; ++item) {
+    if (isStatusBarItemShown(item, stablePageNumbersAvailable)) ++visibleItemCount;
+  }
   uiReady = false;
   visibleRows = 1;
   topIndex = 0;
@@ -321,7 +342,13 @@ void StatusBarSettingsActivity::loop() {
 }
 
 int StatusBarSettingsActivity::itemForVisibleIndex(const int visibleIndex) const {
-  return !stablePageNumbersAvailable && visibleIndex >= ITEM_STABLE_PAGE_NUMBERS ? visibleIndex + 1 : visibleIndex;
+  int seen = 0;
+  for (int item = 0; item < ITEM_COUNT; ++item) {
+    if (!isStatusBarItemShown(item, stablePageNumbersAvailable)) continue;
+    if (seen == visibleIndex) return item;
+    ++seen;
+  }
+  return ITEM_CHAPTER_PAGE_COUNT;  // out-of-range guard; callers bound by visibleItemCount
 }
 
 bool StatusBarSettingsActivity::selectedItemUsesOptionMenu() const {
