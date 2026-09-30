@@ -1107,3 +1107,12 @@ TEST_F(LibraryBuilderTest, EmptyLibraryStillRecordsMetadataModeChanges) {
   ASSERT_TRUE(index.open(INDEX));
   EXPECT_EQ(index.header().metadataEnabled, 1);
 }
+
+TEST_F(LibraryBuilderTest, SleepRestorationStillAllowsFileChangesToInvalidate) {
+  restoreLibraryIndexAfterSleep();
+  EXPECT_FALSE(libraryIndexNeedsRefresh());
+  invalidateLibraryIndex();
+  EXPECT_TRUE(libraryIndexNeedsRefresh());
+  initial();
+  EXPECT_FALSE(libraryIndexNeedsRefresh());
+}

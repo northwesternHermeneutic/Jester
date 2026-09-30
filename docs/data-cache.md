@@ -89,11 +89,13 @@ For binary file layout details, see [File Formats](./file-formats.md).
 
 Library replaces the Recent Books screen.
 
-The Library reconciles its index with the SD card on the first visit after boot,
+The Library reconciles its index with the SD card on the first visit after a cold boot,
 after file changes in File Browser, and after leaving a download or file-transfer
-screen. Ordinary return visits reuse the index. Failed or memory-limited scans are
-retried on the next visit. The Library's refresh action always scans again; use it
-if files were changed externally while the firmware stayed running.
+screen. Ordinary return visits and deep-sleep wakes reuse a successfully scanned
+index. Failed or memory-limited scans are retried on the next visit. The Library's
+refresh action always scans again; use it
+if files were changed externally while the firmware stayed running or the reader
+was asleep.
 Unchanged books reuse their cached metadata.
 **Settings > Display > Use Book Metadata** selects embedded EPUB titles and
 authors; disabling it uses filenames. TXT, Markdown and XTC files use filename

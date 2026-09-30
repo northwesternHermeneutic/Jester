@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "LibraryInputBuffer.h"
 #include "RecentBooksStore.h"
 #include "activities/Activity.h"
 #include "components/OptionPopup.h"
@@ -20,6 +21,11 @@ class LibraryActivity final : public Activity {
   void loop() override;
   void render(RenderLock&&) override;
   bool blocksGlobalInput() const override { return actionPopup.isActive(); }
+
+#ifdef SIMULATOR
+  size_t simulatorPendingInputs() const { return pendingInput.size(); }
+  int simulatorSelection() const { return selection; }
+#endif
 
  private:
   enum class Sort : uint8_t { DateAdded, Title, AuthorLast, AuthorFirst, RecentlyRead, Series, Genre };
@@ -46,8 +52,16 @@ class LibraryActivity final : public Activity {
   float gridProgress = -1.0f;
   bool uiReady = false;
   bool initialScanPending = false;
-  bool longPressFired = false;
+  bool confirmLongPressCaptured = false;
   bool ignoreConfirmRelease = false;
+  // These fields belong only to the input task, including during rendering.
+  LibraryInputBuffer pendingInput;
+  bool inputOverflow = false;
+  bool touchTracking = false;
+  int touchStartX = 0;
+  int touchStartY = 0;
+  int touchLastX = 0;
+  int touchLastY = 0;
   bool scanFailed = false;
   bool filterFailed = false;
   bool pendingCacheDeletedFeedback = false;
@@ -89,6 +103,9 @@ class LibraryActivity final : public Activity {
   uint16_t dateGroupForRow(int row);
   bool metadataGroupForRow(int row, std::string& out);
   bool hasActiveFilter() const;
+  void latchInput();
+  void queueInput(LibraryInputBuffer::Type type, int x = -1, int y = -1);
+  void handleInput(const LibraryInputBuffer::Event& input);
   void refreshIndexIfNeeded();
   bool rebuildIndex(bool showScanning);
   void resolveRecents();

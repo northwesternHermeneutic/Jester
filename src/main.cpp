@@ -15,6 +15,8 @@
 #include <HalSystem.h>
 #include <HalTiltSensor.h>
 #include <I18n.h>
+#include <LibraryBuilder.h>
+#include <LibraryScanSleepToken.h>
 #include <Logging.h>
 #include <Memory.h>
 #include <SPI.h>
@@ -318,6 +320,10 @@ void logMemoryStats(const char* phase) {
           ESP.getMinFreeHeap(), ESP.getMaxAllocHeap());
 #endif
 }
+
+// Retain only a successfully reconciled Library across real deep-sleep wakes.
+// Consume the pair on every boot, including resets that preserve RTC memory.
+RTC_NOINIT_ATTR library::ScanSleepToken libraryScanSleepToken;
 
 // Definitions for SilentRestart.h. RTC_NOINIT survives ESP.restart() but not power loss.
 RTC_NOINIT_ATTR uint32_t silentRebootMagic;
@@ -1111,6 +1117,7 @@ void enterDeepSleep(bool fromTimeout) {
   BatteryDiagnosticLog::record(BatteryDiagnosticLog::Event::Sleep, BoardConfig::ACTIVE.name);
   // All sleep-time file writes are complete. Stop SDMMC before the power path
   // cuts peripheral rails and isolates the bus pads; SPI boards are a no-op.
+  libraryScanSleepToken.save(!library::libraryIndexNeedsRefresh());
   Storage.shutdown();
 
   putTiltSensorToSleepForDeepSleep();
@@ -1180,6 +1187,7 @@ void setup() {
 
   const esp_reset_reason_t rawResetReason = esp_reset_reason();
   const esp_sleep_wakeup_cause_t rawWakeupCause = esp_sleep_get_wakeup_cause();
+  if (libraryScanSleepToken.consume(rawResetReason == ESP_RST_DEEPSLEEP)) library::restoreLibraryIndexAfterSleep();
 
 #ifdef ENABLE_SERIAL_LOG
 #ifdef CROSSPOINT_WAIT_FOR_USB_SERIAL

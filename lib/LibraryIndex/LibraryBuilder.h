@@ -66,11 +66,13 @@ struct BuildStats {
 // books reuse these values from the prior Library index.
 bool buildLibraryIndex(const char* rootPath, BuildStats& stats, bool readMetadata = false);
 
-// Starts dirty on every boot to reconcile external card edits. File-changing
+// Starts dirty on cold boots to reconcile external card edits. File-changing
 // activities must invalidate before returning to Library. A successful scan
 // clears only changes known when it started; failures remain retryable.
 void invalidateLibraryIndex();
 bool libraryIndexNeedsRefresh();
+// Boot-only: called after validating a clean scan retained across deep sleep.
+void restoreLibraryIndexAfterSleep();
 
 // Live index path, shared by the builder and activity.
 const char* libraryIndexPath();
