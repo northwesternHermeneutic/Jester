@@ -269,18 +269,56 @@ function downloadUrl(filePath) {
   return `/download?path=${encodeURIComponent(filePath)}`;
 }
 
-function openImagePreview(url, name) {
+function openImagePreview(link) {
+  const url = link.getAttribute("href");
+  const name = link.textContent;
+  const links = previewLinks();
+  const row = link.closest("tr");
+  const info = [`${links.indexOf(link) + 1} / ${links.length}`, row.cells[3].textContent];
+  const meta = document.getElementById("imagePreviewMeta");
+  meta.textContent = info.join(" · ");
   const img = document.getElementById("imagePreviewImg");
   document.getElementById("imagePreviewName").textContent = name;
+  // Browsers keep showing the previous image until the new one arrives
+  img.style.opacity = 0;
+  img.onload = img.onerror = (e) => {
+    img.style.opacity = "";
+    if (e.type !== "load") return;
+    info.splice(1, 0, `${img.naturalWidth} × ${img.naturalHeight}`);
+    meta.textContent = info.join(" · ");
+  };
   img.src = url;
   img.alt = name;
   document.getElementById("imagePreviewDownload").href = url;
+  document.getElementById("imagePreviewNav").classList.toggle("single", links.length < 2);
   document.getElementById("imagePreviewModal").classList.add("open");
+}
+
+// Image navigation is independent of the file-dialog shortcuts.
+document.addEventListener("keydown", (e) => {
+  if (e.repeat || e.isComposing || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+  if (!document.getElementById("imagePreviewModal").classList.contains("open")) return;
+  e.preventDefault();
+  stepImagePreview(e.key === "ArrowLeft" ? -1 : 1);
+});
+
+// Only image rows get .image-preview-link (isImageFile); wraps at the ends.
+function previewLinks() {
+  return [...document.querySelectorAll("#file-table .image-preview-link")];
+}
+
+function stepImagePreview(dir) {
+  const links = previewLinks();
+  const current = document.getElementById("imagePreviewDownload").getAttribute("href");
+  const i = links.findIndex((l) => l.getAttribute("href") === current);
+  if (i >= 0 && links.length > 1) openImagePreview(links[(i + dir + links.length) % links.length]);
 }
 
 function closeImagePreview() {
   document.getElementById("imagePreviewModal").classList.remove("open");
-  document.getElementById("imagePreviewImg").src = "";
+  const img = document.getElementById("imagePreviewImg");
+  img.onload = img.onerror = null;
+  img.removeAttribute("src");
 }
 
 function handleFileActionClick(event) {
@@ -1121,7 +1159,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const link = event.target.closest(".image-preview-link");
     if (!link) return;
     event.preventDefault();
-    openImagePreview(link.getAttribute("href"), link.textContent);
+    openImagePreview(link);
   });
 
   const qualitySlider = document.getElementById("qualitySlider");
