@@ -90,6 +90,19 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)).toLocaleString() + " " + sizes[i];
 }
 
+// Maps each modal overlay id to its Escape/Cancel-button close function.
+// Click-outside uses closeUploadModal (a no-op mid-upload) to avoid
+// accidentally aborting an in-progress upload from a stray outside click.
+const MODAL_CANCEL_FNS = {
+  uploadModal: handleCancelUploadModal,
+  folderModal: closeFolderModal,
+  deleteModal: closeDeleteModal,
+  renameModal: closeRenameModal,
+  moveModal: closeMoveModal,
+  imagePreviewModal: closeImagePreview,
+};
+const MODAL_OUTSIDE_CLICK_FNS = { ...MODAL_CANCEL_FNS, uploadModal: closeUploadModal };
+
 async function hydrate() {
   // Fetch CrossInk version
   fetchVersion();
@@ -98,16 +111,37 @@ async function hydrate() {
   document.querySelectorAll(".modal-overlay").forEach(function (overlay) {
     overlay.addEventListener("click", function (e) {
       if (e.target === overlay) {
-        // Call the appropriate close function for each modal to ensure cleanup
-        if (overlay.id === "uploadModal") return closeUploadModal();
-        if (overlay.id === "folderModal") return closeFolderModal();
-        if (overlay.id === "deleteModal") return closeDeleteModal();
-        if (overlay.id === "renameModal") return closeRenameModal();
-        if (overlay.id === "moveModal") return closeMoveModal();
-        if (overlay.id === "imagePreviewModal") return closeImagePreview();
+        const closeFn = MODAL_OUTSIDE_CLICK_FNS[overlay.id];
+        if (closeFn) return closeFn();
         overlay.classList.remove("open");
       }
     });
+  });
+
+  // Escape cancels whichever modal is currently open
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || e.repeat || e.isComposing) return;
+    const openOverlay = document.querySelector(".modal-overlay.open");
+    if (!openOverlay) return;
+    const closeFn = MODAL_CANCEL_FNS[openOverlay.id];
+    if (closeFn) {
+      e.preventDefault();
+      closeFn();
+    }
+  });
+
+  // Enter confirms the rename/move text inputs
+  document.getElementById("renameNewName").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.repeat && !e.isComposing) {
+      e.preventDefault();
+      confirmRename();
+    }
+  });
+  document.getElementById("moveDestPath").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.repeat && !e.isComposing) {
+      e.preventDefault();
+      confirmMove();
+    }
   });
 
   const breadcrumbs = document.getElementById("directory-breadcrumbs");
