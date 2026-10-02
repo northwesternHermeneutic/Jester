@@ -508,11 +508,22 @@ void SettingsActivity::openSubmenu(SettingAction action) {
 }
 
 void SettingsActivity::closeSubmenu() {
+  const SettingAction closedSubmenu = activeSubmenu;
   activeSubmenu = parentSubmenu;
   parentSubmenu = SettingAction::None;
   setCurrentSettingsForCategory();
-  selectedSettingIndex = 1;
   showSettingSelection = true;
+
+  // Return the highlight to the row that opened the submenu.
+  selectedSettingIndex = 1;
+  for (int index = 0; index < settingsCount; ++index) {
+    const SettingInfo& setting = (*currentSettings)[index];
+    if (setting.type == SettingType::SUBMENU && setting.action == closedSubmenu) {
+      selectedSettingIndex = index + 1;
+      break;
+    }
+  }
+  topIndex = followListSelection(selectedSettingIndex - 1, topIndex, visibleRows, settingsCount);
 }
 
 bool SettingsActivity::currentSettingUsesOptionMenu(const SettingInfo& setting) const {
