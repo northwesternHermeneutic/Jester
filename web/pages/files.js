@@ -5546,7 +5546,12 @@ function openRenameModal(name, path) {
   setTimeout(() => {
     const input = document.getElementById("renameNewName");
     input.focus();
-    input.select();
+    const dotIndex = name.lastIndexOf(".");
+    if (dotIndex > 0) {
+      input.setSelectionRange(0, dotIndex);
+    } else {
+      input.select();
+    }
   }, 50);
 }
 
