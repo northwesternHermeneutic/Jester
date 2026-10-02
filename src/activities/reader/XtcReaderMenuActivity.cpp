@@ -178,7 +178,8 @@ void XtcReaderMenuActivity::refreshListItems() {
     listItems[index].label = I18N.get(items[index].labelId);
     listItems[index].actionValue = static_cast<int16_t>(index);
     if (items[index].action == MenuAction::DISABLE_TOUCHSCREEN) {
-      listItems[index].value = I18N.get(SETTINGS.disableReaderTouchscreen ? StrId::STR_ON : StrId::STR_OFF);
+      listItems[index].toggle = true;
+      listItems[index].toggleChecked = SETTINGS.disableReaderTouchscreen != 0;
     }
   }
 }

@@ -724,8 +724,8 @@ inline const std::vector<SettingInfo>& getBaseSettingsList() {
                           "sideButtonLayout", StrId::STR_CAT_CONTROLS)
             .withEnumRawValues({CrossPointSettings::SIDE_BUTTONS_DISABLED, CrossPointSettings::PREV_NEXT,
                                 CrossPointSettings::NEXT_PREV, CrossPointSettings::NEXT_NEXT}));
-    add(SettingInfo::Enum(StrId::STR_ORIENTATION_AWARE, &CrossPointSettings::sideButtonOrientationAware,
-                          {StrId::STR_NO, StrId::STR_YES}, "sideButtonOrientationAware", StrId::STR_CAT_CONTROLS));
+    add(SettingInfo::Toggle(StrId::STR_ORIENTATION_AWARE, &CrossPointSettings::sideButtonOrientationAware,
+                            "sideButtonOrientationAware", StrId::STR_CAT_CONTROLS));
     add(SettingInfo::Enum(StrId::STR_LONG_PRESS_ACTION, &CrossPointSettings::sideButtonLongPress,
                           {StrId::STR_IGNORE, StrId::STR_CHAPTER_SKIP_OPT, StrId::STR_CHANGE_FONT_SIZE,
                            StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION},
