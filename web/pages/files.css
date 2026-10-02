@@ -1510,3 +1510,15 @@ h2 {
 .log-summary-table .increased {
       color: #f39c12;
     }
+
+.sort-button {
+      background: none;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      font-weight: bold;
+      padding: 0;
+      margin: 0;
+      width: auto;
+      cursor: pointer;
+    }

@@ -192,6 +192,58 @@ async function hydrate() {
   document.getElementById("folder-summary").innerHTML =
     `${folderCount} ${folderLabel}, ${fileCount} ${fileLabel}, ${formatFileSize(totalSize)}`;
 
+  listedFiles = files;
+  renderFileTable();
+}
+
+// Column sort; null key keeps the default folders, EPUBs, then name order
+let listedFiles = [];
+let fileSort = { key: null, dir: 1 };
+try {
+  const saved = JSON.parse(sessionStorage.getItem("fileSort"));
+  if (saved && ["name", "size"].includes(saved.key) && [1, -1].includes(saved.dir)) fileSort = saved;
+} catch (e) {}
+
+function compareFiles(a, b) {
+  // Folders always first; size sorting keeps their names alphabetical
+  if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+  const key = fileSort.key;
+  if (a.isDirectory && key !== "name") return a.name.localeCompare(b.name);
+  if (!key) {
+    if (a.isEpub !== b.isEpub) return a.isEpub ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  }
+  const diff = key === "name" ? a.name.localeCompare(b.name) : (a[key] || 0) - (b[key] || 0);
+  return (diff || a.name.localeCompare(b.name)) * fileSort.dir;
+}
+
+function sortHeader(key, label) {
+  const arrow = fileSort.key === key ? (fileSort.dir > 0 ? " ▲" : " ▼") : "";
+  const order = fileSort.key === key ? (fileSort.dir > 0 ? "ascending" : "descending") : "none";
+  return `<th aria-sort="${order}"><button class="sort-button" data-sort="${key}">${label}${arrow}</button></th>`;
+}
+
+function setFileSort(key) {
+  if (!["name", "size"].includes(key)) return;
+  const selected = new Set([...document.querySelectorAll(".select-item:checked")].map((cb) => cb.dataset.path));
+  fileSort = { key, dir: fileSort.key === key ? -fileSort.dir : 1 };
+  try {
+    sessionStorage.setItem("fileSort", JSON.stringify(fileSort));
+  } catch (e) {}
+  renderFileTable();
+  const checkboxes = [...document.querySelectorAll(".select-item")];
+  checkboxes.forEach((cb) => (cb.checked = selected.has(cb.dataset.path)));
+  const master = document.getElementById("selectAllCheckbox");
+  if (master) {
+    master.checked = checkboxes.length > 0 && checkboxes.every((cb) => cb.checked);
+    master.indeterminate = !master.checked && checkboxes.some((cb) => cb.checked);
+  }
+  document.querySelector(`[data-sort="${key}"]`)?.focus();
+}
+
+function renderFileTable() {
+  const files = listedFiles;
+  const fileTable = document.getElementById("file-table");
   if (files.length === 0) {
     fileTable.innerHTML = '<div class="no-files">This folder is empty</div>';
   } else {
@@ -199,16 +251,9 @@ async function hydrate() {
 
     // Add select-all checkbox column
     fileTableContent +=
-      '<tr><th style="width:40px"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"></th><th>Name</th><th>Type</th><th>Size</th><th class="actions-col">Actions</th></tr>';
+      `<tr><th style="width:40px"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"></th>${sortHeader("name", "Name")}<th>Type</th>${sortHeader("size", "Size")}<th class="actions-col">Actions</th></tr>`;
 
-    const sortedFiles = files.sort((a, b) => {
-      // Directories first, then epub files, then other files, alphabetically within each group
-      if (a.isDirectory && !b.isDirectory) return -1;
-      if (!a.isDirectory && b.isDirectory) return 1;
-      if (a.isEpub && !b.isEpub) return -1;
-      if (!a.isEpub && b.isEpub) return 1;
-      return a.name.localeCompare(b.name);
-    });
+    const sortedFiles = files.slice().sort(compareFiles);
 
     sortedFiles.forEach((file) => {
       if (file.isDirectory) {
@@ -255,6 +300,9 @@ async function hydrate() {
 
     fileTableContent += "</table>";
     fileTable.innerHTML = fileTableContent;
+    fileTable.querySelectorAll("[data-sort]").forEach((button) => {
+      button.addEventListener("click", () => setFileSort(button.dataset.sort));
+    });
     fileTable.querySelectorAll(".file-action-btn").forEach((button) => {
       button.addEventListener("click", handleFileActionClick);
     });
