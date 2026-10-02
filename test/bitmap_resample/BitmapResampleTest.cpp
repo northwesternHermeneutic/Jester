@@ -1,6 +1,7 @@
 #include <Bitmap.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <vector>
 
@@ -126,50 +127,101 @@ TEST(BitmapResample, ResizingKeepsImageQuantizationSeparateFromTextOverlayLevels
   }
 }
 
-TEST(BitmapResample, PaletteFollowsExtendedInfoHeader) {
-  // GIMP and ImageMagick write 8-bit grayscale BMPs with a 124-byte
-  // BITMAPV5HEADER, so the palette starts at 14 + 124, not 14 + 40.
+TEST(BitmapResample, PaletteStartsAfterFullInfoHeader) {
   constexpr int kWidth = 64;
   constexpr int kHeight = 32;
-  constexpr uint32_t kInfoHeaderSize = 124;
-  constexpr size_t kPaletteOffset = 14 + kInfoHeaderSize;
-  constexpr size_t kPixelOffset = kPaletteOffset + 256 * 4;
-  std::vector<uint8_t> data(kPixelOffset + kWidth * kHeight, 0xFF);
-  std::fill(data.begin(), data.begin() + kPaletteOffset, 0);
-  data[0] = 'B';
-  data[1] = 'M';
-  writeLe32(data, 2, static_cast<uint32_t>(data.size()));
-  writeLe32(data, 10, kPixelOffset);
-  writeLe32(data, 14, kInfoHeaderSize);
-  writeLe32(data, 18, kWidth);
-  writeLe32(data, 22, kHeight);
-  writeLe16(data, 26, 1);
-  writeLe16(data, 28, 8);
-  writeLe32(data, 34, kWidth * kHeight);
-  writeLe32(data, 46, 256);
-  // V5 channel masks and color-space fields that a 40-byte reader would take for palette entries.
-  writeLe32(data, 54, 0x00FF0000);
-  writeLe32(data, 58, 0x0000FF00);
-  writeLe32(data, 62, 0x000000FF);
-  writeLe32(data, 70, 0x73524742);  // 'sRGB'
-  for (int i = 0; i < 256; i++) {
-    const size_t entry = kPaletteOffset + static_cast<size_t>(i) * 4;
-    data[entry] = data[entry + 1] = data[entry + 2] = static_cast<uint8_t>(i);
-    data[entry + 3] = 0;
-  }
+  for (const uint32_t infoHeaderSize : {40u, 108u, 124u}) {
+    const size_t paletteOffset = 14 + infoHeaderSize;
+    const size_t pixelOffset = paletteOffset + 256 * 4;
+    for (const uint8_t pixelIndex : {uint8_t{0}, uint8_t{255}}) {
+      std::vector<uint8_t> data(pixelOffset + kWidth * kHeight, pixelIndex);
+      std::fill(data.begin(), data.begin() + paletteOffset, 0);
+      data[0] = 'B';
+      data[1] = 'M';
+      writeLe32(data, 2, static_cast<uint32_t>(data.size()));
+      writeLe32(data, 10, static_cast<uint32_t>(pixelOffset));
+      writeLe32(data, 14, infoHeaderSize);
+      writeLe32(data, 18, kWidth);
+      writeLe32(data, 22, kHeight);
+      writeLe16(data, 26, 1);
+      writeLe16(data, 28, 8);
+      writeLe32(data, 34, kWidth * kHeight);
+      writeLe32(data, 46, 256);
+      if (infoHeaderSize > 40) {
+        // Extended-header fields must not be mistaken for palette entries.
+        writeLe32(data, 54, 0x00FF0000);
+        writeLe32(data, 58, 0x0000FF00);
+        writeLe32(data, 62, 0x000000FF);
+        writeLe32(data, 70, 0x73524742);  // 'sRGB'
+      }
+      for (int i = 0; i < 256; i++) {
+        const size_t entry = paletteOffset + static_cast<size_t>(i) * 4;
+        data[entry] = data[entry + 1] = data[entry + 2] = static_cast<uint8_t>(i);
+        data[entry + 3] = 0;
+      }
 
-  for (const bool imageLevels : {false, true}) {
-    HalFile file(data);
-    Bitmap bitmap(file, true, imageLevels);
-    ASSERT_EQ(bitmap.parseHeaders(), BmpReaderError::Ok);
-    std::vector<uint8_t> row((kWidth + 3) / 4);
-    std::vector<uint8_t> sourceRow(bitmap.getRowBytes());
-    int nonWhiteBytes = 0;
-    for (int y = 0; y < kHeight; y++) {
-      ASSERT_EQ(bitmap.readNextRow(row.data(), sourceRow.data()), BmpReaderError::Ok);
-      for (const uint8_t packed : row) nonWhiteBytes += packed != 0xFF;
+      for (const bool imageLevels : {false, true}) {
+        SCOPED_TRACE(::testing::Message() << "header=" << infoHeaderSize << " index=" << static_cast<int>(pixelIndex)
+                                          << " imageLevels=" << imageLevels);
+        HalFile file(data);
+        Bitmap bitmap(file, true, imageLevels);
+        ASSERT_EQ(bitmap.parseHeaders(), BmpReaderError::Ok);
+        std::vector<uint8_t> row((kWidth + 3) / 4);
+        std::vector<uint8_t> sourceRow(bitmap.getRowBytes());
+        const uint8_t expectedByte = pixelIndex == 255 ? 0xFF : 0;
+        int unexpectedBytes = 0;
+        for (int y = 0; y < kHeight; y++) {
+          ASSERT_EQ(bitmap.readNextRow(row.data(), sourceRow.data()), BmpReaderError::Ok);
+          for (const uint8_t packed : row) unexpectedBytes += packed != expectedByte;
+        }
+        EXPECT_EQ(unexpectedBytes, 0);
+      }
     }
-    // Palette index 255 is pure white: every pixel stays white, with no dither dots.
-    EXPECT_EQ(nonWhiteBytes, 0) << "imageLevels=" << imageLevels;
+  }
+}
+
+TEST(BitmapResample, RejectsTruncatedExtendedPalette) {
+  for (const uint32_t infoHeaderSize : {108u, 124u}) {
+    SCOPED_TRACE(infoHeaderSize);
+    // The last of the 256 palette entries is missing its red and reserved bytes.
+    std::vector<uint8_t> data(14 + infoHeaderSize + 256 * 4 - 2, 0);
+    data[0] = 'B';
+    data[1] = 'M';
+    writeLe32(data, 2, static_cast<uint32_t>(data.size()));
+    writeLe32(data, 10, 14 + infoHeaderSize + 256 * 4);
+    writeLe32(data, 14, infoHeaderSize);
+    writeLe32(data, 18, 1);
+    writeLe32(data, 22, 1);
+    writeLe16(data, 26, 1);
+    writeLe16(data, 28, 8);
+    writeLe32(data, 46, 256);
+
+    HalFile file(data);
+    Bitmap bitmap(file);
+    EXPECT_EQ(bitmap.parseHeaders(), BmpReaderError::FileInvalid);
+  }
+}
+
+TEST(BitmapResample, RejectsPaletteThatOverlapsPixelData) {
+  for (const uint32_t infoHeaderSize : {40u, 108u, 124u}) {
+    SCOPED_TRACE(infoHeaderSize);
+    // The file has enough bytes for 256 reads, but the last entry is actually pixel data.
+    const uint32_t pixelOffset = 14 + infoHeaderSize + 255 * 4;
+    std::vector<uint8_t> data(pixelOffset + 4, 0);
+    std::fill(data.begin() + pixelOffset, data.end(), 255);
+    data[0] = 'B';
+    data[1] = 'M';
+    writeLe32(data, 2, static_cast<uint32_t>(data.size()));
+    writeLe32(data, 10, pixelOffset);
+    writeLe32(data, 14, infoHeaderSize);
+    writeLe32(data, 18, 4);
+    writeLe32(data, 22, 1);
+    writeLe16(data, 26, 1);
+    writeLe16(data, 28, 8);
+    writeLe32(data, 46, 256);
+
+    HalFile file(data);
+    Bitmap bitmap(file);
+    EXPECT_EQ(bitmap.parseHeaders(), BmpReaderError::FileInvalid);
   }
 }
