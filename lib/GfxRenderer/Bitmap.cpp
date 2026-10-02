@@ -140,6 +140,11 @@ BmpReaderError Bitmap::parseHeaders() {
 
   for (int i = 0; i < 256; i++) paletteLum[i] = static_cast<uint8_t>(i);
   if (colorsUsed > 0) {
+    // The palette follows the full DIB header. V4/V5 headers (108/124 bytes, as
+    // written by GIMP and ImageMagick) are longer than the 40 bytes parsed above.
+    if (!file.seek(14 + biSize)) {
+      return BmpReaderError::SeekPixelDataFailed;
+    }
     for (uint32_t i = 0; i < colorsUsed; i++) {
       uint8_t rgb[4];
       file.read(rgb, 4);  // Read B, G, R, Reserved in one go

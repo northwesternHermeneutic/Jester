@@ -125,3 +125,51 @@ TEST(BitmapResample, ResizingKeepsImageQuantizationSeparateFromTextOverlayLevels
     EXPECT_EQ(row, expected);
   }
 }
+
+TEST(BitmapResample, PaletteFollowsExtendedInfoHeader) {
+  // GIMP and ImageMagick write 8-bit grayscale BMPs with a 124-byte
+  // BITMAPV5HEADER, so the palette starts at 14 + 124, not 14 + 40.
+  constexpr int kWidth = 64;
+  constexpr int kHeight = 32;
+  constexpr uint32_t kInfoHeaderSize = 124;
+  constexpr size_t kPaletteOffset = 14 + kInfoHeaderSize;
+  constexpr size_t kPixelOffset = kPaletteOffset + 256 * 4;
+  std::vector<uint8_t> data(kPixelOffset + kWidth * kHeight, 0xFF);
+  std::fill(data.begin(), data.begin() + kPaletteOffset, 0);
+  data[0] = 'B';
+  data[1] = 'M';
+  writeLe32(data, 2, static_cast<uint32_t>(data.size()));
+  writeLe32(data, 10, kPixelOffset);
+  writeLe32(data, 14, kInfoHeaderSize);
+  writeLe32(data, 18, kWidth);
+  writeLe32(data, 22, kHeight);
+  writeLe16(data, 26, 1);
+  writeLe16(data, 28, 8);
+  writeLe32(data, 34, kWidth * kHeight);
+  writeLe32(data, 46, 256);
+  // V5 channel masks and color-space fields that a 40-byte reader would take for palette entries.
+  writeLe32(data, 54, 0x00FF0000);
+  writeLe32(data, 58, 0x0000FF00);
+  writeLe32(data, 62, 0x000000FF);
+  writeLe32(data, 70, 0x73524742);  // 'sRGB'
+  for (int i = 0; i < 256; i++) {
+    const size_t entry = kPaletteOffset + static_cast<size_t>(i) * 4;
+    data[entry] = data[entry + 1] = data[entry + 2] = static_cast<uint8_t>(i);
+    data[entry + 3] = 0;
+  }
+
+  for (const bool imageLevels : {false, true}) {
+    HalFile file(data);
+    Bitmap bitmap(file, true, imageLevels);
+    ASSERT_EQ(bitmap.parseHeaders(), BmpReaderError::Ok);
+    std::vector<uint8_t> row((kWidth + 3) / 4);
+    std::vector<uint8_t> sourceRow(bitmap.getRowBytes());
+    int nonWhiteBytes = 0;
+    for (int y = 0; y < kHeight; y++) {
+      ASSERT_EQ(bitmap.readNextRow(row.data(), sourceRow.data()), BmpReaderError::Ok);
+      for (const uint8_t packed : row) nonWhiteBytes += packed != 0xFF;
+    }
+    // Palette index 255 is pure white: every pixel stays white, with no dither dots.
+    EXPECT_EQ(nonWhiteBytes, 0) << "imageLevels=" << imageLevels;
+  }
+}
