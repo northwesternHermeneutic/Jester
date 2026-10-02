@@ -65,6 +65,7 @@ class XtcReaderActivity final : public Activity {
   bool saveProgress(uint32_t page);
   bool queueProgressSave(uint32_t pageToRender);
   bool flushQueuedProgress();
+  void saveProgressBeforeRestart();
   void loadProgress();
   void pauseReadingStatsTimer(const char* source = "unknown");
   void resumeReadingStatsTimer(const char* source = "unknown");
@@ -130,7 +131,10 @@ class XtcReaderActivity final : public Activity {
   std::string getCurrentBookTitle() const override { return xtc ? xtc->getTitle() : std::string{}; }
   bool getFrontlightPanelBookDetails(FrontlightPanelBookDetails& details) override;
   std::unique_ptr<Activity> createFrontlightReadingStatsActivity() override;
-  void onFrontlightPanelOpened() override { pauseReadingStatsTimer("frontlight_panel"); }
+  void onFrontlightPanelOpened() override {
+    pauseReadingStatsTimer("frontlight_panel");
+    saveProgressBeforeRestart();
+  }
   void onFrontlightPanelClosed() override;
   bool handleFrontlightPanelResult(const FrontlightPanelResult& result) override;
 

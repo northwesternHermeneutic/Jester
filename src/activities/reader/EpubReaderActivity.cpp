@@ -4033,6 +4033,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
     case EpubReaderMenuActivity::MenuAction::SYNC: {
       if (!KOREADER_STORE.hasCredentials()) {
         pauseReadingPaceTimer("koreader_settings");
+        saveProgressBeforeRestart();
         startActivityForResult(std::make_unique<KOReaderSettingsActivity>(renderer, mappedInput),
                                [this](const ActivityResult&) {
                                  resumeReadingPaceTimer("koreader_settings_return");
@@ -4312,6 +4313,7 @@ bool EpubReaderActivity::getFrontlightPanelBookDetails(FrontlightPanelBookDetail
 void EpubReaderActivity::onFrontlightPanelOpened() {
   clearPendingManualPageTurns();
   pauseReadingPaceTimer("frontlight_panel");
+  saveProgressBeforeRestart();
 }
 
 void EpubReaderActivity::onFrontlightPanelClosed() {
@@ -4403,9 +4405,7 @@ void EpubReaderActivity::reindexCurrentSection() {
 void EpubReaderActivity::openFileTransfer() {
   clearPendingManualPageTurns();
   pauseReadingPaceTimer("file_transfer");
-  if (epub && section) {
-    saveProgress(currentSpineIndex, section->currentPage, section->estimatedTotalPages());
-  }
+  saveProgressBeforeRestart();
 
   activityManager.goToFileTransfer(epub ? epub->getPath() : std::string{});
 }
@@ -4859,12 +4859,15 @@ void EpubReaderActivity::executeReaderQuickAction(CrossPointSettings::LONG_PRESS
       openFileTransfer();
       break;
     case CrossPointSettings::LONG_MENU_CALIBRE_WIRELESS:
+      saveProgressBeforeRestart();
       activityManager.goToCalibreWireless(epub ? epub->getPath() : "");
       break;
     case CrossPointSettings::LONG_MENU_JOIN_NETWORK:
+      saveProgressBeforeRestart();
       activityManager.goToJoinNetworkFileTransfer(epub ? epub->getPath() : "");
       break;
     case CrossPointSettings::LONG_MENU_CREATE_HOTSPOT:
+      saveProgressBeforeRestart();
       activityManager.goToHotspotFileTransfer(epub ? epub->getPath() : "");
       break;
     case CrossPointSettings::LONG_MENU_TOGGLE_TILT_PAGE_TURN:
@@ -8084,4 +8087,12 @@ ScreenshotInfo EpubReaderActivity::getScreenshotInfo() const {
     }
   }
   return info;
+}
+
+void EpubReaderActivity::saveProgressBeforeRestart() {
+  // Silent network-mode restarts skip onExit(); coordinate with the render task.
+  RenderLock lock(*this);
+  if (!(footnoteDepth > 0 ? (epub && saveFootnoteOriginProgress()) : flushQueuedProgress())) {
+    LOG_ERR("READER", "Failed to save progress before restart");
+  }
 }
