@@ -5,6 +5,52 @@ All POD fields are written in the ESP32 little-endian representation used by
 `Serialization.h`; strings are length-prefixed UTF-8 unless a format notes a
 fixed-size char buffer.
 
+## `epub_<hash>/links.bin`
+
+The EPUB reader writes followed-link Back history on clean exit (Home, sleep,
+or reader replacement for sync). The record has a one-byte depth (1–3), followed
+by that many pairs of little-endian `u16` spine index and `u16` page number,
+oldest first: 5, 9, or 13 bytes. Empty history removes the file. A transient
+footnote preview resumes at its immediate origin and omits that final entry;
+earlier full-section links remain in the record.
+
+On open, the reader checks the exact length and each spine index, closes the
+file, and deletes it before adopting the history. Malformed records are also
+consumed. A later clean exit rewrites the current stack; an unclean shutdown
+cannot revive history from a previous session. This new sidecar does not change
+EPUB layout cache formats. As with in-memory Back history, changing font or
+layout may shift the destination page.
+
+## `/.crosspoint/home_carousel_cache_<index>.bin`
+
+### Version 6
+
+The v1.6.1 release normalizes development version 8 to version 6, one step
+after v1.6.0. The new per-position filenames and artwork cache keys prevent
+reuse of older combined snapshots.
+
+Each Carousel position has a disposable snapshot containing only cover artwork,
+titles and position dots. Progress, reading time, header, menu icons and button
+hints are drawn live after restoration. Each file contains a `CarouselCacheHeader`
+followed by one full framebuffer. The header's `frameCount` records the number of
+recent books used to compose the artwork, rather than the number of stored frames.
+The key tracks ordered book paths, titles, cover paths, thumbnail availability and
+image polarity, rather than reading progress or statistics.
+
+Frames are rendered and saved only when viewed; returning Home does not prepare
+other positions in advance. The development version 7 combined
+`home_carousel_cache.bin` is removed after the first successful write. Cache
+regeneration is automatic; EPUB layout caches and reading history are unaffected.
+
+## `/.crosspoint/ttf-rendering.json`
+
+This user-owned JSON file stores only custom TTF families whose raster settings
+differ from CrossInk's defaults. Each entry is keyed by the installed family name
+and contains numeric hinting, raster, interpreter, weight, and slant choices plus
+the stem-darkening toggle. Missing families use automatic hinting, grayscale
+output, the default interpreter, and no outline adjustments. The file currently
+keeps at most 24 modified family profiles to bound RAM use while settings are open.
+
 ## `/.crosspoint/sleep-image-index/<directory-hash>-{bmp,all}.idx`
 
 ### Version 1
@@ -102,19 +148,13 @@ do not contain series or genre.
 
 `LibraryIndexFile` (`lib/LibraryIndex/LibraryIndexFile.{h,cpp}`) reads the
 `CLX1` on-disk index for the Library screen: one sorted, searchable
-snapshot of up to 32,767 books on the card, built by `LibraryBuilder` so paging,
+snapshot of up to 4,096 books on the card, built by `LibraryBuilder` so paging,
 sorting, and searching the shelf cost a handful of seeks instead of a
 directory walk per screen. The format itself (`lib/LibraryIndex/LibraryFormat.h`)
 is free of `HalStorage` and Arduino so its layout and validation rules are
 host-testable (`test/library_format`, `test/library_index_file`).
-Builds keep RAM flat on every device: each sort holds a fixed buffer and spills
-sorted runs to the card when a library outgrows it, and the previous index is
-matched through a sorted file rather than an in-RAM table. While building, the
-transient files `library.stage`, `library.stage.f`, `library.prior`,
-`library.rename`, `library.order`, `library.authors`, `library.canon`, and
-`library.runs` live in `/.crosspoint`; every build removes them when it ends. If
-the scan finds another book beyond the limit, the rebuild fails and keeps the
-previous index instead of publishing a partial shelf.
+If the scan finds another book beyond the limit, the rebuild fails and keeps
+the previous index instead of publishing a partial shelf.
 
 Every section starts on a 512-byte boundary. Records are a fixed 128 bytes
 each, so record `k` always lives at `recordStart + 128*k` with no offset table
@@ -184,62 +224,6 @@ holds, back to back: an 8-byte FNV-1a path hash of the book's complete path
 the index" lookups), the filename, then five length-prefixed fields —
 display author, title, the pre-spelling-harmonisation source author, series,
 and genre. Version 6 appends the four-byte series position.
-
-## `/.crosspoint/library.meta` and `/.crosspoint/library.metd`
-
-### Version 1
-
-`LibraryMetadataCache` (`lib/LibraryIndex/LibraryMetadataCache.{h,cpp}`) keeps
-EPUB metadata from the moment each book is parsed, independent of whether the
-Library build that parsed it finishes. A later build looks a book up only when
-the previous `library.idx` cannot supply reusable metadata, so a cancelled or
-failed scan resumes without re-parsing what it already read. Failed parses are
-not stored. A book is identified by its complete-path FNV-1a hash (the same
-`clixPathHash` the index uses), file size, and packed FAT modification time;
-books with no modification time are never cached.
-
-`library.meta` holds a 32-byte header padded to 512 bytes, then 65,536 16-byte
-slots of an open-addressing hash table (linear probing, at most 64 probes). An
-all-zero slot is empty. A slot whose check does not match is skipped. There is
-one slot per path; storing a changed book replaces its slot's payload offset.
-
-`library.metd` is append-only. Each record is a 32-byte header followed by
-title, author, series, and genre bytes (each at most 255 bytes, cut at a UTF-8
-boundary). Payloads are written before the slot that points at them, and every
-read verifies the record checksum, so a torn write costs a re-parse rather than
-wrong metadata. The cache is discarded and recreated when the header does not
-validate, more than 75% of slots are used, or the payload passes 64 MiB. Bump
-the cache version whenever the set of extracted metadata fields changes.
-
-```c++
-struct CacheHeader {             // 32 bytes at offset 0
-    char magic[4];               // "CLM1"
-    u8 version;                  // 1
-    u8 padding[3];
-    u32 slotCount;               // 65536
-    u32 usedSlots;               // slots ever claimed; written on close
-    u8 reserved[16];
-};
-
-struct CacheSlot {               // slot i @ 512 + 16*i
-    u64 pathHash;
-    u32 payloadOffset;           // into library.metd
-    u32 check;                   // FNV-1a of pathHash and payloadOffset, low bit set
-};
-
-struct PayloadHeader {           // 32 bytes, then the four strings back to back
-    u32 magic;                   // "CLMP"
-    u64 pathHash;
-    u32 fileSize;
-    u32 modificationTime;
-    u32 seriesPosition;          // same encoding as library.idx version 6
-    u8 titleLen;
-    u8 authorLen;
-    u8 seriesLen;
-    u8 genreLen;
-    u32 checksum;                // FNV-1a of this header (checksum zeroed) and the strings
-};
-```
 
 ## `book.bin`
 
@@ -332,7 +316,7 @@ if (parsedSize != fileSize) {
 
 ## `reader_settings.bin`
 
-### Version 9
+### Version 10
 
 Each EPUB cache directory may contain `reader_settings.bin`. Missing files mean
 the book uses global Reader settings and the default auto-page-turn interval.
@@ -502,6 +486,35 @@ Binary layout:
 
 ## `section.bin`
 
+### Version 83
+
+Nested paragraphs and other blocks retain inherited CSS bold and italic styles,
+including explicit child overrides. The payload is unchanged from version 82,
+but glyph styles and wrapping can differ. Complete files use byte `83`;
+suspended partials use `0xC4`. Older full and partial caches rebuild automatically
+so previously cached regular text does not hide the corrected styling. The CSS
+rule cache format is unchanged.
+
+### Version 82
+
+Scalable-font EPUB headings and whole text blocks carry a resolved point size
+and line height. Each serialized `TextBlock` appends `u8 fontSize` (0 = reader
+font, otherwise 8-44 pt) and `u16 lineHeight` after `directionDefined` in its
+`BlockStyle` payload. The inherited Q8 font scale is layout-only and is not
+serialized. Complete section files use byte `82`; suspended partials use `0xC3`.
+Older full and partial caches rebuild automatically.
+
+CSS cache revision `20` adds a five-byte font-size length (float value plus unit)
+after `imageWidth` and uses defined-property bit 23. The fixed style payload is
+76 bytes. Older CSS caches rebuild automatically.
+
+On scalable fonts, headings default to 2, 1.5, 1.17, 1, 0.83, and 0.67 times the
+inherited size, rounded to whole points and bounded to 8-44 pt. Enabled book
+styles can override block sizes using em, rem, %, px, pt, and size keywords.
+CSS 16px/12pt maps to the user's selected body size; em/% use the parent and
+rem uses the HTML root. Inline span size changes and table-cell sizing remain
+uniform in this phase. Light mode and bitmap fonts retain their existing sizes.
+
 ### Version 81
 
 Version 81 carries `text-indent` from the HTML and body root styles into
@@ -517,6 +530,11 @@ images as centered blocks. Page-image records add a one-byte inline flag after
 their coordinates; full section caches (byte `80`) and suspended partial caches (`0xC1`) rebuild so
 existing books receive the new layout. The CSS rule cache moves to version `19`
 so `display: inline` rules retain their meaning.
+
+The v1.6.1 release retains version `80` and partial marker `0xC1`: development
+versions `78` and `79` used the older image payload, and earlier release
+preparation used partial marker `0x80`. Reusing those identifiers could accept
+incompatible saved pages. All of those older caches rebuild automatically.
 
 ### Version 79
 
@@ -558,8 +576,10 @@ version byte `66`, and suspended partials use sentinel byte `0xF6`.
 The stable v1.5.1 release retains these identifiers from RC6. Do not normalize
 published RC versions to the previous stable version plus one: v1.5.0 used
 `60` / `0xF9`, and RC4 already shipped `61` / `0xF8` with older layout output.
-Reusing those identifiers could accept stale RC caches as current. Per-book
-reader settings likewise retain version `9` and their version 7/8 migrations.
+Reusing those identifiers could accept stale RC caches as current. Version 9
+per-book reader settings and their version 7/8 migrations remain
+readable. Version 10 adds a field-override mask so a book can inherit unrelated
+global reader settings.
 
 ### Version 62
 
@@ -712,6 +732,8 @@ struct BlockStyle {
     bool textIndentDefined;
     bool isRtl;
     bool directionDefined;
+    u8 fontSize;
+    u16 lineHeight;
 };
 
 struct TextBlock {
@@ -922,21 +944,21 @@ not by writing native C++ structures. CRCs use standard IEEE CRC32 (zlib).
 
 The 32-byte header is:
 
-| Offset | Bytes | Field |
-| --- | --- | --- |
-| 0 | 4 | `PXC2` |
-| 4 | 1 | Version 2 |
-| 5 | 1 | Pixel format 1: four 2-bit pixels per byte, most significant first |
-| 6 | 2 | Header bytes: 32 |
-| 8 | 2 | Width |
-| 10 | 2 | Height |
-| 12 | 2 | Row bytes: `(width + 3) / 4` |
-| 14 | 2 | Block bytes: 2048 |
-| 16 | 2 | Block count: ceiling of raw bytes / 2048 |
-| 18 | 2 | Flags: zero |
-| 20 | 4 | Raw pixel bytes |
-| 24 | 4 | Raw pixel CRC32 |
-| 28 | 4 | Complete PXC2 file bytes |
+| Offset | Bytes | Field                                                              |
+| ------ | ----- | ------------------------------------------------------------------ |
+| 0      | 4     | `PXC2`                                                             |
+| 4      | 1     | Version 2                                                          |
+| 5      | 1     | Pixel format 1: four 2-bit pixels per byte, most significant first |
+| 6      | 2     | Header bytes: 32                                                   |
+| 8      | 2     | Width                                                              |
+| 10     | 2     | Height                                                             |
+| 12     | 2     | Row bytes: `(width + 3) / 4`                                       |
+| 14     | 2     | Block bytes: 2048                                                  |
+| 16     | 2     | Block count: ceiling of raw bytes / 2048                           |
+| 18     | 2     | Flags: zero                                                        |
+| 20     | 4     | Raw pixel bytes                                                    |
+| 24     | 4     | Raw pixel CRC32                                                    |
+| 28     | 4     | Complete PXC2 file bytes                                           |
 
 Dimensions are 1–1024, raw data is at most 128 KiB, and there are at most 64
 blocks. Each block starts with a 12-byte header: codec (`u8`, 0 RAW, 1 raw DEFLATE,
@@ -962,18 +984,18 @@ acceptance checks, not implied by host workspace accounting.
 
 The local index is `/.crosspoint/epub_<hash>/optimizer-images.idx`. Its header is:
 
-| Offset | Bytes | Field |
-| --- | --- | --- |
-| 0 | 4 | `COIX` |
-| 4 | 2 | Version 1 |
-| 6 | 2 | Header bytes: 32 |
-| 8 | 2 | Record bytes: 208 |
-| 10 | 2 | Record count: 0–256 |
-| 12 | 4 | Flags/reserved: zero |
-| 16 | 4 | Manifest central-directory CRC32 |
-| 20 | 4 | Manifest uncompressed bytes |
-| 24 | 4 | CRC32 of all records |
-| 28 | 4 | CRC32 of header bytes 0–27 |
+| Offset | Bytes | Field                            |
+| ------ | ----- | -------------------------------- |
+| 0      | 4     | `COIX`                           |
+| 4      | 2     | Version 1                        |
+| 6      | 2     | Header bytes: 32                 |
+| 8      | 2     | Record bytes: 208                |
+| 10     | 2     | Record count: 0–256              |
+| 12     | 4     | Flags/reserved: zero             |
+| 16     | 4     | Manifest central-directory CRC32 |
+| 20     | 4     | Manifest uncompressed bytes      |
+| 24     | 4     | CRC32 of all records             |
+| 28     | 4     | CRC32 of header bytes 0–27       |
 
 Each 208-byte record contains NUL-terminated `href[129]` (offset 0),
 `pxcHref[65]` (129), width `u16` (194), height `u16` (196), format `u8` (198,
@@ -1009,16 +1031,23 @@ internal-memory guards still apply. Rebuilding an invalid CSS cache also
 invalidates section caches through the existing EPUB-load path, so books that
 previously cached zero rules can restore hidden content and layout rules.
 
+## S3 scalable reader fonts
+
+Static TTF support uses font-content and backend identities to invalidate
+affected EPUB layouts. Section-cache serialization is unchanged. Existing
+`.cpfont` files remain supported; see [scalable fonts](scalable-fonts.md) for
+limits and lifecycle.
+
 ## `/.crosspoint/font-catalog.bin`
 
 ### Version 1
 
 Disposable font metadata cache, shared by reader, settings and web font controls.
 The 24-byte little-endian header contains magic `0x46434931`, version, a 64-bit
-inventory fingerprint, family count (maximum 128), and a reserved zero field.
+inventory fingerprint, family count (maximum 128), and scalable-font build mode.
 It is followed by 152-byte family summaries: a NUL-terminated 128-byte name,
 32-bit detail offset/byte count/FNV-1a hash, 16-bit file count, minimum/maximum
-point sizes, four reserved zero bytes, and a 32-bit FNV-1a
+point sizes, a scalable flag, three reserved zero bytes, and a 32-bit FNV-1a
 checksum of the preceding summary bytes. Detail blocks follow the summaries.
 Each detail is three bytes (point size, style, path length) followed by the
 UTF-8 path bytes. Paths are at most 255 bytes; families contain at most 256

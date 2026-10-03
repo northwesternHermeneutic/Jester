@@ -790,7 +790,7 @@ the slider track rounds the selected value to the nearest multiple of five.
 
 When reading an EPUB that contains footnotes, you can navigate to the footnote text by selecting the footnote reference in the book. From the footnote, you can return to your original reading position.
 
-If the device goes to sleep or you close the book while viewing a footnote, the book reopens to your original reading position, not the footnote.
+After following an in-book link to a full chapter, sleeping or closing the book reopens on the last page read. Back retains the three most recent link origins across reopening and KOReader sync. If you close a transient footnote preview, the book resumes on the page that opened that preview, with any earlier link origins still available through Back.
 
 ### System Navigation
 

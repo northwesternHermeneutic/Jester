@@ -15,6 +15,7 @@
 #include "BookReadingStats.h"
 #include "BookmarkStore.h"
 #include "EndOfBookOptions.h"
+#include "EpubLinkReturnState.h"
 #include "EpubReaderMenuActivity.h"
 #include "GlobalReadingStats.h"
 #include "ManualPageTurnQueue.h"
@@ -262,11 +263,8 @@ class EpubReaderActivity final : public Activity {
   };
   std::array<FootnoteTouchTarget, EPUB_MAX_FOOTNOTES_PER_PAGE> currentPageFootnoteTouchTargets{};
 #endif
-  struct SavedPosition {
-    int spineIndex;
-    int pageNumber;
-  };
-  static constexpr int MAX_FOOTNOTE_DEPTH = 3;
+  using SavedPosition = EpubLinkReturnState::Position;
+  static constexpr int MAX_FOOTNOTE_DEPTH = EpubLinkReturnState::MAX_DEPTH;
   SavedPosition savedPositions[MAX_FOOTNOTE_DEPTH] = {};
   int footnoteDepth = 0;
 
@@ -374,9 +372,10 @@ class EpubReaderActivity final : public Activity {
   // suppression exists to protect.
   bool saveProgress(int spineIndex, int currentPage, int pageCount, bool allowDuringFootnotePreview = false);
   bool queueProgressSave(int spineIndex, int currentPage, int pageCount, bool forceSave = false);
-  bool flushQueuedProgress();
   void saveProgressBeforeRestart();
-  bool saveFootnoteOriginProgress();
+  bool saveReadingProgress();
+  bool saveLinkStack() const;
+  void loadLinkStack();
   void cacheCurrentSectionPosition();
   void pauseReadingPaceTimer(const char* reason = "unknown");
   void resumeReadingPaceTimer(const char* reason = "unknown");
