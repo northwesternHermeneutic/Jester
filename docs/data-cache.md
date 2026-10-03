@@ -23,18 +23,21 @@ The main data directory is `.crosspoint` on the SD card. It stores render caches
 ├── state.bin.bak           # Legacy binary state file after migration, if present
 ├── recent.json             # Reading history for Home and Library
 ├── library.idx             # Library titles, authors, paths and sort indexes
+├── library.meta            # Library EPUB metadata cache: slot table
+├── library.metd            # Library EPUB metadata cache: parsed metadata records
 ├── recent.bin.bak          # Legacy binary recent-books file after migration, if present
 ├── wifi.json               # Saved Wi-Fi networks
 ├── opds.json               # Saved OPDS servers
 ├── koreader.json           # KOReader sync credentials
 ├── bookmarks/              # Bookmark files, one per book
 ├── clippings/              # EPUB clipping/highlight files, one per book
-├── home_carousel_cache.bin # Lyra Carousel home-screen snapshot cache
+├── home_carousel_cache_<index>.bin # Lyra Carousel artwork cache for each book position
 ├── sleep_frame.bin         # Temporary sleep overlay framebuffer, when used
 ├── epub_12471232/          # Each EPUB is cached to epub_<hash>
 │   ├── progress.bin        # Reading position (chapter, page, etc.)
 │   ├── stats.bin           # Legacy per-book reading stats
 │   ├── stats_v5.bin        # Version 5 per-book reading stats
+│   ├── reading_stats_off   # Present when stats tracking is disabled for this book
 │   ├── reader_settings.bin # Per-book reader settings, render mode, and auto-page-turn interval
 │   ├── cover.bmp           # Book cover image, once generated
 │   ├── cover_absolute.bmp  # Four-tone image-mode cover (generated separately)
@@ -64,7 +67,7 @@ To clear EPUB/XTC render caches from the device UI without deleting settings or 
 
 Cache folders are path-based. Moving a book file can create a new cache directory, so the moved copy may start with fresh reading progress unless the firmware migrates the cache for that move. CrossInk migrates cache and bookmark data for the built-in move-to-Read flow and related file-browser move actions.
 
-EPUB reader font, page layout, styling, and reading-aid settings normally come from the global Reader settings. Changes made inside an EPUB override only the fields whose values differ from the global defaults; the other fields continue to inherit later global changes. EPUB render mode is stored separately per book so a problematic title can be switched to Balanced or Light rendering from the File Browser or Recent Books long-press menus before opening it. Older full-snapshot book overrides retain their original behavior until reset or edited again.
+EPUB reader font, page layout, styling, and reading-aid settings normally come from the global Reader settings. Changes made inside an EPUB override only the fields whose values differ from the global defaults; the other fields continue to inherit later global changes. EPUB render mode is stored separately per book so a problematic title can be switched to Balanced or Light rendering from the File Browser or Library long-press menus before opening it. Older full-snapshot book overrides retain their original behavior until reset or edited again.
 
 EPUB clippings and highlights live outside the EPUB render-cache folder in
 `/.crosspoint/clippings/`. Each book gets a binary clipping file named from the
@@ -96,8 +99,12 @@ index. Failed or memory-limited scans are retried on the next visit. The Library
 refresh action always scans again; use it
 if files were changed externally while the firmware stayed running or the reader
 was asleep.
-Unchanged books reuse their cached metadata.
-**Settings > Display > Use Book Metadata** selects embedded EPUB titles and
+Unchanged books reuse their cached metadata. Each EPUB's parsed metadata is also
+saved to `library.meta`/`library.metd` as soon as it is read, so a scan that is
+cancelled, fails, or loses power picks up where it stopped next time instead of
+parsing every book again. Deleting both files is safe; they are rebuilt as books
+are parsed.
+**Library > Settings > Use Book Metadata** selects embedded EPUB titles and
 authors; disabling it uses filenames. TXT, Markdown and XTC files use filename
 fallbacks. CLX1 version 2 adds a first-name author permutation; older Library
 indexes rebuild automatically when Library opens.

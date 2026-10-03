@@ -102,13 +102,19 @@ do not contain series or genre.
 
 `LibraryIndexFile` (`lib/LibraryIndex/LibraryIndexFile.{h,cpp}`) reads the
 `CLX1` on-disk index for the Library screen: one sorted, searchable
-snapshot of up to 4,096 books on the card, built by `LibraryBuilder` so paging,
+snapshot of up to 32,767 books on the card, built by `LibraryBuilder` so paging,
 sorting, and searching the shelf cost a handful of seeks instead of a
 directory walk per screen. The format itself (`lib/LibraryIndex/LibraryFormat.h`)
 is free of `HalStorage` and Arduino so its layout and validation rules are
 host-testable (`test/library_format`, `test/library_index_file`).
-If the scan finds another book beyond the limit, the rebuild fails and keeps
-the previous index instead of publishing a partial shelf.
+Builds keep RAM flat on every device: each sort holds a fixed buffer and spills
+sorted runs to the card when a library outgrows it, and the previous index is
+matched through a sorted file rather than an in-RAM table. While building, the
+transient files `library.stage`, `library.stage.f`, `library.prior`,
+`library.rename`, `library.order`, `library.authors`, `library.canon`, and
+`library.runs` live in `/.crosspoint`; every build removes them when it ends. If
+the scan finds another book beyond the limit, the rebuild fails and keeps the
+previous index instead of publishing a partial shelf.
 
 Every section starts on a 512-byte boundary. Records are a fixed 128 bytes
 each, so record `k` always lives at `recordStart + 128*k` with no offset table
@@ -178,6 +184,62 @@ holds, back to back: an 8-byte FNV-1a path hash of the book's complete path
 the index" lookups), the filename, then five length-prefixed fields —
 display author, title, the pre-spelling-harmonisation source author, series,
 and genre. Version 6 appends the four-byte series position.
+
+## `/.crosspoint/library.meta` and `/.crosspoint/library.metd`
+
+### Version 1
+
+`LibraryMetadataCache` (`lib/LibraryIndex/LibraryMetadataCache.{h,cpp}`) keeps
+EPUB metadata from the moment each book is parsed, independent of whether the
+Library build that parsed it finishes. A later build looks a book up only when
+the previous `library.idx` cannot supply reusable metadata, so a cancelled or
+failed scan resumes without re-parsing what it already read. Failed parses are
+not stored. A book is identified by its complete-path FNV-1a hash (the same
+`clixPathHash` the index uses), file size, and packed FAT modification time;
+books with no modification time are never cached.
+
+`library.meta` holds a 32-byte header padded to 512 bytes, then 65,536 16-byte
+slots of an open-addressing hash table (linear probing, at most 64 probes). An
+all-zero slot is empty. A slot whose check does not match is skipped. There is
+one slot per path; storing a changed book replaces its slot's payload offset.
+
+`library.metd` is append-only. Each record is a 32-byte header followed by
+title, author, series, and genre bytes (each at most 255 bytes, cut at a UTF-8
+boundary). Payloads are written before the slot that points at them, and every
+read verifies the record checksum, so a torn write costs a re-parse rather than
+wrong metadata. The cache is discarded and recreated when the header does not
+validate, more than 75% of slots are used, or the payload passes 64 MiB. Bump
+the cache version whenever the set of extracted metadata fields changes.
+
+```c++
+struct CacheHeader {             // 32 bytes at offset 0
+    char magic[4];               // "CLM1"
+    u8 version;                  // 1
+    u8 padding[3];
+    u32 slotCount;               // 65536
+    u32 usedSlots;               // slots ever claimed; written on close
+    u8 reserved[16];
+};
+
+struct CacheSlot {               // slot i @ 512 + 16*i
+    u64 pathHash;
+    u32 payloadOffset;           // into library.metd
+    u32 check;                   // FNV-1a of pathHash and payloadOffset, low bit set
+};
+
+struct PayloadHeader {           // 32 bytes, then the four strings back to back
+    u32 magic;                   // "CLMP"
+    u64 pathHash;
+    u32 fileSize;
+    u32 modificationTime;
+    u32 seriesPosition;          // same encoding as library.idx version 6
+    u8 titleLen;
+    u8 authorLen;
+    u8 seriesLen;
+    u8 genreLen;
+    u32 checksum;                // FNV-1a of this header (checksum zeroed) and the strings
+};
+```
 
 ## `book.bin`
 
