@@ -1731,18 +1731,33 @@ std::optional<uint16_t> Section::getPageForVisibleTextOffset(const uint32_t offs
       lutOffset + static_cast<uint32_t>(count) * sizeof(uint32_t) > fileSize) {
     return std::nullopt;
   }
+  if (!f.seek(lutOffset)) return std::nullopt;
   uint16_t result = 0;
   uint32_t last = 0;
-  for (uint16_t i = 0; i < count; i++) {
-    uint32_t start = 0;
-    if (!f.seek(lutOffset + static_cast<uint32_t>(i) * sizeof(uint32_t)) || !serialization::tryReadPod(f, start)) {
+  // Read a bounded batch instead of seeking and reading four bytes per page.
+  // Keep the original first-match order, including repeated offsets on image/table pages.
+  uint32_t starts[32];  // 128 bytes; no heap allocation on the restore/reflow path.
+  for (uint32_t base = 0; base < count; base += 32) {
+    const uint32_t batch = std::min<uint32_t>(32, count - base);
+    const size_t bytes = batch * sizeof(uint32_t);
+    if (f.read(starts, bytes) != static_cast<int>(bytes)) {
+      f.close();
       return std::nullopt;
     }
-    last = start;
-    if (start > offset) break;
-    result = i;
-    if (preferFirstAtOffset && start == offset) break;
+    for (uint32_t i = 0; i < batch; ++i) {
+      last = starts[i];
+      if (last > offset) {
+        f.close();
+        return result;
+      }
+      result = static_cast<uint16_t>(base + i);
+      if (preferFirstAtOffset && last == offset) {
+        f.close();
+        return result;
+      }
+    }
   }
+  f.close();
   if (version == SECTION_FILE_PARTIAL_VERSION && offset > last) return std::nullopt;
   return result;
 }

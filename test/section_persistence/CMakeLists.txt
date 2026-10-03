@@ -1,10 +1,12 @@
 add_executable(SectionPersistenceTest
   SectionPersistenceTest.cpp
+  EpubProgressPersistenceTest.cpp
   SectionPersistenceLinkStubs.cpp
   ${REPO_ROOT}/lib/Epub/Epub/Section.cpp
 )
 
 target_include_directories(SectionPersistenceTest PRIVATE
+  ${REPO_ROOT}/src
   ${REPO_ROOT}/lib/InflateReader
   ${REPO_ROOT}/lib/uzlib/src
   ${CMAKE_CURRENT_SOURCE_DIR}/stubs

@@ -214,7 +214,6 @@ void LibraryActivity::resolveRecents() {
   for (size_t row = 0; row < books.size() && recentCount < RecentBooksStore::MAX_RECENT_BOOKS; ++row) {
     const auto& book = books[row];
     if ((library::fileTypeFor(book.path) & visibleTypes) == 0) continue;
-    if (SETTINGS.libraryHideFinishedBooks && BookActions::isBookCompleted(book.path)) continue;
     if (!needle.empty()) {
       readRecentBook(row, rowScratch);
       combined.assign(rowScratch.title);
@@ -223,6 +222,7 @@ void LibraryActivity::resolveRecents() {
       library::foldInto(combined, folded);
       if (!library::matchesQuery(folded, needle)) continue;
     }
+    if (SETTINGS.libraryHideFinishedBooks && BookActions::isBookCompleted(book.path)) continue;
     recentRows[recentCount++] = static_cast<uint16_t>(row);
   }
 }
@@ -379,6 +379,7 @@ void LibraryActivity::applyFilter() {
     return true;
   };
   for (uint16_t row = 0; row < sourceCount; ++row) {
+    if ((row & 31) == 31) delay(1);
     const uint16_t ordinal = index.ordinalForRow(indexOrder(), row);
     library::ClixRecord record{};
     if (ordinal == UINT16_MAX || !index.readRecord(ordinal, record) || !index.readName(record, name)) {
@@ -388,6 +389,20 @@ void LibraryActivity::applyFilter() {
       break;
     }
     if ((library::fileTypeFor(name) & visibleTypes) == 0) continue;
+    if (!needle.empty() && !index.readDisplayText(record, title, author)) {
+      LOG_ERR("LIB", "Cannot read Library search text");
+      filterFailed = true;
+      filteredCount = 0;
+      break;
+    }
+    if (!needle.empty()) {
+      combined.assign(title);
+      combined.push_back(' ');
+      combined.append(author);
+      library::foldInto(combined, folded);
+    }
+    // Only matching books need their completion state read from the SD card.
+    if (!needle.empty() && !library::matchesQuery(folded, needle)) continue;
     if (SETTINGS.libraryHideFinishedBooks) {
       const uint8_t type = library::fileTypeFor(name);
       cachePath.clear();
@@ -420,22 +435,7 @@ void LibraryActivity::applyFilter() {
       }
       if (!cachePath.empty() && BookReadingStats::load(cachePath).isCompleted) continue;
     }
-    if (!needle.empty() && !index.readDisplayText(record, title, author)) {
-      LOG_ERR("LIB", "Cannot read Library search text");
-      filterFailed = true;
-      filteredCount = 0;
-      break;
-    }
-    if (!needle.empty()) {
-      combined.assign(title);
-      combined.push_back(' ');
-      combined.append(author);
-      library::foldInto(combined, folded);
-    }
-    if (needle.empty() || library::matchesQuery(folded, needle)) {
-      filtered[filteredCount++] = ordinal;
-    }
-    if ((row & 31) == 31) delay(1);
+    filtered[filteredCount++] = ordinal;
   }
 }
 
