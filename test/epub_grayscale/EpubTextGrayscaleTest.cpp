@@ -6,6 +6,11 @@
 
 #include <array>
 
+#include "Epub/converters/DirectPixelWriter.h"
+#include "lib/Epub/Epub/blocks/ImageBlock.cpp"
+
+ImageToFramebufferDecoder* ImageDecoderFactory::getDecoder(const std::string&) { return nullptr; }
+
 namespace {
 // Deterministic 2-bit glyphs with negative bearings and descenders. Both the
 // built-in and real .cpfont loaders use these bytes, including RTL/CJK/marks.
@@ -270,4 +275,120 @@ TEST(AbsoluteImageRaster, BitmapPlanesPreserveFourTonesAndWhiteMargins) {
   renderer.setRenderMode(GfxRenderer::BW);
   EXPECT_EQ(display.canceled, 1);
   file.close();
+}
+
+// A font switch begins with no resident glyphs. A wide replacement glyph makes
+// the cold scan fit fewer words than the final, correctly measured preview.
+TEST(EpubTextGrayscaleTest, ColdSdSamplePreviewMatchesFullyLoadedFont) {
+  for (int size : {12, 20}) {
+    for (int width : {160, 280}) {
+      for (bool focus : {false, true}) {
+        for (bool guide : {false, true}) {
+          SCOPED_TRACE(testing::Message() << size << " width=" << width << " focus=" << focus << " guide=" << guide);
+          fakeheap::reset(false);
+          Storage.reset();
+          RasterFont fixture(size);
+          fixture.glyphs.back().advanceX = size * 16 * 4;
+          SdCardFont sdFont;
+          Storage.put("preview.cpfont", fixture.file());
+          ASSERT_TRUE(sdFont.load("preview.cpfont"));
+          HalDisplay display;
+          GfxRenderer renderer(display);
+          renderer.begin();
+          renderer.insertFont(1, EpdFontFamily(sdFont.getEpdFont()));
+          renderer.registerSdCardFont(1, &sdFont);
+          renderer.insertFont(2, EpdFontFamily(&fixture.font));
+          FontCacheManager cache(renderer.getFontMap(), renderer.getSdCardFonts());
+          renderer.setFontCacheManager(&cache);
+          SampleReaderPreviewModel model;
+          ASSERT_TRUE(model.captureParagraph(READER_PREVIEW_PARAGRAPH));
+          auto draw = [&](int font) {
+            model.renderText(renderer, font, 10, 10, width, 100, 0, static_cast<uint8_t>(CssTextAlign::Left), focus,
+                             guide, true, 85);
+          };
+          renderer.clearScreen();
+          draw(2);
+          const auto expected = display.bw;
+          renderer.clearScreen();
+          const auto blank = display.bw;
+          auto scope = cache.createPrewarmScope();
+          draw(1);
+          EXPECT_EQ(display.bw, blank);  // Scanning must not paint the display.
+          ASSERT_TRUE(scope.endScanAndPrewarm());
+          draw(1);
+          EXPECT_NE(display.bw, blank);
+          EXPECT_TRUE(display.bw == expected);
+        }
+      }
+    }
+  }
+}
+
+TEST(EpubTextGrayscaleTest, NightModeImagesKeepPolarityAndMidtonesOnRepeatedDraws) {
+  for (int orientation = 0; orientation < 4; ++orientation) {
+    for (bool grayscale : {false, true}) {
+      for (int level = 0; level < 4; ++level) {
+        SCOPED_TRACE(testing::Message() << orientation << ' ' << grayscale << ' ' << level);
+        HalDisplay display(800, 480);
+        GfxRenderer renderer(display);
+        renderer.begin();
+        renderer.setOrientation(GfxRenderer::Orientation(orientation));
+        // The light-mode monochrome image is the expected Night Mode output.
+        renderer.clearScreen(255);
+        DirectPixelWriter writer;
+        const auto draw = [&](bool imageGrayscale) {
+          writer.init(renderer, imageGrayscale);
+          for (int y = 13; y < 29; ++y) {
+            writer.beginRow(y);
+            for (int x = 9; x < 25; ++x) writer.writePixel(x, level);
+          }
+          renderer.preserveImagePolarity(9, 13, 16, 16);
+        };
+        draw(false);
+        const auto expected = display.bw;
+        display.inverted = true;
+        renderer.clearScreen(255);
+        for (int redraw = 0; redraw < 3; ++redraw) {
+          draw(grayscale);
+          // Apply output inversion only to the image rectangle for comparison;
+          // surrounding text/background is expected to change in Night Mode.
+          renderer.invertRect(9, 13, 16, 16);
+          EXPECT_EQ(display.bw, expected) << redraw;
+          renderer.invertRect(9, 13, 16, 16);
+        }
+      }
+    }
+  }
+}
+
+TEST(EpubTextGrayscaleTest, CachedNightModeImagesMatchMonochromeAcrossStoragePaths) {
+  for (bool psram : {false, true}) {
+    for (int orientation = 0; orientation < 4; ++orientation) {
+      SCOPED_TRACE(testing::Message() << psram << ' ' << orientation);
+      fakeheap::reset(psram);
+      Storage.reset();
+      ImageBlock::clearSessionRenderFailures();
+      std::vector<uint8_t> pixels(4 + 16 * 4, 0x1B);
+      pixels[0] = pixels[2] = 16;
+      pixels[1] = pixels[3] = 0;
+      Storage.put("image.pxc", pixels);
+      HalDisplay display(800, 480);
+      GfxRenderer renderer(display);
+      renderer.begin();
+      renderer.setOrientation(GfxRenderer::Orientation(orientation));
+      ImageBlock image("image.png", "source.png", 16, 16);
+      renderer.clearScreen(255);
+      image.render(renderer, 9, 13, true, false);
+      const auto expected = display.bw;
+      display.inverted = true;
+      renderer.clearScreen(255);
+      for (int redraw = 0; redraw < 3; ++redraw) {
+        image.render(renderer, 9, 13, true, true);
+        renderer.invertRect(9, 13, 16, 16);
+        EXPECT_EQ(display.bw, expected) << redraw;
+        renderer.invertRect(9, 13, 16, 16);
+      }
+      ImageBlock::clearSessionRenderFailures();
+    }
+  }
 }

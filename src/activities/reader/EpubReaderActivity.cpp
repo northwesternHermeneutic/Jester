@@ -7437,8 +7437,10 @@ bool EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
 
   const bool pageHasImages = page->hasImages();
   const bool foregroundBlack = ReaderUtils::readerForegroundBlack();
-  bool needsImageGrayscale = pageHasImages;
-  bool needsTextGrayscale = SETTINGS.textAntiAliasing && foregroundBlack;
+  // Night Mode (inverted panel) skips grayscale writes in the SDK, so skip the passes too.
+  const bool grayscaleAvailable = !renderer.isDisplayInverted();
+  bool needsImageGrayscale = grayscaleAvailable && pageHasImages;
+  bool needsTextGrayscale = grayscaleAvailable && SETTINGS.textAntiAliasing && foregroundBlack;
 
   // The pending count excludes the page currently being rendered. Decide
   // before checking image caches or materializing image data, so an
