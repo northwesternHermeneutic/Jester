@@ -881,7 +881,22 @@ inline const std::vector<SettingInfo>& getBaseSettingsList() {
                           {StrId::STR_PERCENTAGE_FORMAT_WHOLE, StrId::STR_PERCENTAGE_FORMAT_ONE_DECIMAL,
                            StrId::STR_PERCENTAGE_FORMAT_TWO_DECIMALS},
                           "statusBarBookPercentageFormat", StrId::STR_CUSTOMISE_STATUS_BAR));
-    // Feature 13: progress bar, thickness, title and time left removed.
+    add(SettingInfo::Enum(StrId::STR_PROGRESS_BAR, &CrossPointSettings::statusBarProgressBar,
+                          {StrId::STR_HIDE, StrId::STR_BOOK, StrId::STR_CHAPTER}, "statusBarProgressBar",
+                          StrId::STR_CUSTOMISE_STATUS_BAR)
+            .withEnumRawValues({CrossPointSettings::HIDE_PROGRESS, CrossPointSettings::BOOK_PROGRESS,
+                                CrossPointSettings::CHAPTER_PROGRESS}));
+    add(SettingInfo::Enum(StrId::STR_PROGRESS_BAR_THICKNESS, &CrossPointSettings::statusBarProgressBarThickness,
+                          {StrId::STR_PROGRESS_BAR_THIN, StrId::STR_PROGRESS_BAR_MEDIUM, StrId::STR_PROGRESS_BAR_THICK},
+                          "statusBarProgressBarThickness", StrId::STR_CUSTOMISE_STATUS_BAR));
+    add(SettingInfo::Enum(StrId::STR_TITLE, &CrossPointSettings::statusBarTitle,
+                          {StrId::STR_HIDE, StrId::STR_BOOK, StrId::STR_CHAPTER}, "statusBarTitle",
+                          StrId::STR_CUSTOMISE_STATUS_BAR)
+            .withEnumRawValues(
+                {CrossPointSettings::HIDE_TITLE, CrossPointSettings::BOOK_TITLE, CrossPointSettings::CHAPTER_TITLE}));
+    add(SettingInfo::Enum(StrId::STR_TIME_LEFT, &CrossPointSettings::statusBarTimeLeft,
+                          {StrId::STR_HIDE, StrId::STR_CHAPTER, StrId::STR_BOOK}, "statusBarTimeLeft",
+                          StrId::STR_CUSTOMISE_STATUS_BAR));
     add(SettingInfo::Toggle(StrId::STR_BATTERY, &CrossPointSettings::statusBarBattery, "statusBarBattery",
                             StrId::STR_CUSTOMISE_STATUS_BAR));
     add(SettingInfo::Enum(StrId::STR_XTC_STATUS_BAR, &CrossPointSettings::xtcStatusBarMode,
