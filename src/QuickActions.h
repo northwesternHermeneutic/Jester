@@ -36,7 +36,7 @@ enum class Trigger : uint8_t {
 
 // CrossPointSettings::quickActionsTrigger defaults to this raw value; it cannot
 // name the enum because this header includes CrossPointSettings.h.
-static_assert(static_cast<uint8_t>(Trigger::LongMenu) == 4,
+static_assert(static_cast<uint8_t>(Trigger::SideUpLong) == 11,
               "Update CrossPointSettings::quickActionsTrigger default");
 
 inline constexpr std::array<StrId, CrossPointSettings::QUICK_ACTION_SLOT_ACTION_COUNT> actionLabels = {
