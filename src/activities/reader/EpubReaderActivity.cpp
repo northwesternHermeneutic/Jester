@@ -75,6 +75,7 @@
 #include "util/BookMoveUtils.h"
 #include "util/Dictionary.h"
 #include "util/ScreenshotUtil.h"
+#include "util/BookPercentFormat.h"
 
 namespace {
 constexpr unsigned long TOUCH_DICTIONARY_LOOKUP_HOLD_MS = 1000;
@@ -2315,6 +2316,8 @@ void EpubReaderActivity::onEnter() {
   // Activate reader-specific front button mapping (if configured).
   mappedInput.setReaderMode(true);
 
+  // Jester (feature 2): record the book size for Home and Library percentages.
+  BookPercentFormat::saveBookSize(epub->getCachePath(), epub->getBookSize());
   BOOKMARKS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
   CLIPPINGS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
 
@@ -2574,7 +2577,7 @@ void EpubReaderActivity::openReaderMenu() {
   }
 #endif
   if (!menuActivity) {
-    menuActivity = makeUniqueNoThrow<EpubReaderMenuActivity>(
+    auto buttonMenu = makeUniqueNoThrow<EpubReaderMenuActivity>(
         renderer, mappedInput, epub->getTitle(), currentPage, totalPages, bookProgressPercent, SETTINGS.orientation,
         !previewActive && !currentPageFootnotes.empty(),
         !previewActive && epub && Dictionary::exists(epub->getCachePath().c_str()), !BOOKMARKS.getBookmarks().empty(),
@@ -2589,6 +2592,11 @@ void EpubReaderActivity::openReaderMenu() {
         this, stableCurrentPage, stablePageCount, endGlobalSettingsEditForBookReader, this,
         bookSettings.dictionarySdFontFamilyName, bookSettings.dictionaryFontPointSize,
         bookSettings.hasDictionaryFontOverride, saveDictionaryFontForBookReader, this);
+    if (buttonMenu) {
+      buttonMenu->setBookProgressLabel(
+          BookPercentFormat::format(bookProgress, epub && BookPercentFormat::isShortBook(epub->getBookSize())));
+    }
+    menuActivity = std::move(buttonMenu);
     if (!menuActivity) {
       LOG_ERR("ERS", "Could not allocate reader menu");
       resumeReadingPaceTimer("reader_menu_oom");
@@ -4173,7 +4181,9 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
     case EpubReaderMenuActivity::MenuAction::VIEW_BOOKMARKS: {
       pauseReadingPaceTimer("bookmark_list");
       startActivityForResult(
-          std::make_unique<EpubReaderBookmarkListActivity>(renderer, mappedInput, BOOKMARKS.getBookmarks()),
+          std::make_unique<EpubReaderBookmarkListActivity>(
+              renderer, mappedInput, BOOKMARKS.getBookmarks(),
+              epub && BookPercentFormat::isShortBook(epub->getBookSize())),
           [this, returnToReaderMenu](const ActivityResult& result) {
             if (!result.isCancelled) {
               const auto& bm = std::get<BookmarkResult>(result.data);
@@ -7573,6 +7583,7 @@ void EpubReaderActivity::renderStatusBar() const {
   char chapterTime[24] = {};
   ReaderStatusBarContent content;
   content.bookProgress = bookProgress;
+  content.shortBook = epub && BookPercentFormat::isShortBook(epub->getBookSize());
   content.chapterProgress = chapterProgress * 100.0f;
   content.chapterPage = currentPage;
   content.chapterPageCount = pageCount;

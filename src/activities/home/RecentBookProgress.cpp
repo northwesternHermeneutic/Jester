@@ -17,6 +17,7 @@
 #include "RecentBooksStore.h"
 #include "activities/reader/EpubReaderUtils.h"
 #include "util/FileContentEquals.h"
+#include "util/BookPercentFormat.h"
 
 namespace {
 constexpr uint32_t EPUB_PERCENT_CACHE_MAGIC = 0x45505250;  // "EPRP"
@@ -270,6 +271,15 @@ void RecentBookProgress::saveCachedEpubPercent(const Epub& epub, const int spine
 }
 
 bool RecentBookProgress::hasPercent(const float progress) { return progress >= 0.0f; }
+
+std::string RecentBookProgress::formatPercent(const float progress, const std::string& bookPath) {
+  if (!hasPercent(progress)) {
+    return "";
+  }
+  const bool shortBook = FsHelpers::hasEpubExtension(bookPath) &&
+                         BookPercentFormat::loadIsShortBook(Epub(bookPath, "/.crosspoint").getCachePath());
+  return BookPercentFormat::format(clampProgressPercent(progress), shortBook);
+}
 
 std::string RecentBookProgress::formatPercent(const float progress) {
   if (!hasPercent(progress)) {

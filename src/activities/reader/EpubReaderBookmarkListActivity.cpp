@@ -11,6 +11,7 @@
 #include "components/UITheme.h"
 #include "components/UIThemeTokens.h"
 #include "components/UiAppHelpers.h"
+#include "util/BookPercentFormat.h"
 
 namespace fui = freeink::ui;
 namespace {
@@ -18,8 +19,10 @@ constexpr fui::ActionId ACTION_ROW = 1;
 }  // namespace
 
 EpubReaderBookmarkListActivity::EpubReaderBookmarkListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                                               const std::vector<Bookmark>& bookmarks)
+                                                               const std::vector<Bookmark>& bookmarks,
+                                                               const bool shortBook)
     : Activity("EpubReaderBookmarkList", renderer, mappedInput),
+      shortBook(shortBook),
       bookmarks(bookmarks),
       uiTarget(makeUiTarget(renderer)),
       app(uiTarget, uiTarget.deviceContext()) {}
@@ -165,7 +168,7 @@ void EpubReaderBookmarkListActivity::buildListScreen(UiApp::ScreenType& screen) 
   items.reserve(bookmarks.size());
   for (size_t i = 0; i < bookmarks.size(); ++i) {
     const Bookmark& bookmark = bookmarks[i];
-    values[i] = std::to_string(static_cast<int>(std::lround(bookmark.progress * 100.0))) + "%";
+    values[i] = BookPercentFormat::format(static_cast<float>(bookmark.progress * 100.0), shortBook);
     fui::ListItem item;
     item.label = bookmark.snippet[0] != '\0'
                      ? bookmark.snippet

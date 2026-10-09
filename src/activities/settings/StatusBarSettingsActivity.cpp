@@ -147,8 +147,9 @@ ReaderStatusBarPosition StatusBarSettingsActivity::selectedPosition() const {
 }
 
 void StatusBarSettingsActivity::refreshItemCount() {
-  // Jester (feature 13): no progress bar or thickness rows.
-  visibleItemCount = view == View::Root ? 3 : PERCENTAGE_FORMAT + 1;
+  // Jester: no progress bar or thickness rows (feature 13); the percentage
+  // format is one global Reader setting (feature 2), not per bar.
+  visibleItemCount = view == View::Root ? 3 : SLOT_RIGHT_3 + 1;
   selectedIndex = std::clamp(selectedIndex, 0, visibleItemCount - 1);
 }
 

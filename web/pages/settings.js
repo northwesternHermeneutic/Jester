@@ -321,8 +321,8 @@ let allSettings = [];
         itemOptions, bar.slots[i], 'statusBarChanged()'));
     }
     for (const field of [
-      // Jester (feature 13): no progress bar or thickness fields.
-      ['percentageFormat', labels.percentageFormat, statusBars.percentageFormats]
+      // Jester: no progress bar or thickness fields (feature 13); the percentage
+      // format is the global Reader setting (feature 2).
     ]) {
       html += statusBarRow(field[1], statusBarSelect('bar-' + position + '-' + field[0],
         field[2].map(function(label, index) { return { value: index, label: label }; }),
@@ -338,7 +338,7 @@ let allSettings = [];
       slots: bar.slots.map(function(_, index) {
         return Number(document.getElementById('bar-' + position + '-slot-' + index).value);
       }),
-      percentageFormat: Number(document.getElementById('bar-' + position + '-percentageFormat').value),
+      percentageFormat: bar.percentageFormat,
       progressBar: 2,  // Jester (feature 13): always hidden
       thickness: bar.thickness
     };

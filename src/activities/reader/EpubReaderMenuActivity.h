@@ -22,6 +22,9 @@ class EpubReaderMenuActivity final : public Activity {
  public:
   using MenuAction = EpubReaderMenuAction;
 
+  // Jester (feature 2): replaces the whole-number book percentage in the header.
+  void setBookProgressLabel(std::string label) { bookProgressLabel = std::move(label); }
+
   explicit EpubReaderMenuActivity(
       GfxRenderer& renderer, MappedInputManager& mappedInput, const std::string& title, const int currentPage,
       const int totalPages, const int bookProgressPercent, const uint8_t currentOrientation, const bool hasFootnotes,
@@ -103,6 +106,7 @@ class EpubReaderMenuActivity final : public Activity {
   int currentPage = 0;
   int totalPages = 0;
   int bookProgressPercent = 0;
+  std::string bookProgressLabel;  // Jester (feature 2): formatted by BookPercentFormat
   bool autoPageTurnActive = false;
   uint16_t autoPageTurnIntervalSeconds = 0;
   ReaderOptionsActivity::SaveSettingsCallback saveReaderSettingsCallback = nullptr;

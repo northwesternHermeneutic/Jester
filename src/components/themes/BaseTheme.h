@@ -29,6 +29,7 @@ struct TabInfo {
 
 struct ReaderStatusBarContent {
   float bookProgress = 0;
+  bool shortBook = false;  // Jester (feature 2): whole-number percentage
   float chapterProgress = -1;
   int chapterPage = 0;
   int chapterPageCount = 0;

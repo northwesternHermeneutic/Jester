@@ -25,6 +25,7 @@
 #include "components/UITheme.h"
 #include "components/UIThemeTokens.h"
 #include "fontIds.h"
+#include "util/BookPercentFormat.h"
 
 // Internal constants
 namespace {
@@ -953,7 +954,9 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
         return scratch;
       case ReaderStatusBarItem::BookProgressPercentage:
         if (!content.showProgress) return nullptr;
-        snprintf(scratch, len, "%.*f%%", static_cast<int>(config.percentageFormat), content.bookProgress);
+        // Jester (feature 2): one global decimal level; short books show whole numbers.
+        (void)config;
+        BookPercentFormat::format(scratch, len, content.bookProgress, content.shortBook);
         return scratch;
       case ReaderStatusBarItem::TitleBook:
         return content.bookTitle;

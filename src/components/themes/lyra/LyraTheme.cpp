@@ -21,6 +21,7 @@
 #include "components/UiAppHelpers.h"
 #include "components/icons/readingStatsIcons.h"
 #include "fontIds.h"
+#include "activities/home/RecentBookProgress.h"
 
 // Internal constants
 namespace {
@@ -600,8 +601,10 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
       const int progressBarY = titleY + progressLineHeight + 2;
       const int filledWidth =
           std::clamp(static_cast<int>((progressPercent / 100.0f) * progressBarWidth), 0, progressBarWidth);
+      // Jester (feature 2): the user's decimal level; whole numbers for short books.
       char progressLabel[16];
-      snprintf(progressLabel, sizeof(progressLabel), "%.0f%%", progressPercent);
+      snprintf(progressLabel, sizeof(progressLabel), "%s",
+               RecentBookProgress::formatPercent(progressPercent, book.path).c_str());
       renderer.drawText(UI_10_FONT_ID, textX, titleY, progressLabel, true, EpdFontFamily::BOLD);
       renderer.drawRect(textX, progressBarY, progressBarWidth, progressBarHeight, true);
       if (filledWidth > 0) {

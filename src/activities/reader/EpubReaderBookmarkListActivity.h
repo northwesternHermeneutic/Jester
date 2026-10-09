@@ -14,7 +14,7 @@
 class EpubReaderBookmarkListActivity final : public Activity {
  public:
   EpubReaderBookmarkListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                 const std::vector<Bookmark>& bookmarks);
+                                 const std::vector<Bookmark>& bookmarks, bool shortBook = false);
 
   void onEnter() override;
   void onExit() override;
@@ -24,6 +24,7 @@ class EpubReaderBookmarkListActivity final : public Activity {
   bool allowPowerAsConfirmInReaderMode() const override { return true; }
 
  private:
+  bool shortBook = false;  // Jester (feature 2): whole-number percentages
   std::vector<Bookmark> bookmarks;
   int selectedIndex = 0;
   bool confirmingDelete = false;

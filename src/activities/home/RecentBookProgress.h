@@ -27,4 +27,6 @@ bool hasPercent(float progress);
 // Formats progress as a rounded percentage string such as "42%".
 // Returns an empty string when progress is unknown.
 std::string formatPercent(float progress);
+// Jester (feature 2): the user's decimal level, whole numbers for a short book.
+std::string formatPercent(float progress, const std::string& bookPath);
 }  // namespace RecentBookProgress
