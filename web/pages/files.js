@@ -5224,6 +5224,8 @@ async function uploadFile() {
   }
 
   isUploadInProgress = true;
+  // Jester (feature 23): refresh the device clock before the first file is written.
+  if (window.jesterSendClock) await window.jesterSendClock();
   let usedFileNames;
   try {
     usedFileNames = await fetchExistingUploadNames();

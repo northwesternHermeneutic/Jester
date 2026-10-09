@@ -24,6 +24,21 @@
 
   <p class="footer">CrossInk &bull; Open Source</p>
 
+  <script>
+    // Jester (feature 23): give the device the browser's clock so files it writes,
+    // including uploads, carry a real date. The X4 has no RTC.
+    window.jesterSendClock = function() {
+      try {
+        const body = new URLSearchParams();
+        body.set('epoch', String(Math.floor(Date.now() / 1000)));
+        body.set('offset', String(-new Date().getTimezoneOffset()));
+        return fetch('/api/time', { method: 'POST', body: body }).catch(function() {});
+      } catch (e) {
+        return Promise.resolve();
+      }
+    };
+    window.jesterSendClock();
+  </script>
 {{ script }}
 </body>
 </html>
