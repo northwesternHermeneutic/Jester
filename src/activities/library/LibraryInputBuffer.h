@@ -15,6 +15,7 @@ class LibraryInputBuffer {
     ConfirmLongPress,
     ConfirmRelease,
     BackRelease,
+    BackLongPress,
     LeftRelease,
     RightRelease,
     Next,

@@ -797,6 +797,12 @@ void LibraryActivity::latchInput() {
       break;
   }
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) queueInput(Type::ConfirmRelease);
+  if (!ignoreBackRelease && mappedInput.isPressed(MappedInputManager::Button::Back) &&
+      mappedInput.getHeldTime() >= LONG_PRESS_MS) {
+    // Holding Back goes Home from anywhere; its release must not also run the short press.
+    ignoreBackRelease = true;
+    queueInput(Type::BackLongPress);
+  }
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
     if (ignoreBackRelease)
       ignoreBackRelease = false;
@@ -805,23 +811,12 @@ void LibraryActivity::latchInput() {
   } else if (ignoreBackRelease && !mappedInput.isPressed(MappedInputManager::Button::Back)) {
     ignoreBackRelease = false;
   }
-  if (mappedInput.hasTouchHardware()) {
-    buttonNavigator.onNextRelease([&] { queueInput(Type::Next); });
-    buttonNavigator.onPreviousRelease([&] { queueInput(Type::Previous); });
-    buttonNavigator.onNextContinuous([&] { queueInput(Type::NextPage); });
-    buttonNavigator.onPreviousContinuous([&] { queueInput(Type::PreviousPage); });
-  } else {
-    if (mappedInput.wasReleased(MappedInputManager::Button::Left)) queueInput(Type::LeftRelease);
-    if (mappedInput.wasReleased(MappedInputManager::Button::Right)) queueInput(Type::RightRelease);
-    buttonNavigator.onRelease({MappedInputManager::Button::Down, MappedInputManager::Button::Down},
-                              [&] { queueInput(Type::Next); });
-    buttonNavigator.onRelease({MappedInputManager::Button::Up, MappedInputManager::Button::Up},
-                              [&] { queueInput(Type::Previous); });
-    buttonNavigator.onContinuous({MappedInputManager::Button::Down, MappedInputManager::Button::Down},
-                                 [&] { queueInput(Type::NextPage); });
-    buttonNavigator.onContinuous({MappedInputManager::Button::Up, MappedInputManager::Button::Up},
-                                 [&] { queueInput(Type::PreviousPage); });
-  }
+  // Jester (rule G1, Handoff 5.3): all four directional buttons move between
+  // rows and the header controls on every device, as in v1.6.0 settings.
+  buttonNavigator.onNextRelease([&] { queueInput(Type::Next); });
+  buttonNavigator.onPreviousRelease([&] { queueInput(Type::Previous); });
+  buttonNavigator.onNextContinuous([&] { queueInput(Type::NextPage); });
+  buttonNavigator.onPreviousContinuous([&] { queueInput(Type::PreviousPage); });
 }
 
 void LibraryActivity::loop() {
@@ -897,9 +892,19 @@ void LibraryActivity::handleInput(const LibraryInputBuffer::Event& input) {
       openBook(selection - CONTROL_COUNT);
     return;
   }
+  if (input.type == Type::BackLongPress) {
+    pendingInput.clear();
+    onGoHome();
+    return;
+  }
   if (input.type == Type::BackRelease) {
     pendingInput.clear();
-    if (!query.empty()) {
+    if (!mappedInput.hasTouchHardware() && selection >= CONTROL_COUNT) {
+      // Jester (Handoff 5.3): from a book row, Back moves to the header controls.
+      showSelection = true;
+      selection = 0;
+      requestUpdate();
+    } else if (!query.empty()) {
       query.clear();
       applyFilter();
       resetViewport();
@@ -935,18 +940,6 @@ void LibraryActivity::handleInput(const LibraryInputBuffer::Event& input) {
     requestUpdate();
     return;
   }
-  if (!mappedInput.hasTouchHardware()) {
-    if (input.type == Type::LeftRelease) {
-      pendingInput.clear();
-      openSortPicker();
-      return;
-    }
-    if (input.type == Type::RightRelease) {
-      pendingInput.clear();
-      openMenu();
-      return;
-    }
-  }
   const int count = rowCount() + CONTROL_COUNT;
   const auto move = [this](const int next) {
     if (!showSelection) {
@@ -974,22 +967,11 @@ void LibraryActivity::handleInput(const LibraryInputBuffer::Event& input) {
     }
     requestUpdate();
   };
-  if (mappedInput.hasTouchHardware()) {
-    if (input.type == Type::Next) move(ButtonNavigator::nextIndex(selection, count));
-    if (input.type == Type::Previous) move(ButtonNavigator::previousIndex(selection, count));
-    const int page = gridEnabled() ? GRID_PAGE_SIZE : listNav.pageRowsFor(rowCount());
-    if (input.type == Type::NextPage) move(ButtonNavigator::nextPageIndex(selection, count, page));
-    if (input.type == Type::PreviousPage) move(ButtonNavigator::previousPageIndex(selection, count, page));
-  } else if (rowCount() > 0) {
-    const int bookCount = rowCount();
-    const int row = selection - CONTROL_COUNT;
-    const auto moveBook = [&](const int next) { move(CONTROL_COUNT + next); };
-    if (input.type == Type::Next) moveBook(ButtonNavigator::nextIndex(row, bookCount));
-    if (input.type == Type::Previous) moveBook(ButtonNavigator::previousIndex(row, bookCount));
-    const int page = gridEnabled() ? GRID_PAGE_SIZE : listNav.pageRowsFor(bookCount);
-    if (input.type == Type::NextPage) moveBook(ButtonNavigator::nextPageIndex(row, bookCount, page));
-    if (input.type == Type::PreviousPage) moveBook(ButtonNavigator::previousPageIndex(row, bookCount, page));
-  }
+  if (input.type == Type::Next) move(ButtonNavigator::nextIndex(selection, count));
+  if (input.type == Type::Previous) move(ButtonNavigator::previousIndex(selection, count));
+  const int page = gridEnabled() ? GRID_PAGE_SIZE : listNav.pageRowsFor(rowCount());
+  if (input.type == Type::NextPage) move(ButtonNavigator::nextPageIndex(selection, count, page));
+  if (input.type == Type::PreviousPage) move(ButtonNavigator::previousPageIndex(selection, count, page));
 }
 
 void LibraryActivity::listScreen(UiApp::ScreenType& screen, void* user) {
@@ -1134,12 +1116,12 @@ void LibraryActivity::buildSortHeader(UiApp::ScreenType& screen) {
   button.styles = fui::plainStyles();
   button.styles.selected = screen.theme().button.selected;
   button.state =
-      mappedInput.hasTouchHardware() && showSelection && selection == 3 ? fui::StateSelected : fui::StateNormal;
+      showSelection && selection == 3 ? fui::StateSelected : fui::StateNormal;
   screen.button(button, method);
   button.label = nullptr;
   button.icon = fui::bitmapFromIcon(descending ? icon_arrow_down_wide_narrow_32 : icon_arrow_up_narrow_wide_32);
   button.state =
-      mappedInput.hasTouchHardware() && showSelection && selection == 4 ? fui::StateSelected : fui::StateNormal;
+      showSelection && selection == 4 ? fui::StateSelected : fui::StateNormal;
   screen.button(button, direction);
   const int16_t split = static_cast<int16_t>((method.right() + direction.x) / 2);
   if (mappedInput.hasTouchHardware()) {
@@ -1167,7 +1149,8 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   const int16_t controlSize = HEADER_CONTROL_SIZE;
   const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
   const int16_t right = static_cast<int16_t>(renderer.getScreenWidth() - bounds[1] - headerControlRightInset());
-  if (mappedInput.hasTouchHardware()) {
+  // Jester (Handoff 5.3): button devices draw and select the header controls too.
+  {
     fui::ButtonProps action;
     action.action = ACTION_CONTROL;
     action.inputMask = fui::InputTouch;
@@ -1436,8 +1419,7 @@ void LibraryActivity::render(RenderLock&&) {
                                                                                 : tr(STR_OPEN);
   const auto labels =
       mappedInput.mapLabels(mappedInput.withBackArrow(query.empty() ? tr(STR_HOME) : tr(STR_BACK)), confirmLabel,
-                            mappedInput.hasTouchHardware() ? tr(STR_DIR_UP) : tr(STR_SORT),
-                            mappedInput.hasTouchHardware() ? tr(STR_DIR_DOWN) : tr(STR_MENU));
+                            tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   char footer[32];
   snprintf(footer, sizeof(footer), tr(STR_LIBRARY_FILES_COUNT), static_cast<unsigned>(rowCount()));
