@@ -53,8 +53,6 @@ class ActivityManager {
   std::unique_ptr<Activity> currentActivity;
 
   void exitActivity(const RenderLock& lock);
-  // Tells MappedInputManager whether the open book page is the current activity (Jester CCW navigation).
-  void syncReaderPageOnTop();
 
   // Pending activity to be launched on next loop iteration
   std::unique_ptr<Activity> pendingActivity;
@@ -100,6 +98,7 @@ class ActivityManager {
       : renderer(renderer), mappedInput(mappedInput), renderingMutex(xSemaphoreCreateMutex()) {
     assert(renderingMutex != nullptr && "Failed to create rendering mutex");
     stackActivities.reserve(10);
+    mappedInput.setActivityManager(this);
   }
   ~ActivityManager() { assert(false); /* should never be called */ };
 
@@ -148,6 +147,8 @@ class ActivityManager {
   bool blocksGlobalInput() const;
   bool isHomeActivity() const;
   bool isReaderActivity() const;
+  // Jester CCW front navigation; read by MappedInputManager during input and render.
+  bool currentKeepsFrontLeftRightInCcw() const;
   bool openReaderSettingsForTouchscreenEscapeHatch();
   bool handleHomeButtonBackOrHome();
   bool openReaderMenuFromShortcut();

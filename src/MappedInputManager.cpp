@@ -10,6 +10,8 @@
 
 #include "CrossPointSettings.h"
 #include "GlobalActions.h"
+#include "activities/Activity.h"
+#include "activities/ActivityManager.h"
 #if CROSSINK_APP_CAP_TOUCH
 #include "components/TouchRegistry.h"
 #endif
@@ -245,7 +247,7 @@ bool MappedInputManager::isFrontNavButtonSwapActive() const {
 
 bool MappedInputManager::isReaderNavCcwFlipActive() const {
   // With front orientation awareness on, landscape already swaps Left/Right everywhere in reader mode.
-  return readerMode && !readerPageOnTop &&
+  return readerMode && activityManager && !activityManager->currentKeepsFrontLeftRightInCcw() &&
          renderer.getOrientation() == GfxRenderer::Orientation::LandscapeCounterClockwise &&
          !shouldSwapReaderFrontNavButtons(
              static_cast<CrossPointSettings::FRONT_BUTTON_ORIENTATION_AWARE>(SETTINGS.frontButtonOrientationAware));

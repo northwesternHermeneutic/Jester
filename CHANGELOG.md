@@ -4,7 +4,7 @@
 
 - Back, previous-page and next-page button labels use single guillemets (‹ ›) instead of double guillemets.
 - UI text in the small and medium faces renders Latin-1 characters (accented file names, titles and authors, the degree sign) instead of missing-glyph boxes.
-- In landscape counter-clockwise, menus and lists opened from a book (in-book menu, Look Up Word and the other reader screens) treat the upper front button as Up and label it so; page turns on the book page are unchanged.
+- In landscape counter-clockwise, menus and lists opened from a book (in-book menu, Look Up Word and the other reader screens) treat the upper front button as Up and label it so, including the Quick Actions popup; page turns on the book page and the Go to % Left/Right steps are unchanged.
 
 ## [v1.6.0] - 2026-09-21
 

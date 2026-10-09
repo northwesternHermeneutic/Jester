@@ -7,6 +7,7 @@
 
 #include "util/ReleaseSuppression.h"
 
+class ActivityManager;
 class GfxRenderer;
 
 class MappedInputManager {
@@ -67,9 +68,8 @@ class MappedInputManager {
   // Enable/disable reader-specific front button mapping.
   // Call with true in reader activity onEnter(), false in onExit().
   void setReaderMode(bool enabled) { readerMode = enabled; }
-  // Set by ActivityManager whenever the current activity changes: true while the open book page
-  // itself is on top, false while a menu or list is shown over it.
-  void setReaderPageOnTop(bool onTop) { readerPageOnTop = onTop; }
+  // Lets the CCW front navigation flip ask whether the current activity keeps Left/Right as is.
+  void setActivityManager(const ActivityManager* manager) { activityManager = manager; }
   void setPowerAsConfirmInReaderMode(bool enabled) { powerAsConfirmInReaderMode = enabled; }
 #if CROSSINK_APP_CAP_TOUCH
   void setReaderTouchscreenOverride(bool enabled) { readerTouchscreenOverride = enabled; }
@@ -259,7 +259,7 @@ class MappedInputManager {
   HalGPIO& gpio;
   const GfxRenderer& renderer;
   bool readerMode = false;
-  bool readerPageOnTop = false;
+  const ActivityManager* activityManager = nullptr;
   bool powerAsConfirmInReaderMode = false;
 #if CROSSINK_APP_CAP_TOUCH
   bool readerTouchscreenOverride = false;
