@@ -27,13 +27,13 @@ const char* I18n::get(StrId id) const {
   if (index >= static_cast<size_t>(StrId::_COUNT)) {
     return "???";
   }
-
   // Use generated helper function - no hardcoded switch needed!
   const LangStrings lang = getLanguageStrings(_language);
 
-  // If bit 15 of the offset is set, apply the offset to the English lookup table
+  // The reserved offset selects the same key in English (CrossInk 1930eb23);
+  // localized blobs may use every other 16-bit offset.
   const uint16_t off = lang.offsets[index];
-  if (off & 0x8000) return STRINGS_EN_DATA + (off & 0x7FFF);
+  if (off == I18N_ENGLISH_FALLBACK_OFFSET) return STRINGS_EN_DATA + OFFSETS_EN[index];
   return lang.data + off;
 }
 

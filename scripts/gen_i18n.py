@@ -36,6 +36,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+ENGLISH_FALLBACK_OFFSET = 0xFFFF
+
 
 # ---------------------------------------------------------------------------
 # YAML file reading (simple key: "value" format, no PyYAML dependency)
@@ -508,6 +510,9 @@ def generate_keys_header(
     lines.append("};")
     lines.append("")
 
+    lines.append(f"constexpr uint16_t I18N_ENGLISH_FALLBACK_OFFSET = {ENGLISH_FALLBACK_OFFSET};")
+    lines.append("")
+
     # getLanguageStrings helper
     lines.append("// Helper function to get string data for a language")
     lines.append("inline LangStrings getLanguageStrings(Language lang) {")
@@ -655,13 +660,12 @@ def generate_strings_cpp(
 
     # Per-language flat string blobs and offset tables.
     # Non-English languages skip strings identical to English; their offset
-    # tables use bit 15 (0x8000) to flag "use English blob at offset & 0x7FFF".
+    # tables use the reserved offset 0xFFFF to select the same key in English.
+    # This leaves the other 16-bit offsets available for localized UTF-8 data.
     lines.append("namespace i18n_strings {")
     lines.append("")
 
     en_strings = [translations[key][0] for key in string_keys]
-    en_offsets: List[int] = []
-
     for lang_idx, code in enumerate(languages):
         if code not in compiled:
             continue
@@ -675,28 +679,27 @@ def generate_strings_cpp(
             for s in lang_strings:
                 offsets.append(current_offset)
                 current_offset += len(s.encode("utf-8")) + 1
-            if current_offset > 0x7FFF:
+            if current_offset > ENGLISH_FALLBACK_OFFSET:
                 raise ValueError(
                     f"Language {code}: blob size ({current_offset} bytes) exceeds "
-                    "15-bit offset limit (32767)"
+                    "16-bit blob limit (65535)"
                 )
-            en_offsets = list(offsets)
             blob_strings = lang_strings
         else:
             offsets = []
             current_offset = 0
             blob_strings = []
-            for i, (s, en_s) in enumerate(zip(lang_strings, en_strings)):
+            for s, en_s in zip(lang_strings, en_strings):
                 if s == en_s:
-                    offsets.append(en_offsets[i] | 0x8000)
+                    offsets.append(ENGLISH_FALLBACK_OFFSET)
                 else:
                     offsets.append(current_offset)
                     current_offset += len(s.encode("utf-8")) + 1
                     blob_strings.append(s)
-            if current_offset > 0x7FFF:
+            if current_offset > ENGLISH_FALLBACK_OFFSET:
                 raise ValueError(
                     f"Language {code}: blob size ({current_offset} bytes) exceeds "
-                    "15-bit offset limit (32767)"
+                    "16-bit blob limit (65535)"
                 )
 
         # Flat string data blob — all strings concatenated with \0 separators.
