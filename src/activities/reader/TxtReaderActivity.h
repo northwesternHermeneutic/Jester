@@ -96,6 +96,7 @@ class TxtReaderActivity final : public Activity {
     return true;
   }
   bool isReaderActivity() const override { return true; }
+  bool isReaderPageActivity() const override { return true; }
   bool usesFullScreenReaderVerticalSwipes() const override {
 #if defined(FREEINK_DEVICE_STICKY) && FREEINK_DEVICE_STICKY
     return true;

@@ -353,6 +353,7 @@ void ActivityManager::loop() {
       } else {
         currentActivity = std::move(stackActivities.back());
         stackActivities.pop_back();
+        syncReaderPageOnTop();
         restoredActivityNeedsRender = true;
 
         if (closedFrontlightPanel) currentActivity->onFrontlightPanelClosed();
@@ -409,6 +410,7 @@ void ActivityManager::loop() {
       }
       pendingAction = PendingAction::None;
       currentActivity = std::move(pendingActivity);
+      syncReaderPageOnTop();
 
       lock.unlock();  // onEnter may acquire its own lock
       currentActivity->onEnter();
@@ -479,6 +481,7 @@ bool ActivityManager::restoreBackdropBehindCurrentOverlay() {
     overlay = std::move(currentActivity);
     currentActivity = std::move(stackActivities.back());
     stackActivities.pop_back();
+    syncReaderPageOnTop();
   }
 
   const RequestUpdateResult redraw = requestUpdateAndWait();
@@ -492,6 +495,7 @@ bool ActivityManager::restoreBackdropBehindCurrentOverlay() {
     RenderLock lock;
     stackActivities.push_back(std::move(currentActivity));
     currentActivity = std::move(overlay);
+    syncReaderPageOnTop();
   }
   return redraw == RequestUpdateResult::Rendered;
 }
@@ -555,6 +559,7 @@ void ActivityManager::exitActivity(const RenderLock& lock) {
     TouchRegistry::getInstance().clear();
     currentActivity->onExit();
     currentActivity.reset();
+    syncReaderPageOnTop();
   }
 }
 
@@ -570,6 +575,7 @@ void ActivityManager::replaceActivity(std::unique_ptr<Activity>&& newActivity) {
     // No current activity, safe to launch immediately
     TouchRegistry::getInstance().clear();
     currentActivity = std::move(newActivity);
+    syncReaderPageOnTop();
     currentActivity->onEnter();
   }
 }
@@ -810,6 +816,10 @@ bool ActivityManager::requiresExclusiveStorageLoop() const {
 bool ActivityManager::blocksGlobalInput() const { return currentActivity && currentActivity->blocksGlobalInput(); }
 
 bool ActivityManager::isHomeActivity() const { return currentActivity && currentActivity->name == "Home"; }
+
+void ActivityManager::syncReaderPageOnTop() {
+  mappedInput.setReaderPageOnTop(currentActivity && currentActivity->isReaderPageActivity());
+}
 
 bool ActivityManager::isReaderActivity() const {
   if (currentActivity && currentActivity->isReaderActivity()) {

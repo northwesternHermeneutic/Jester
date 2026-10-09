@@ -53,6 +53,8 @@ class ActivityManager {
   std::unique_ptr<Activity> currentActivity;
 
   void exitActivity(const RenderLock& lock);
+  // Tells MappedInputManager whether the open book page is the current activity (Jester CCW navigation).
+  void syncReaderPageOnTop();
 
   // Pending activity to be launched on next loop iteration
   std::unique_ptr<Activity> pendingActivity;

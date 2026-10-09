@@ -68,6 +68,8 @@ class Activity {
   // activity validates that trigger without routing any other normal input.
   virtual bool handleQuickLockUnlock(QuickLockTrigger) { return false; }
   virtual bool isReaderActivity() const { return false; }
+  // The open book page itself (EPUB, TXT, XTC), not a menu or list shown over it.
+  virtual bool isReaderPageActivity() const { return false; }
   virtual bool isHomeActivity() const { return false; }
   // The open book uses its vertical swipe actions across the entire page;
   // dialogs and lists retain their normal edge or scroll gestures.

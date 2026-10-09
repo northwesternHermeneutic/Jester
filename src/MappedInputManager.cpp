@@ -76,8 +76,19 @@ ButtonIndex invertFrontButtonPosition(const ButtonIndex button) {
 }
 
 ButtonIndex mapFrontButtonForReaderOrientation(const ButtonIndex button, const ButtonIndex leftButton,
-                                               const ButtonIndex rightButton, const bool readerMode) {
+                                               const ButtonIndex rightButton, const bool readerMode,
+                                               const bool ccwNavFlip) {
   if (!readerMode) {
+    return button;
+  }
+
+  if (ccwNavFlip) {
+    if (button == leftButton) {
+      return rightButton;
+    }
+    if (button == rightButton) {
+      return leftButton;
+    }
     return button;
   }
 
@@ -200,10 +211,15 @@ uint8_t MappedInputManager::mappedFrontButtonFor(const Button button) const {
   const ButtonIndex btnConfirm = useReaderMapping ? SETTINGS.readerFrontButtonConfirm : SETTINGS.frontButtonConfirm;
   const ButtonIndex btnLeft = useReaderMapping ? SETTINGS.readerFrontButtonLeft : SETTINGS.frontButtonLeft;
   const ButtonIndex btnRight = useReaderMapping ? SETTINGS.readerFrontButtonRight : SETTINGS.frontButtonRight;
-  const ButtonIndex mappedBack = mapFrontButtonForReaderOrientation(btnBack, btnLeft, btnRight, readerMode);
-  const ButtonIndex mappedConfirm = mapFrontButtonForReaderOrientation(btnConfirm, btnLeft, btnRight, readerMode);
-  const ButtonIndex mappedLeft = mapFrontButtonForReaderOrientation(btnLeft, btnLeft, btnRight, readerMode);
-  const ButtonIndex mappedRight = mapFrontButtonForReaderOrientation(btnRight, btnLeft, btnRight, readerMode);
+  const bool ccwNavFlip = isReaderNavCcwFlipActive();
+  const ButtonIndex mappedBack =
+      mapFrontButtonForReaderOrientation(btnBack, btnLeft, btnRight, readerMode, ccwNavFlip);
+  const ButtonIndex mappedConfirm =
+      mapFrontButtonForReaderOrientation(btnConfirm, btnLeft, btnRight, readerMode, ccwNavFlip);
+  const ButtonIndex mappedLeft =
+      mapFrontButtonForReaderOrientation(btnLeft, btnLeft, btnRight, readerMode, ccwNavFlip);
+  const ButtonIndex mappedRight =
+      mapFrontButtonForReaderOrientation(btnRight, btnLeft, btnRight, readerMode, ccwNavFlip);
 
   switch (button) {
     case Button::Back:
@@ -222,8 +238,17 @@ uint8_t MappedInputManager::mappedFrontButtonFor(const Button button) const {
 bool MappedInputManager::shouldUsePowerAsConfirmFallback() const { return !readerMode || powerAsConfirmInReaderMode; }
 
 bool MappedInputManager::isFrontNavButtonSwapActive() const {
-  return readerMode && shouldSwapReaderFrontNavButtons(static_cast<CrossPointSettings::FRONT_BUTTON_ORIENTATION_AWARE>(
-                           SETTINGS.frontButtonOrientationAware));
+  return isReaderNavCcwFlipActive() ||
+         (readerMode && shouldSwapReaderFrontNavButtons(static_cast<CrossPointSettings::FRONT_BUTTON_ORIENTATION_AWARE>(
+                            SETTINGS.frontButtonOrientationAware)));
+}
+
+bool MappedInputManager::isReaderNavCcwFlipActive() const {
+  // With front orientation awareness on, landscape already swaps Left/Right everywhere in reader mode.
+  return readerMode && !readerPageOnTop &&
+         renderer.getOrientation() == GfxRenderer::Orientation::LandscapeCounterClockwise &&
+         !shouldSwapReaderFrontNavButtons(
+             static_cast<CrossPointSettings::FRONT_BUTTON_ORIENTATION_AWARE>(SETTINGS.frontButtonOrientationAware));
 }
 
 bool MappedInputManager::shouldMirrorPowerAsConfirmHold() const {
@@ -1000,10 +1025,15 @@ MappedInputManager::Labels MappedInputManager::mapLabels(const Label back, const
   const ButtonIndex btnConfirm = useReaderMapping ? SETTINGS.readerFrontButtonConfirm : SETTINGS.frontButtonConfirm;
   const ButtonIndex btnLeft = useReaderMapping ? SETTINGS.readerFrontButtonLeft : SETTINGS.frontButtonLeft;
   const ButtonIndex btnRight = useReaderMapping ? SETTINGS.readerFrontButtonRight : SETTINGS.frontButtonRight;
-  const ButtonIndex mappedBack = mapFrontButtonForReaderOrientation(btnBack, btnLeft, btnRight, readerMode);
-  const ButtonIndex mappedConfirm = mapFrontButtonForReaderOrientation(btnConfirm, btnLeft, btnRight, readerMode);
-  const ButtonIndex mappedLeft = mapFrontButtonForReaderOrientation(btnLeft, btnLeft, btnRight, readerMode);
-  const ButtonIndex mappedRight = mapFrontButtonForReaderOrientation(btnRight, btnLeft, btnRight, readerMode);
+  const bool ccwNavFlip = isReaderNavCcwFlipActive();
+  const ButtonIndex mappedBack =
+      mapFrontButtonForReaderOrientation(btnBack, btnLeft, btnRight, readerMode, ccwNavFlip);
+  const ButtonIndex mappedConfirm =
+      mapFrontButtonForReaderOrientation(btnConfirm, btnLeft, btnRight, readerMode, ccwNavFlip);
+  const ButtonIndex mappedLeft =
+      mapFrontButtonForReaderOrientation(btnLeft, btnLeft, btnRight, readerMode, ccwNavFlip);
+  const ButtonIndex mappedRight =
+      mapFrontButtonForReaderOrientation(btnRight, btnLeft, btnRight, readerMode, ccwNavFlip);
 
   // Compose arrow labels into instance-owned buffers so returned pointers
   // remain valid until the next label mapping on this input manager.

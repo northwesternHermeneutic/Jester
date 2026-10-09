@@ -67,6 +67,9 @@ class MappedInputManager {
   // Enable/disable reader-specific front button mapping.
   // Call with true in reader activity onEnter(), false in onExit().
   void setReaderMode(bool enabled) { readerMode = enabled; }
+  // Set by ActivityManager whenever the current activity changes: true while the open book page
+  // itself is on top, false while a menu or list is shown over it.
+  void setReaderPageOnTop(bool onTop) { readerPageOnTop = onTop; }
   void setPowerAsConfirmInReaderMode(bool enabled) { powerAsConfirmInReaderMode = enabled; }
 #if CROSSINK_APP_CAP_TOUCH
   void setReaderTouchscreenOverride(bool enabled) { readerTouchscreenOverride = enabled; }
@@ -227,6 +230,9 @@ class MappedInputManager {
   unsigned long getHeldTime() const;
   // True when reader-mode orientation handling swaps the logical front navigation buttons.
   bool isFrontNavButtonSwapActive() const;
+  // Jester: in landscape CCW the front Right button sits above Left. Screens shown over the open
+  // book treat the upper button as Up/previous; page turns on the book page are unchanged.
+  bool isReaderNavCcwFlipActive() const;
   Label withBackArrow(const char* text) const;
   Label withPreviousPageArrow(const char* text) const;
   Label withNextPageArrow(const char* text) const;
@@ -253,6 +259,7 @@ class MappedInputManager {
   HalGPIO& gpio;
   const GfxRenderer& renderer;
   bool readerMode = false;
+  bool readerPageOnTop = false;
   bool powerAsConfirmInReaderMode = false;
 #if CROSSINK_APP_CAP_TOUCH
   bool readerTouchscreenOverride = false;
