@@ -1124,8 +1124,9 @@ ReaderRenderSpec CrossPointSettings::readerRenderSpec(const uint16_t viewportWid
   spec.hyphenationEnabled = hyphenationEnabled != 0;
   spec.embeddedStyle = embeddedStyle != 0;
   spec.imageRendering = imageRendering;
-  spec.focusReadingEnabled = focusReadingEnabled != 0;
-  spec.guideReadingEnabled = guideReadingEnabled != 0;
+  // Jester (feature 17): focus reading and guide dots are removed; stored values are ignored.
+  spec.focusReadingEnabled = false;
+  spec.guideReadingEnabled = false;
   spec.wordSpacing = wordSpacing;
   spec.renderMode = renderMode;
   return spec;

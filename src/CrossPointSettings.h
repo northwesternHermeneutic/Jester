@@ -757,13 +757,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
            bottomReaderStatusBar.contains(ReaderStatusBarItem::Clock);
   }
   bool shouldShowClockOutsideReader() const { return showClockOutsideReader != 0; }
-  bool shouldTrackReadingStats() const {
-#ifdef CROSSINK_ENABLE_READING_STATS_TOGGLE
-    return trackReadingStats != 0;
-#else
-    return true;
-#endif
-  }
+  // Jester (feature 17): reading statistics are removed. Tracking is off
+  // permanently; stored history stays on the card untouched.
+  bool shouldTrackReadingStats() const { return false; }
   static const char* getDefaultDeviceName();
   const char* getEffectiveDeviceName() const;
   uint16_t getReadingIdleTimeThresholdSeconds() const;

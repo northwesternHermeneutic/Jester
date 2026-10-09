@@ -253,6 +253,9 @@ const char* savedItemsLabel(bool hasBookmarks, bool hasClippings) {
 
 void appendHomeMenuItems(HomeMenuEntries& items, bool hasOpdsServers, bool hasReadingStats, bool hasBookmarks,
                          bool hasClippings) {
+  // Jester: no OPDS browser (feature 16) or Reading Stats (feature 17) entries.
+  hasOpdsServers = false;
+  hasReadingStats = false;
   items.push({tr(STR_BROWSE_FILES), Folder, HomeMenuAction::BrowseFiles});
   items.push({tr(STR_LIBRARY), Library, HomeMenuAction::Library});
 
@@ -277,6 +280,9 @@ HomeMenuEntries buildHomeMenuItems(bool hasOpdsServers, bool hasReadingStats, bo
 }
 
 HomeMenuEntries buildMinimalMenuItems(bool hasOpdsServers, bool hasReadingStats, bool hasBookmarks, bool hasClippings) {
+  // Jester: no OPDS browser (feature 16) or Reading Stats (feature 17) entries.
+  hasOpdsServers = false;
+  hasReadingStats = false;
   HomeMenuEntries items;
   items.push({tr(STR_LIBRARY), Library, HomeMenuAction::Library});
 

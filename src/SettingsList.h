@@ -373,6 +373,15 @@ inline SettingInfo buildSleepScreenSetting() {
       static_cast<uint8_t>(CrossPointSettings::DASHBOARD_SLEEP),
       static_cast<uint8_t>(CrossPointSettings::QUICK_RESUME),
   });
+  // Jester (feature 17): keep None, Dark, Light, Custom, Page Overlay and Quick
+  // Resume. Removing the raw values also makes a stored removed screen invalid,
+  // so loading falls back to the default.
+  removeEnumRawValue(s, static_cast<uint8_t>(CrossPointSettings::COVER));
+  removeEnumRawValue(s, static_cast<uint8_t>(CrossPointSettings::COVER_CUSTOM));
+  removeEnumRawValue(s, static_cast<uint8_t>(CrossPointSettings::READING_STATS_SLEEP));
+  removeEnumRawValue(s, static_cast<uint8_t>(CrossPointSettings::MINIMAL_SLEEP));
+  removeEnumRawValue(s, static_cast<uint8_t>(CrossPointSettings::MINIMAL_STATS_SLEEP));
+  removeEnumRawValue(s, static_cast<uint8_t>(CrossPointSettings::DASHBOARD_SLEEP));
   return s;
 }
 
@@ -1167,11 +1176,29 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
   return v;
 }
 
+// Settings whose feature Jester removed (features 16 and 17). They stay in the
+// catalog so their persisted keys and values remain reserved, but no device or
+// web settings screen shows them.
+inline bool isSettingRemovedInJester(const SettingInfo& setting) {
+  switch (setting.nameId) {
+    case StrId::STR_FOCUS_READING:          // feature 17 (bionic/focus reading)
+    case StrId::STR_GUIDE_READING:          // feature 17 (guide dots)
+    case StrId::STR_IDLE_TIME_THRESHOLD:    // feature 17 (reading stats)
+    case StrId::STR_TRACK_READING_STATS:    // feature 17
+    case StrId::STR_AUTO_BACKUP_STATS:      // feature 17
+    case StrId::STR_OPDS_DOWNLOAD_FOLDER:   // feature 16 (OPDS)
+    case StrId::STR_NEARBY_RECEIVE_FOLDER:  // feature 16 (Nearby transfer)
+      return true;
+    default:
+      return setting.category == StrId::STR_KOREADER_SYNC;  // feature 16
+  }
+}
+
 inline void addSettingByName(std::vector<SettingInfo>& target, const std::vector<SettingInfo>& allSettings,
                              StrId nameId) {
   const auto it = std::find_if(allSettings.begin(), allSettings.end(),
                                [nameId](const auto& setting) { return setting.nameId == nameId; });
-  if (it != allSettings.end()) {
+  if (it != allSettings.end() && !isSettingRemovedInJester(*it)) {
     target.push_back(*it);
   }
 }
@@ -1186,8 +1213,6 @@ inline std::vector<SettingInfo> buildReaderSettingsParentList(const std::vector<
   addSettingByName(readerSettings, allSettings, StrId::STR_DISABLE_TOUCHSCREEN);
   addSettingByName(readerSettings, allSettings, StrId::STR_EMBEDDED_STYLE);
   addSettingByName(readerSettings, allSettings, StrId::STR_IMAGES);
-  addSettingByName(readerSettings, allSettings, StrId::STR_FOCUS_READING);
-  addSettingByName(readerSettings, allSettings, StrId::STR_GUIDE_READING);
   addSettingByName(readerSettings, allSettings, StrId::STR_DICTIONARY);
   addSettingByName(readerSettings, allSettings, StrId::STR_INDEXING_METHOD);
   return readerSettings;
@@ -1438,7 +1463,7 @@ inline std::vector<SettingInfo> buildSystemSettingsParentList(const std::vector<
   systemSettings.reserve(8);
   systemSettings.push_back(SettingInfo::Submenu(StrId::STR_SYSTEM_DEVICE, SettingAction::SystemDevice));
   systemSettings.push_back(SettingInfo::Submenu(StrId::STR_SYSTEM_FILES_CACHE, SettingAction::SystemFilesCache));
-  systemSettings.push_back(SettingInfo::Submenu(StrId::STR_READING_STATS, SettingAction::SystemReadingStats));
+  // Jester (feature 17): no Reading Stats submenu.
   systemSettings.push_back(SettingInfo::Action(StrId::STR_WIFI_NETWORKS, SettingAction::Network));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_KOREADER_SYNC, SettingAction::KOReaderSync));
   systemSettings.push_back(SettingInfo::Action(StrId::STR_OPDS_SERVERS, SettingAction::OPDSBrowser));

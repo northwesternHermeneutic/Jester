@@ -350,8 +350,9 @@ ReaderRenderSpec readerRenderSpecForProfile(const int fontId, const uint16_t vie
   ReaderRenderSpec spec = SETTINGS.readerRenderSpec(viewportWidth, viewportHeight, profile.renderMode);
   spec.fontId = fontId;
   spec.embeddedStyle = profile.embeddedStyle;
-  spec.focusReadingEnabled = profile.focusReadingEnabled;
-  spec.guideReadingEnabled = profile.guideReadingEnabled;
+  // Jester (feature 17): focus reading and guide dots are removed.
+  (void)profile.focusReadingEnabled;
+  (void)profile.guideReadingEnabled;
   return spec;
 }
 
