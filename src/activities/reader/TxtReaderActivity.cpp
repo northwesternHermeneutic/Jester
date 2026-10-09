@@ -510,6 +510,8 @@ bool TxtReaderActivity::supportsQuickAction(const CrossPointSettings::SHORT_PWRB
 
 bool TxtReaderActivity::executeReaderShortcutAction(const CrossPointSettings::SHORT_PWRBTN action) {
   switch (action) {
+    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
+      return applyReaderOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
     case CrossPointSettings::SHORT_PWRBTN::PREVIOUS_PAGE:
       if (currentPage > 0) {
         currentPage--;

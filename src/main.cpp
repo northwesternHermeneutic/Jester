@@ -599,6 +599,18 @@ bool handleGlobalPowerButtonAction(const CrossPointSettings::SHORT_PWRBTN action
       renderer.displayBuffer(manualScreenRefreshMode());
       return true;
     }
+    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP: {
+      // Jester (feature 7): an open reader applies the flip itself (it re-lays
+      // out the page); elsewhere only the universal orientation changes.
+      if (activityManager.isReaderActivity()) return false;
+      const uint8_t current = SETTINGS.orientation;
+      SETTINGS.orientation =
+          current == CrossPointSettings::LANDSCAPE_CW    ? CrossPointSettings::LANDSCAPE_CCW
+          : current == CrossPointSettings::LANDSCAPE_CCW ? CrossPointSettings::LANDSCAPE_CW
+                                                         : CrossPointSettings::LANDSCAPE_CCW;
+      if (!SETTINGS.saveToFile()) LOG_ERR("MAIN", "Failed to save orientation");
+      return true;
+    }
     case CrossPointSettings::SHORT_PWRBTN::CLEAN_SCREEN: {
       {
         RenderLock lock;
@@ -697,7 +709,8 @@ bool dispatchShortcutAction(const CrossPointSettings::SHORT_PWRBTN action) {
 
 ButtonShortcutController::ChordAction configuredChordAction() {
   const auto rawAction = SETTINGS.powerChordAction;
-  if (rawAction >= CrossPointSettings::POWER_CHORD_ACTION_COUNT) {
+  if (rawAction >= CrossPointSettings::POWER_CHORD_ACTION_COUNT &&
+      !CrossPointSettings::isJesterChordAction(rawAction)) {
     return ButtonShortcutController::ChordAction::Disabled;
   }
   return static_cast<ButtonShortcutController::ChordAction>(rawAction);
@@ -705,7 +718,8 @@ ButtonShortcutController::ChordAction configuredChordAction() {
 
 ButtonShortcutController::ChordAction configuredSideButtonChordAction() {
   const auto rawAction = SETTINGS.sideButtonChordAction;
-  if (rawAction >= CrossPointSettings::POWER_CHORD_ACTION_COUNT) {
+  if (rawAction >= CrossPointSettings::POWER_CHORD_ACTION_COUNT &&
+      !CrossPointSettings::isJesterChordAction(rawAction)) {
     return ButtonShortcutController::ChordAction::Disabled;
   }
   return static_cast<ButtonShortcutController::ChordAction>(rawAction);
@@ -743,6 +757,12 @@ CrossPointSettings::SHORT_PWRBTN chordPowerAction(const ButtonShortcutController
       return Power::NEARBY_POSITION_SYNC;
     case Chord::Library:
       return Power::LIBRARY;
+    case Chord::DogEar:
+      return Power::DOG_EAR;
+    case Chord::CleanScreen:
+      return Power::CLEAN_SCREEN;
+    case Chord::LandscapeFlip:
+      return Power::LANDSCAPE_FLIP;
     case Chord::FileTransfer:
       return Power::FILE_TRANSFER;
     case Chord::CalibreWireless:

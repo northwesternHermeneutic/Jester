@@ -462,6 +462,12 @@ inline uint8_t shortcutRawValue(const ShortcutOptionCatalog catalog, const Cross
           return Chord::CHORD_TOGGLE_TOUCHSCREEN;
         case Action::QUICK_LOCK:
           return Chord::CHORD_QUICK_LOCK;
+        case Action::DOG_EAR:
+          return Chord::CHORD_DOG_EAR;
+        case Action::CLEAN_SCREEN:
+          return Chord::CHORD_CLEAN_SCREEN;
+        case Action::LANDSCAPE_FLIP:
+          return Chord::CHORD_LANDSCAPE_FLIP;
         case Action::TOGGLE_TILT_PAGE_TURN:
           return SHORTCUT_OPTION_UNAVAILABLE;
         default:

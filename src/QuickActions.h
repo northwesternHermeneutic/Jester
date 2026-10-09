@@ -127,9 +127,9 @@ inline bool isActionRemovedInJester(const uint8_t action) {
 
 inline bool isActionAvailable(const uint8_t action) {
   if (isActionRemovedInJester(action)) return false;
-  // JESTER-TODO: flip to true when features 4 and 7 land.
+  // JESTER-TODO: flip to true when feature 4 lands.
   if (action == CrossPointSettings::DOG_EAR) return false;
-  if (action == CrossPointSettings::LANDSCAPE_FLIP) return false;
+  if (action == CrossPointSettings::LANDSCAPE_FLIP) return true;  // feature 7
   if (action == CrossPointSettings::CLEAN_SCREEN) return true;
   if (action == CrossPointSettings::PREVIOUS_PAGE || action == CrossPointSettings::LIBRARY) return true;
   if (action == CrossPointSettings::QUICK_ACTIONS || action == CrossPointSettings::QUICK_LOCK) return true;

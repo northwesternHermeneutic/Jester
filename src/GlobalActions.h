@@ -29,6 +29,7 @@ inline bool isPowerButtonActionAvailableOutsideReader(const CrossPointSettings::
     case CrossPointSettings::SHORT_PWRBTN::QUICK_LOCK:
     case CrossPointSettings::SHORT_PWRBTN::FORCE_REFRESH:
     case CrossPointSettings::SHORT_PWRBTN::CLEAN_SCREEN:
+    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
     case CrossPointSettings::SHORT_PWRBTN::SYNC_PROGRESS:
     case CrossPointSettings::SHORT_PWRBTN::SCREENSHOT:
     case CrossPointSettings::SHORT_PWRBTN::FILE_TRANSFER:

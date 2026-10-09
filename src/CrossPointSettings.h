@@ -334,8 +334,18 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     CHORD_PREVIOUS_PAGE = 29,
     CHORD_NEARBY_POSITION_SYNC = 30,
     CHORD_LIBRARY = 31,
-    POWER_CHORD_ACTION_COUNT
+    POWER_CHORD_ACTION_COUNT,
+    // Jester chord actions: reserved block mirroring the SHORT_PWRBTN Jester
+    // values (rule G2); keep aligned with ButtonShortcutController::ChordAction.
+    CHORD_JESTER_FIRST = 192,
+    CHORD_DOG_EAR = CHORD_JESTER_FIRST,
+    CHORD_CLEAN_SCREEN = 193,
+    CHORD_LANDSCAPE_FLIP = 194,
+    CHORD_JESTER_END
   };
+  static constexpr bool isJesterChordAction(const uint8_t action) {
+    return action >= CHORD_JESTER_FIRST && action < CHORD_JESTER_END;
+  }
 
   // Home-key shortcuts reuse power-button actions where possible. Keep the
   // dedicated values stable because they are persisted in settings.bin.
@@ -539,7 +549,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t longPwrBtn = SLEEP;
   // Power + Up shortcut action. Disabled by default so the established
   // Power + Down screenshot chord remains screenshot-only.
-  uint8_t powerChordAction = CHORD_DISABLED;
+  uint8_t powerChordAction = CHORD_LANDSCAPE_FLIP;  // Jester default (features 7, 10)
   // Up + Down shortcut action. On touch hardware, while the reader touchscreen
   // is disabled, this chord instead opens Settings as the recovery route.
   uint8_t sideButtonChordAction = CHORD_DISABLED;

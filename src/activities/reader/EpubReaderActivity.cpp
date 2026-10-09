@@ -1140,7 +1140,9 @@ void applyReaderSettings(const EpubReaderActivity::ReaderSettingsSnapshot& in) {
   }
   SETTINGS.lineHeightPercent = CrossPointSettings::clampedLineHeightPercent(in.lineHeightPercent);
   SETTINGS.wordSpacing = std::min<uint8_t>(in.wordSpacing, CrossPointSettings::MAX_WORD_SPACING);
-  SETTINGS.orientation = in.orientation < CrossPointSettings::ORIENTATION_COUNT ? in.orientation : SETTINGS.orientation;
+  // Jester (feature 7): orientation is universal. The per-book file still
+  // stores it (the record is positional) but it is never restored.
+  (void)in.orientation;
   SETTINGS.screenMarginVertical = std::clamp<uint8_t>(in.screenMarginVertical, CrossPointSettings::MIN_SCREEN_MARGIN,
                                                       CrossPointSettings::MAX_SCREEN_MARGIN);
   SETTINGS.screenMarginHorizontal = std::clamp<uint8_t>(
@@ -4930,6 +4932,10 @@ void EpubReaderActivity::executeReaderQuickAction(CrossPointSettings::LONG_PRESS
 bool EpubReaderActivity::handleShortcutAction(const uint8_t rawAction) {
   const auto action = static_cast<CrossPointSettings::SHORT_PWRBTN>(rawAction);
   switch (action) {
+    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
+      applyOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
+      requestUpdate();
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::IGNORE:
       return true;
     case CrossPointSettings::SHORT_PWRBTN::PAGE_TURN:
@@ -5020,6 +5026,10 @@ bool EpubReaderActivity::handleShortcutAction(const uint8_t rawAction) {
 
 bool EpubReaderActivity::handleShortcutAction(const CrossPointSettings::SHORT_PWRBTN action) {
   switch (action) {
+    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
+      applyOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
+      requestUpdate();
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::PAGE_TURN:
       requestManualPageTurn(true, "shortcut");
       return true;
@@ -5512,9 +5522,11 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
     }
 
     if (settingsChanged) {
-      // Persist the selection for this book without changing global reader defaults.
+      // Jester (feature 7): orientation is universal. Change the global value
+      // (also the snapshot restored on exit) and save it for every book.
       SETTINGS.orientation = orientation;
-      saveCurrentBookReaderSettings();
+      globalReaderSettingsBeforeBook.orientation = orientation;
+      if (!saveGlobalSettingsPreservingBookOverrides()) LOG_ERR("ERS", "Failed to save orientation");
     }
 
     if (rendererChanged) {

@@ -96,6 +96,15 @@ inline uint8_t flippedOrientation(const uint8_t orientation) {
   return (orientation + 2) % CrossPointSettings::ORIENTATION_COUNT;
 }
 
+// Jester Landscape Flip (feature 7): landscape CW and CCW swap; from either
+// portrait orientation the first flip goes to landscape CCW.
+inline uint8_t landscapeFlipOrientation(const uint8_t orientation) {
+  if (orientation == CrossPointSettings::LANDSCAPE_CW || orientation == CrossPointSettings::LANDSCAPE_CCW) {
+    return flippedOrientation(orientation);
+  }
+  return CrossPointSettings::LANDSCAPE_CCW;
+}
+
 struct PageTurnResult {
   bool prev;
   bool next;

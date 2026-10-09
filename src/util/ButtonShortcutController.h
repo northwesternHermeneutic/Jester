@@ -40,6 +40,10 @@ class ButtonShortcutController {
     PreviousPage = 29,
     NearbyPositionSync = 30,
     Library = 31,
+    // Jester block (CrossPointSettings::CHORD_JESTER_FIRST..).
+    DogEar = 192,
+    CleanScreen = 193,
+    LandscapeFlip = 194,
   };
 
   enum class Event : uint8_t { None, QuickLockChanged, Screenshot, PageTurn, ConfiguredAction, TouchscreenEscapeHatch };
