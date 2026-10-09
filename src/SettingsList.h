@@ -484,6 +484,8 @@ inline uint8_t shortcutRawValue(const ShortcutOptionCatalog catalog, const Cross
           return LongPress::LONG_MENU_QUICK_ACTIONS;
         case Action::QUICK_LOCK:
           return LongPress::LONG_MENU_QUICK_LOCK;
+        case Action::DOG_EAR:
+          return LongPress::LONG_MENU_DOG_EAR;
         case Action::PAGE_TURN:
         case Action::PREVIOUS_PAGE:
         case Action::NEARBY_POSITION_SYNC:

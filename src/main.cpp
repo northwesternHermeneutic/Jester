@@ -827,7 +827,7 @@ bool executeX4ProHomeButtonAction(const uint8_t action,
       break;
   }
 
-  if (action >= CrossPointSettings::SHORT_PWRBTN_COUNT) {
+  if (action >= CrossPointSettings::SHORT_PWRBTN_COUNT && !CrossPointSettings::isJesterShortcutAction(action)) {
     return false;
   }
 

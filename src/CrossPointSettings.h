@@ -267,13 +267,21 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     // raw values or they can silently change an existing binding's behavior.
     PREVIOUS_PAGE = 31,
     NEARBY_POSITION_SYNC = 32,
-    // Jester actions. Appended above every CrossInk value so a settings file
-    // written by either firmware keeps the same meaning for shared actions.
-    DOG_EAR = 33,
-    CLEAN_SCREEN = 34,
-    LANDSCAPE_FLIP = 35,
-    SHORT_PWRBTN_COUNT
+    // CrossInk v1.6.1 continues at LIBRARY = 33 .. HOME_READER = 36 and uses
+    // 64..70 for side-button-only actions; those values belong to CrossInk.
+    SHORT_PWRBTN_COUNT,
+    // Jester actions: a reserved block far above CrossInk's ranges (rule G2),
+    // outside SHORT_PWRBTN_COUNT. Use isJesterShortcutAction() where a bound
+    // check must accept them.
+    JESTER_ACTION_FIRST = 192,
+    DOG_EAR = JESTER_ACTION_FIRST,
+    CLEAN_SCREEN = 193,
+    LANDSCAPE_FLIP = 194,
+    JESTER_ACTION_END
   };
+  static constexpr bool isJesterShortcutAction(const uint8_t action) {
+    return action >= JESTER_ACTION_FIRST && action < JESTER_ACTION_END;
+  }
 
   // Power + Up side-button chord actions. Keep this order aligned with
   // ButtonShortcutController::ChordAction because the runtime casts the
@@ -399,7 +407,11 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     // Appended: values are persisted in settings.bin.
     LONG_MENU_QUICK_ACTIONS = 22,
     LONG_MENU_QUICK_LOCK = 23,
-    LONG_PRESS_MENU_ACTION_COUNT
+    // CrossInk v1.6.1 continues at LONG_MENU_LIBRARY = 24.
+    LONG_PRESS_MENU_ACTION_COUNT,
+    // Jester long-press actions: reserved block, same rule as SHORT_PWRBTN.
+    LONG_MENU_JESTER_FIRST = 192,
+    LONG_MENU_DOG_EAR = LONG_MENU_JESTER_FIRST,
   };
 
   // Clipping storage mode
