@@ -147,7 +147,8 @@ ReaderStatusBarPosition StatusBarSettingsActivity::selectedPosition() const {
 }
 
 void StatusBarSettingsActivity::refreshItemCount() {
-  visibleItemCount = view == View::Root ? 3 : PROGRESS_BAR_THICKNESS + 1;
+  // Jester (feature 13): no progress bar or thickness rows.
+  visibleItemCount = view == View::Root ? 3 : PERCENTAGE_FORMAT + 1;
   selectedIndex = std::clamp(selectedIndex, 0, visibleItemCount - 1);
 }
 
@@ -265,7 +266,7 @@ void StatusBarSettingsActivity::openOptionPicker() {
   int currentIndex = 0;
   if (item <= SLOT_RIGHT_3) {
     for (const auto choice : pickerItems) {
-      if (choice == ReaderStatusBarItem::Clock && !halClock.isAvailable()) continue;
+      if (!jesterOffersStatusBarItem(choice)) continue;
       if (config.slots[item] == choice) currentIndex = static_cast<int>(options.size());
       options.push_back(itemLabel(choice));
       rawValues.push_back(static_cast<uint8_t>(choice));

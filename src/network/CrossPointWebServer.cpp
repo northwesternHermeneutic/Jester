@@ -1424,6 +1424,7 @@ void CrossPointWebServer::handleGetStatusBars() const {
 
   JsonArray options = doc["options"].to<JsonArray>();
   const auto addOption = [&options](ReaderStatusBarItem item, const std::string& label) {
+    if (!jesterOffersStatusBarItem(item)) return;  // feature 13
     JsonObject option = options.add<JsonObject>();
     option["value"] = static_cast<uint8_t>(item);
     option["label"] = label;

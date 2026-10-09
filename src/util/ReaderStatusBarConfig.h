@@ -68,6 +68,39 @@ struct ReaderStatusBarConfig {
   }
 };
 
+// Jester (feature 13): the items offered in status bar pickers. Clock, Date,
+// Time Left, Title and the progress bar are not offered; their stored enum
+// values stay reserved and are forced off when a configuration is loaded or set.
+constexpr bool jesterOffersStatusBarItem(const ReaderStatusBarItem item) {
+  switch (item) {
+    case ReaderStatusBarItem::Empty:
+    case ReaderStatusBarItem::Battery:
+    case ReaderStatusBarItem::ChapterPageCount:
+    case ReaderStatusBarItem::StablePageNumber:
+    case ReaderStatusBarItem::BookProgressPercentage:
+      return true;
+    default:
+      return false;
+  }
+}
+
+// Returns true when the configuration was changed.
+inline bool applyJesterStatusBarRules(ReaderStatusBarConfig& config) {
+  bool changed = false;
+  for (auto& slot : config.slots) {
+    if (!jesterOffersStatusBarItem(slot)) {
+      slot = ReaderStatusBarItem::Empty;
+      changed = true;
+    }
+  }
+  constexpr uint8_t PROGRESS_BAR_HIDDEN = 2;  // CrossPointSettings::HIDE_PROGRESS
+  if (config.progressBar != PROGRESS_BAR_HIDDEN) {
+    config.progressBar = PROGRESS_BAR_HIDDEN;
+    changed = true;
+  }
+  return changed;
+}
+
 struct ReaderStatusBarsPayload {
   ReaderStatusBarConfig top;
   ReaderStatusBarConfig bottom;

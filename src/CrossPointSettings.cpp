@@ -743,6 +743,8 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
       needsResave = true;
     }
     legacyXtcTopUsesBottom = bars["legacyXtcTopUsesBottom"].as<bool>() ? 1 : 0;
+    needsResave |= applyJesterStatusBarRules(topReaderStatusBar);
+    needsResave |= applyJesterStatusBarRules(bottomReaderStatusBar);
   }
   if (doc["sleepTimeoutMinutes"].isNull() && !doc["sleepTimeout"].isNull()) {
     const uint8_t legacyValue =
@@ -1032,11 +1034,13 @@ bool CrossPointSettings::parseReaderStatusBars(JsonVariantConst json, ReaderStat
 void CrossPointSettings::setReaderStatusBar(const ReaderStatusBarPosition position,
                                             const ReaderStatusBarConfig& config) {
   std::lock_guard<std::mutex> lock(_mutex);
+  ReaderStatusBarConfig allowed = config;
+  applyJesterStatusBarRules(allowed);
   if (position == ReaderStatusBarPosition::Top) {
-    topReaderStatusBar = config;
+    topReaderStatusBar = allowed;
     legacyXtcTopUsesBottom = 0;
   } else {
-    bottomReaderStatusBar = config;
+    bottomReaderStatusBar = allowed;
   }
 }
 
