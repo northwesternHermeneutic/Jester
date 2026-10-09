@@ -1,3 +1,10 @@
+## [Jester v0.1]
+
+### Fixed
+
+- Back, previous-page and next-page button labels use single guillemets (‹ ›) instead of double guillemets.
+- UI text in the small and medium faces renders Latin-1 characters (accented file names, titles and authors, the degree sign) instead of missing-glyph boxes.
+
 ## [v1.6.0] - 2026-09-21
 
 ### Added
