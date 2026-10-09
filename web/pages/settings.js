@@ -647,6 +647,5 @@ let allSettings = [];
   (async () => {
     await loadSettings();
     await loadStatusBars();
-    await loadWifiNetworks();
-    await loadOpdsServers();
+    // Jester (feature 16): no saved WiFi networks or OPDS servers; the hotspot is the only network mode.
   })();

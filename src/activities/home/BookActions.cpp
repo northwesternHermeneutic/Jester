@@ -71,8 +71,9 @@ bool hasClearableBookCache(const std::string& path) {
 }
 
 bool canSendNearby(const std::string& path) {
-  return FsHelpers::hasEpubExtension(path) || FsHelpers::hasTxtExtension(path) || FsHelpers::hasXtcExtension(path) ||
-         FsHelpers::hasPngExtension(path) || FsHelpers::hasBmpExtension(path);
+  // Jester (feature 16): Nearby transfer is removed.
+  (void)path;
+  return false;
 }
 
 void clearFileMetadata(const std::string& fullPath) {

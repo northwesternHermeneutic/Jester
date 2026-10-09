@@ -17,6 +17,7 @@
 #include "MappedInputManager.h"
 #include "QuickActions.h"
 #include "ReaderUtils.h"
+#include "activities/home/BookActions.h"
 #include "RecentBooksStore.h"
 #include "SdCardFontSystem.h"
 #include "activities/boot_sleep/SleepCoverAssets.h"
@@ -173,7 +174,10 @@ void TxtReaderActivity::onExit() {
 void TxtReaderActivity::openReaderMenu() {
   if (!txt) return;
   std::vector<FileBrowserActionActivity::MenuItem> items;
-  items.push_back({FileBrowserAction::SendNearby, StrId::STR_SEND_NEARBY_BOOK});
+  if (BookActions::canSendNearby(txt->getPath())) {  // false in Jester (feature 16)
+    items.push_back({FileBrowserAction::SendNearby, StrId::STR_SEND_NEARBY_BOOK});
+  }
+  if (items.empty()) return;
   auto menu = makeUniqueNoThrow<FileBrowserActionActivity>(renderer, mappedInput, txt->getTitle(), std::move(items));
   if (!menu) {
     LOG_ERR("NBOOK", "OOM: TXT nearby transfer menu");

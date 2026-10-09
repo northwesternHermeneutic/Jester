@@ -16,34 +16,26 @@ namespace fui = freeink::ui;
 namespace {
 constexpr fui::ActionId ACTION_ROW = 1;
 
+// Jester (feature 16): Create Hotspot is the only network transfer mode; USB
+// Drive stays on devices that have it. Join Network, Calibre Wireless and the
+// Nearby modes are removed.
 #if CROSSINK_APP_CAP_USB_DRIVE
-constexpr NetworkMode menuModes[] = {NetworkMode::JOIN_NETWORK,        NetworkMode::CONNECT_CALIBRE,
-                                     NetworkMode::CREATE_HOTSPOT,      NetworkMode::USB_DRIVE,
-                                     NetworkMode::NEARBY_BOOK_RECEIVE, NetworkMode::NEARBY_STATS_SYNC};
-constexpr StrId menuItems[] = {StrId::STR_JOIN_NETWORK, StrId::STR_CALIBRE_WIRELESS,    StrId::STR_CREATE_HOTSPOT,
-                               StrId::STR_USB_DRIVE,    StrId::STR_RECEIVE_NEARBY_BOOK, StrId::STR_NEARBY_STATS_SYNC};
-constexpr StrId menuDescs[] = {StrId::STR_JOIN_DESC,
-                               StrId::STR_CALIBRE_DESC,
-                               StrId::STR_HOTSPOT_DESC,
-                               StrId::STR_USB_DRIVE_DESC,
-                               StrId::STR_RECEIVE_NEARBY_BOOK_DESC,
-                               StrId::STR_NEARBY_STATS_SYNC_DESC};
-constexpr UIIcon menuIcons[] = {UIIcon::Wifi,     UIIcon::Library,  UIIcon::Hotspot,
-                                UIIcon::Transfer, UIIcon::Transfer, UIIcon::Transfer};
+constexpr NetworkMode menuModes[] = {NetworkMode::CREATE_HOTSPOT, NetworkMode::USB_DRIVE};
+constexpr StrId menuItems[] = {StrId::STR_CREATE_HOTSPOT, StrId::STR_USB_DRIVE};
+constexpr StrId menuDescs[] = {StrId::STR_HOTSPOT_DESC, StrId::STR_USB_DRIVE_DESC};
+constexpr UIIcon menuIcons[] = {UIIcon::Hotspot, UIIcon::Transfer};
 #else
-constexpr NetworkMode menuModes[] = {NetworkMode::JOIN_NETWORK, NetworkMode::CONNECT_CALIBRE,
-                                     NetworkMode::CREATE_HOTSPOT, NetworkMode::NEARBY_BOOK_RECEIVE,
-                                     NetworkMode::NEARBY_STATS_SYNC};
-constexpr StrId menuItems[] = {StrId::STR_JOIN_NETWORK, StrId::STR_CALIBRE_WIRELESS, StrId::STR_CREATE_HOTSPOT,
-                               StrId::STR_RECEIVE_NEARBY_BOOK, StrId::STR_NEARBY_STATS_SYNC};
-constexpr StrId menuDescs[] = {StrId::STR_JOIN_DESC, StrId::STR_CALIBRE_DESC, StrId::STR_HOTSPOT_DESC,
-                               StrId::STR_RECEIVE_NEARBY_BOOK_DESC, StrId::STR_NEARBY_STATS_SYNC_DESC};
-constexpr UIIcon menuIcons[] = {UIIcon::Wifi, UIIcon::Library, UIIcon::Hotspot, UIIcon::Transfer, UIIcon::Transfer};
+constexpr NetworkMode menuModes[] = {NetworkMode::CREATE_HOTSPOT};
+constexpr StrId menuItems[] = {StrId::STR_CREATE_HOTSPOT};
+constexpr StrId menuDescs[] = {StrId::STR_HOTSPOT_DESC};
+constexpr UIIcon menuIcons[] = {UIIcon::Hotspot};
 #endif
 
 constexpr int MENU_ITEM_COUNT = sizeof(menuModes) / sizeof(menuModes[0]);
-constexpr int LIST_ITEM_COUNT = MENU_ITEM_COUNT + 1;
-constexpr int NEARBY_SECTION_INDEX = CROSSINK_APP_CAP_USB_DRIVE ? 4 : 3;
+// No Nearby section heading in Jester: the index is past the end, so no
+// heading row is inserted and list rows map one to one to menu entries.
+constexpr int NEARBY_SECTION_INDEX = MENU_ITEM_COUNT;
+constexpr int LIST_ITEM_COUNT = MENU_ITEM_COUNT;
 
 int listIndexForMenuIndex(const int menuIndex) { return menuIndex < NEARBY_SECTION_INDEX ? menuIndex : menuIndex + 1; }
 }  // namespace

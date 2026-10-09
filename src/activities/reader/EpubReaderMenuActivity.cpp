@@ -267,9 +267,7 @@ EpubReaderMenuActivity::TabMenuItems EpubReaderMenuActivity::buildMenuItems(
     bookmarkItems.push_back({MenuAction::VIEW_BOOKMARKS, StrId::STR_VIEW_BOOKMARKS});
     bookmarkItems.push_back({MenuAction::DELETE_BOOKMARKS, StrId::STR_DELETE_BOOKMARKS});
   }
-  bookmarkItems.push_back({MenuAction::SYNC, StrId::STR_SYNC_PROGRESS});
-  bookmarkItems.push_back({MenuAction::NEARBY_POSITION_SYNC, StrId::STR_NEARBY_POSITION_SYNC});
-  bookmarkItems.push_back({MenuAction::SEND_NEARBY_BOOK, StrId::STR_SEND_NEARBY_BOOK});
+  // Jester (feature 16): no KOReader Sync, Nearby position sync or Send Nearby entries.
   bookmarkItems.push_back({MenuAction::SCREENSHOT, StrId::STR_SCREENSHOT_BUTTON});
   bookmarkItems.push_back({MenuAction::DISPLAY_QR, StrId::STR_DISPLAY_QR});
 
