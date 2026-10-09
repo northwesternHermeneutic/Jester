@@ -361,6 +361,8 @@ void CrossPointWebServer::begin() {
   server->on("/logo.png", HTTP_GET, [this] { handleLogo(); });
 
   server->on("/api/status", HTTP_GET, [this] { handleStatus(); });
+  // Clock for file timestamps on devices with no RTC
+  server->on("/api/time", HTTP_POST, [this] { handleSetTime(); });
   server->on("/api/files", HTTP_GET, [this] { handleFileListData(); });
   server->on("/download", HTTP_GET, [this] { handleDownload(); });
 
@@ -628,6 +630,32 @@ void CrossPointWebServer::handleNotFound() const {
   String message = "404 Not Found\n\n";
   message += "URI: " + server->uri() + "\n";
   server->send(404, "text/plain", message);
+}
+
+void CrossPointWebServer::handleSetTime() const {
+  // POST /api/time  epoch=<UTC seconds>&offset=<local minutes from UTC>
+  // Gives an RTC-less device the time, so files written by uploads carry a
+  // real creation date. A device with an RTC keeps using it.
+  if (!server->hasArg("epoch")) {
+    server->send(400, "text/plain", "Missing epoch");
+    return;
+  }
+  const long long epoch = atoll(server->arg("epoch").c_str());
+  const long offset = server->hasArg("offset") ? server->arg("offset").toInt() : 0;
+  // 2025-01-01 .. 2100-01-01 UTC; offsets -12:00 .. +14:00.
+  if (epoch < 1735689600LL || epoch > 4102444800LL || offset < -720 || offset > 840) {
+    server->send(400, "text/plain", "Invalid epoch or offset");
+    return;
+  }
+#ifndef SIMULATOR
+  Storage.setWallClock(static_cast<int64_t>(epoch), static_cast<int16_t>(offset));
+#endif
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["rtc"] = halClock.isAvailable();
+  String body;
+  serializeJson(doc, body);
+  server->send(200, "application/json", body);
 }
 
 void CrossPointWebServer::handleStatus() const {

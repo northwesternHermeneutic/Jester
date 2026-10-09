@@ -45,8 +45,14 @@ class HalStorage {
   bool writeFile(const char* path, const String& content);
   // Ensure a directory exists, creating it if necessary. Returns true on success.
   bool ensureDirectoryExists(const char* path);
-  // Install SdFat timestamp support when an RTC-backed clock is available.
+  // Install SdFat timestamp support. Uses the RTC where there is one, else a
+  // wall clock supplied over the web server by setWallClock().
   void installDateTimeCallback(const uint8_t* utcOffsetQuarterHoursBiased);
+  // Give a device without an RTC the current time, for file timestamps only.
+  // utcEpoch: seconds since 1970 UTC. localOffsetMinutes: the client's
+  // offset from UTC. Held in RAM; lost on reboot or deep sleep.
+  void setWallClock(int64_t utcEpoch, int16_t localOffsetMinutes);
+  bool hasWallClock() const;
 
   bool beginUsbDrive();
   bool disconnectUsbDriveHost();

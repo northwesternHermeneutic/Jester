@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <ctime>
 #include <new>
 
 #include "HalSpiBus.h"
@@ -34,6 +35,32 @@ constexpr uint8_t kFallbackDay = 1;
 constexpr uint8_t kFallbackHour = 0;
 constexpr uint8_t kFallbackMinute = 0;
 const uint8_t* clockUtcOffsetQ = nullptr;
+
+// Wall clock handed over by a client (POST /api/time) on a device with no
+// RTC: the epoch it gave, and millis() when it gave it.
+bool wallClockSet = false;
+int64_t wallClockEpoch = 0;
+unsigned long wallClockMillis = 0;
+int16_t wallClockOffsetMinutes = 0;
+
+// Local date and time from the client-supplied clock. False if never set.
+bool wallClockLocal(uint16_t& year, uint8_t& month, uint8_t& day, uint8_t& hour, uint8_t& minute,
+                    uint8_t& second) {
+  if (!wallClockSet) return false;
+  const unsigned long elapsedMs = millis() - wallClockMillis;
+  const int64_t local = wallClockEpoch + static_cast<int64_t>(elapsedMs / 1000UL) +
+                        static_cast<int64_t>(wallClockOffsetMinutes) * 60;
+  const time_t t = static_cast<time_t>(local);
+  struct tm parts;
+  if (gmtime_r(&t, &parts) == nullptr) return false;
+  year = static_cast<uint16_t>(parts.tm_year + 1900);
+  month = static_cast<uint8_t>(parts.tm_mon + 1);
+  day = static_cast<uint8_t>(parts.tm_mday);
+  hour = static_cast<uint8_t>(parts.tm_hour);
+  minute = static_cast<uint8_t>(parts.tm_min);
+  second = static_cast<uint8_t>(parts.tm_sec);
+  return true;
+}
 
 bool isLeapYear(const uint16_t year) { return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0; }
 
@@ -92,6 +119,23 @@ void storageDateTimeCallback(uint16_t* date, uint16_t* time) {
   uint8_t day = kFallbackDay;
   uint8_t hour = kFallbackHour;
   uint8_t minute = kFallbackMinute;
+
+  if (!halClock.isAvailable()) {
+    // No RTC (X4). Use the client-supplied clock when there is one; otherwise
+    // keep SdFat's own default, which is what these devices wrote before.
+    uint8_t second = 0;
+    if (wallClockLocal(year, month, day, hour, minute, second) &&
+        isValidFatDateTime(year, month, day, hour, minute)) {
+      // Seconds too (FAT keeps them to 2 s), so files sent in the same
+      // minute still sort in the order they arrived.
+      *date = FS_DATE(year, month, day);
+      *time = FS_TIME(hour, minute, second);
+    } else {
+      *date = FS_DEFAULT_DATE;
+      *time = FS_DEFAULT_TIME;
+    }
+    return;
+  }
 
   if (halClock.getDateTime(year, month, day, hour, minute) && isValidFatDateTime(year, month, day, hour, minute)) {
     const uint8_t configuredOffsetQ = clockUtcOffsetQ ? *clockUtcOffsetQ : 48;
@@ -253,11 +297,22 @@ bool HalStorage::writeFile(const char* path, const String& content) {
 bool HalStorage::ensureDirectoryExists(const char* path) { HAL_STORAGE_WRAPPED_CALL(ensureDirectoryExists, path); }
 
 void HalStorage::installDateTimeCallback(const uint8_t* utcOffsetQuarterHoursBiased) {
-  if (!halClock.isAvailable()) return;
   clockUtcOffsetQ = utcOffsetQuarterHoursBiased;
   FsDateTime::setCallback(storageDateTimeCallback);
-  LOG_INF("SD", "Installed RTC-backed SD timestamp callback");
+  LOG_INF("SD", halClock.isAvailable() ? "Installed RTC-backed SD timestamp callback"
+                                       : "Installed client-clock SD timestamp callback");
 }
+
+void HalStorage::setWallClock(const int64_t utcEpoch, const int16_t localOffsetMinutes) {
+  wallClockEpoch = utcEpoch;
+  wallClockMillis = millis();
+  wallClockOffsetMinutes = localOffsetMinutes;
+  wallClockSet = true;
+  LOG_INF("SD", "Wall clock set by client: epoch %lld, offset %d min", static_cast<long long>(utcEpoch),
+          static_cast<int>(localOffsetMinutes));
+}
+
+bool HalStorage::hasWallClock() const { return wallClockSet; }
 
 class HalFile::Impl {
  public:
