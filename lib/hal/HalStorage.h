@@ -120,9 +120,6 @@ class HalFile : public Print {
   size_t size();
   size_t fileSize();
   uint64_t fileSize64();
-  // FAT modify date/time packed as (date << 16) | time, which compares
-  // chronologically as a plain integer. Returns 0 when unavailable.
-  uint32_t modificationTime();
   bool seek(size_t pos);
   bool seek64(uint64_t pos);
   bool seekCur(int64_t offset);
