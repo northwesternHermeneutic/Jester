@@ -2,6 +2,10 @@
 PlatformIO post-build script: copy firmware.bin to convenient artifact names
 in the same build directory.
 
+Jester: the default env sets custom_firmware_name_prefix = jester,
+custom_firmware_artifact_device = x4 and custom_firmware_artifact_version,
+so its default output is .pio/build/default/jester-x4-v<version>.bin.
+
 Default outputs:
   .pio/build/default/firmware-x3-x4.bin
   .pio/build/x4-pro/firmware-x4-pro.bin
@@ -89,8 +93,13 @@ def _get_firmware_device_type(env):
     return _get_project_option(env, 'custom_firmware_device_type') or env['PIOENV']
 
 
+def _get_artifact_base(env):
+    prefix = _get_project_option(env, 'custom_firmware_name_prefix') or 'firmware'
+    device = _get_project_option(env, 'custom_firmware_artifact_device') or _get_firmware_device_type(env)
+    return f'{prefix}-{device}'
+
+
 def _get_rc_artifact_name(project_dir, env):
-    device_type = _get_firmware_device_type(env)
     branch = (
         _get_project_option(env, 'custom_rc_branch')
         or os.environ.get('CROSSINK_RC_BRANCH')
@@ -109,7 +118,7 @@ def _get_rc_artifact_name(project_dir, env):
     )
     branch = _sanitize_branch(branch)
     short_hash = re.sub(r'[^A-Za-z0-9]+', '', short_hash)[:12] or '00000'
-    return f'firmware-{device_type}-{branch}-{short_hash}-RC.bin'
+    return f'{_get_artifact_base(env)}-{branch}-{short_hash}-RC.bin'
 
 
 def _is_rc_artifact_build(env):
@@ -134,8 +143,10 @@ def rename_firmware(source, target, env):
     src = str(target[0])
     build_dir = os.path.dirname(src)
 
-    device_type = _get_firmware_device_type(env)
-    default_dst = os.path.join(build_dir, f'firmware-{device_type}.bin')
+    artifact_base = _get_artifact_base(env)
+    artifact_version = _get_project_option(env, 'custom_firmware_artifact_version')
+    default_name = f'{artifact_base}-v{artifact_version}.bin' if artifact_version else f'{artifact_base}.bin'
+    default_dst = os.path.join(build_dir, default_name)
     _copy_artifact(src, default_dst)
 
     if _is_rc_artifact_build(env):
@@ -144,7 +155,7 @@ def rename_firmware(source, target, env):
 
     release_version = _get_release_version(env)
     if release_version:
-        release_dst = os.path.join(build_dir, f'firmware-{device_type}-{release_version}.bin')
+        release_dst = os.path.join(build_dir, f'{artifact_base}-{release_version}.bin')
         _copy_artifact(src, release_dst)
 
 
