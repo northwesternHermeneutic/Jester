@@ -87,7 +87,8 @@ inline bool settingKeyIs(const SettingInfo& setting, const char* key) {
 
 inline bool isSideButtonActionSetting(const SettingInfo& setting) {
   return settingKeyIs(setting, "sideButtonUpShort") || settingKeyIs(setting, "sideButtonUpLong") ||
-         settingKeyIs(setting, "sideButtonDownShort") || settingKeyIs(setting, "sideButtonDownLong");
+         settingKeyIs(setting, "sideButtonDownShort") || settingKeyIs(setting, "sideButtonDownLong") ||
+         settingKeyIs(setting, "frontLeftLong") || settingKeyIs(setting, "frontRightLong");
 }
 
 inline std::string sideButtonOptionLabel(const SettingInfo& setting, const uint8_t displayIndex) {
@@ -795,6 +796,11 @@ inline const std::vector<SettingInfo>& getBaseSettingsList() {
     add(SettingInfo::Enum(StrId::STR_ORIENTATION_AWARE, &CrossPointSettings::frontButtonOrientationAware,
                           {StrId::STR_NO, StrId::STR_NAV_BUTTONS, StrId::STR_ALL_BUTTONS},
                           "frontButtonOrientationAware", StrId::STR_CAT_CONTROLS));
+    // Jester (feature 20): front Left/Right long-press actions.
+    add(buildSideButtonActionSetting(StrId::STR_FRONT_LEFT_LONG_PRESS, &CrossPointSettings::frontLeftLong,
+                                     "frontLeftLong"));
+    add(buildSideButtonActionSetting(StrId::STR_FRONT_RIGHT_LONG_PRESS, &CrossPointSettings::frontRightLong,
+                                     "frontRightLong"));
     add(SettingInfo::Enum(StrId::STR_LONG_PRESS_ACTION, &CrossPointSettings::longPressButtonBehavior,
                           {StrId::STR_LONG_PRESS_BEHAVIOR_OFF, StrId::STR_LONG_PRESS_BEHAVIOR_SKIP,
                            StrId::STR_CHANGE_FONT_SIZE, StrId::STR_LONG_PRESS_BEHAVIOR_ORIENTATION},
@@ -1203,6 +1209,8 @@ inline bool isSettingRemovedInJester(const SettingInfo& setting) {
     case StrId::STR_NEARBY_RECEIVE_FOLDER:  // feature 16 (Nearby transfer)
       return true;
     default:
+      // Legacy front long-press behaviour, replaced by feature 20.
+      if (setting.key && std::strcmp(setting.key, "longPressButtonBehavior") == 0) return true;
       return setting.category == StrId::STR_KOREADER_SYNC;  // feature 16
   }
 }
@@ -1380,7 +1388,11 @@ inline std::vector<SettingInfo> buildControlsFrontButtonSettingsList(const std::
   settings.push_back(
       SettingInfo::Action(StrId::STR_REMAP_FRONT_BUTTONS_READER, SettingAction::RemapFrontButtonsReader));
   addSettingByKey(settings, allSettings, "frontButtonOrientationAware");
-  addSettingByKey(settings, allSettings, "longPressButtonBehavior");
+  // Jester (feature 20): per-button long-press actions replace the legacy
+  // front long-press behaviour (chapter skip, font size, rotate), which is a
+  // subset of their choices.
+  addSettingByKey(settings, allSettings, "frontLeftLong");
+  addSettingByKey(settings, allSettings, "frontRightLong");
   addSettingByName(settings, allSettings, StrId::STR_LONG_PRESS_BACK_ACTION);
   addSettingByName(settings, allSettings, StrId::STR_LONG_PRESS_MENU_ACTION);
   return settings;

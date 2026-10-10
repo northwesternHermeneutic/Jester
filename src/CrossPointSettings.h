@@ -577,6 +577,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t sideButtonUpLong = QUICK_ACTIONS;
   uint8_t sideButtonDownShort = PAGE_TURN;
   uint8_t sideButtonDownLong = LOOKUP_WORD;
+  // Jester (feature 20): front Left/Right long-press actions (side-button catalog); off by default.
+  uint8_t frontLeftLong = IGNORE;
+  uint8_t frontRightLong = IGNORE;
   // Front button remap (logical -> hardware)
   // Used by MappedInputManager to translate logical buttons into physical front buttons.
   uint8_t frontButtonBack = FRONT_HW_BACK;

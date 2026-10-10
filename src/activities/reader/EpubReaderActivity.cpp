@@ -3176,7 +3176,7 @@ void EpubReaderActivity::loop() {
   const auto side = sideButtonShortcuts.update(mappedInput, millis());
   if (SideButtonShortcuts::shouldConsume(side, mappedInput)) {
     if (side.triggered) {
-      if (side.longPress)
+      if (side.longPress && !side.front)
         mappedInput.suppressNextSideRelease(side.up ? MappedInputManager::Button::Up
                                                     : MappedInputManager::Button::Down);
       switch (side.action) {

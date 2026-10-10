@@ -1360,6 +1360,9 @@ void setup() {
   SETTINGS.loadFromFile();
   // Jester (feature 19): active library, exclusions and Index Limit for the Library builder.
   JesterLibraries::applyToBuilder();
+  // Jester (feature 20): the legacy front long-press behaviour is replaced by
+  // the per-button actions; keep it off whatever an old settings file says.
+  SETTINGS.longPressButtonBehavior = CrossPointSettings::OFF;
   Storage.installDateTimeCallback(&SETTINGS.clockUtcOffsetQ);
   APP_STATE.loadFromFile();
   mirrorWakeShortPressToNvs();
