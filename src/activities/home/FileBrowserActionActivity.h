@@ -28,6 +28,9 @@ enum class FileBrowserAction : int {
   PinBootFavorite = 16,
   UnpinBootFavorite = 17,
   Rename = 18,
+  // Jester actions: a reserved block clear of CrossInk's values (rule G2).
+  AddToFavorites = 100,       // feature 1
+  RemoveFromFavorites = 101,  // feature 1
 };
 
 class FileBrowserActionActivity final : public Activity {

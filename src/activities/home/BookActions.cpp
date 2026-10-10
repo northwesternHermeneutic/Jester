@@ -23,6 +23,7 @@
 #include "fontIds.h"
 #include "util/BookCacheUtils.h"
 #include "util/BookMoveUtils.h"
+#include "FavoritesStore.h"
 
 namespace BookActions {
 namespace {
@@ -46,7 +47,13 @@ std::string bookStatsCachePath(const std::string& path) {
 std::vector<FileBrowserActionActivity::MenuItem> buildBookActionItems(const std::string& fullPath,
                                                                       const bool includeRemoveFromRecents) {
   std::vector<FileBrowserActionActivity::MenuItem> items;
-  items.reserve(includeRemoveFromRecents ? 7 : 6);
+  items.reserve(includeRemoveFromRecents ? 8 : 7);
+  if (canBeFavorite(fullPath)) {
+    // Jester (feature 1): first, so the long-press menu leads with it.
+    const bool favorite = Favorites::contains(fullPath);
+    items.push_back({favorite ? FileBrowserAction::RemoveFromFavorites : FileBrowserAction::AddToFavorites,
+                     favorite ? StrId::STR_REMOVE_FROM_FAVORITES : StrId::STR_ADD_TO_FAVORITES});
+  }
   items.push_back({FileBrowserAction::Delete, StrId::STR_DELETE});
   if (hasClearableBookCache(fullPath)) {
     items.push_back({FileBrowserAction::DeleteCache, StrId::STR_DELETE_CACHE});
@@ -68,6 +75,29 @@ std::vector<FileBrowserActionActivity::MenuItem> buildBookActionItems(const std:
 
 bool hasClearableBookCache(const std::string& path) {
   return FsHelpers::hasEpubExtension(path) || FsHelpers::hasXtcExtension(path);
+}
+
+bool canBeFavorite(const std::string& path) {
+  return FsHelpers::hasEpubExtension(path) || FsHelpers::hasTxtExtension(path) || FsHelpers::hasXtcExtension(path);
+}
+
+void toggleFavorite(const GfxRenderer& renderer, const std::string& path, const std::string& title,
+                    const std::string& author) {
+  switch (Favorites::toggle(path, title, author)) {
+    case Favorites::ToggleResult::Added:
+      drawToast(renderer, tr(STR_ADDED_TO_FAVORITES));
+      break;
+    case Favorites::ToggleResult::Removed:
+      drawToast(renderer, tr(STR_REMOVED_FROM_FAVORITES));
+      break;
+    case Favorites::ToggleResult::Full:
+      drawToast(renderer, tr(STR_FAVORITES_FULL));
+      break;
+    case Favorites::ToggleResult::Failed:
+    default:
+      drawToast(renderer, tr(STR_FAVORITES_SAVE_FAILED));
+      break;
+  }
 }
 
 bool canSendNearby(const std::string& path) {

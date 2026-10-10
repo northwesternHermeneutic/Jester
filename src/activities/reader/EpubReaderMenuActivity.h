@@ -22,6 +22,11 @@ class EpubReaderMenuActivity final : public Activity {
  public:
   using MenuAction = EpubReaderMenuAction;
 
+  // Jester (feature 1): adds Add/Remove Favorite at the end of the bookmarks page.
+  void setFavorite(const bool isFavorite) {
+    menuItems[BOOKMARKS_TAB_INDEX].push_back(
+        {MenuAction::FAVORITE_TOGGLE, isFavorite ? StrId::STR_REMOVE_FROM_FAVORITES : StrId::STR_ADD_TO_FAVORITES});
+  }
   // Jester (feature 2): replaces the whole-number book percentage in the header.
   void setBookProgressLabel(std::string label) { bookProgressLabel = std::move(label); }
 

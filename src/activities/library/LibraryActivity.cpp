@@ -1501,6 +1501,11 @@ void LibraryActivity::showBookActionMenu(const size_t bookIndex, const bool igno
                }
 
                switch (static_cast<FileBrowserAction>(actionResult->action)) {
+                 case FileBrowserAction::AddToFavorites:
+                 case FileBrowserAction::RemoveFromFavorites:
+                   BookActions::toggleFavorite(renderer, book.path, book.title, book.author);
+                   requestUpdate();
+                   return;
                  case FileBrowserAction::Delete:
                    promptDeleteBook(book);
                    return;

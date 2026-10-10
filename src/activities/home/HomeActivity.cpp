@@ -56,6 +56,7 @@ constexpr int HOME_BOOK_SWAP_RECENT_COUNT = 2;
 
 enum class HomeMenuAction {
   BrowseFiles,
+  Favorites,  // Jester (feature 1)
   ContinueReading,
   Library,
   OpdsBrowser,
@@ -256,6 +257,7 @@ void appendHomeMenuItems(HomeMenuEntries& items, bool hasOpdsServers, bool hasRe
   // Jester: no OPDS browser (feature 16) or Reading Stats (feature 17) entries.
   hasOpdsServers = false;
   hasReadingStats = false;
+  items.push({tr(STR_FAVORITES), Book, HomeMenuAction::Favorites});
   items.push({tr(STR_BROWSE_FILES), Folder, HomeMenuAction::BrowseFiles});
   items.push({tr(STR_LIBRARY), Library, HomeMenuAction::Library});
 
@@ -284,6 +286,7 @@ HomeMenuEntries buildMinimalMenuItems(bool hasOpdsServers, bool hasReadingStats,
   hasOpdsServers = false;
   hasReadingStats = false;
   HomeMenuEntries items;
+  items.push({tr(STR_FAVORITES), Book, HomeMenuAction::Favorites});
   items.push({tr(STR_LIBRARY), Library, HomeMenuAction::Library});
 
   if (hasOpdsServers) {
@@ -1549,6 +1552,9 @@ void HomeActivity::loop() {
           case HomeMenuAction::BrowseFiles:
             onFileBrowserOpen();
             break;
+          case HomeMenuAction::Favorites:
+            activityManager.goToFavorites();
+            break;
           case HomeMenuAction::Library:
             onLibraryOpen();
             break;
@@ -1793,6 +1799,9 @@ void HomeActivity::loop() {
         break;
       case HomeMenuAction::ContinueReading:
         onContinueReading();
+        break;
+      case HomeMenuAction::Favorites:
+        activityManager.goToFavorites();
         break;
       case HomeMenuAction::Library:
         onLibraryOpen();

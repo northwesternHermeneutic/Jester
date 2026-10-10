@@ -33,6 +33,8 @@ enum class EpubReaderMenuAction : uint8_t {
   LOOKUP_HISTORY,
   SET_BOOK_DICTIONARY,
   STATUS_BAR_SETTINGS,
+  // Jester (not persisted).
+  FAVORITE_TOGGLE,  // feature 1
 };
 
 enum class ReaderDrawerTab : uint8_t { Font = 0, Layout = 1, More = 2, Location = 3, Settings = 4, Count };

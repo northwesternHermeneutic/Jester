@@ -394,6 +394,9 @@ void BmpViewerActivity::showContextMenu() {
                            if (actionResult == nullptr) return;
 
                            switch (static_cast<FileBrowserAction>(actionResult->action)) {
+                             case FileBrowserAction::AddToFavorites:
+                             case FileBrowserAction::RemoveFromFavorites:
+                               return;
                              case FileBrowserAction::Delete:
                                promptDeleteImage();
                                return;

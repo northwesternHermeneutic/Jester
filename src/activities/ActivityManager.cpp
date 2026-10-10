@@ -23,6 +23,7 @@
 #include "home/AlertActivity.h"
 #include "home/CrashActivity.h"
 #include "home/FileBrowserActivity.h"
+#include "home/FavoritesActivity.h"
 #include "home/HomeActivity.h"
 #include "home/RecentBookProgress.h"
 #include "library/LibraryActivity.h"
@@ -672,6 +673,15 @@ void ActivityManager::goToSettings(const bool dismissOnUpSwipe) {
 
 void ActivityManager::goToFileBrowser(std::string path) {
   replaceActivity(std::make_unique<FileBrowserActivity>(renderer, mappedInput, std::move(path)));
+}
+
+void ActivityManager::goToFavorites() {
+  auto favorites = makeUniqueNoThrow<FavoritesActivity>(renderer, mappedInput);
+  if (!favorites) {
+    LOG_ERR("ACT", "Cannot allocate Favorites activity");
+    return;
+  }
+  replaceActivity(std::move(favorites));
 }
 
 void ActivityManager::goToLibrary() {

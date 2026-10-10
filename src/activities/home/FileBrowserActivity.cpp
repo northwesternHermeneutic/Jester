@@ -541,6 +541,9 @@ void FileBrowserActivity::showDirectoryActionMenu(const std::string& entry, bool
                            const auto action =
                                static_cast<FileBrowserAction>(std::get<FileBrowserActionResult>(result.data).action);
                            switch (action) {
+                             case FileBrowserAction::AddToFavorites:
+                             case FileBrowserAction::RemoveFromFavorites:
+                               return;
                              case FileBrowserAction::Delete:
                                promptDeleteDirectory(fullPath, entry);
                                return;
@@ -710,6 +713,11 @@ void FileBrowserActivity::showFileActionMenu(const std::string& entry, bool igno
 
         const auto action = static_cast<FileBrowserAction>(std::get<FileBrowserActionResult>(result.data).action);
         switch (action) {
+          case FileBrowserAction::AddToFavorites:
+          case FileBrowserAction::RemoveFromFavorites:
+            BookActions::toggleFavorite(renderer, fullPath, "", "");
+            requestUpdate();
+            return;
           case FileBrowserAction::Rename:
             startRenameFile(fullPath, entry);
             return;

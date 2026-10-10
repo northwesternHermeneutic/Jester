@@ -76,6 +76,8 @@
 #include "util/Dictionary.h"
 #include "util/ScreenshotUtil.h"
 #include "util/BookPercentFormat.h"
+#include "FavoritesStore.h"
+#include "activities/home/BookActions.h"
 
 namespace {
 constexpr unsigned long TOUCH_DICTIONARY_LOOKUP_HOLD_MS = 1000;
@@ -2318,6 +2320,8 @@ void EpubReaderActivity::onEnter() {
   // Activate reader-specific front button mapping (if configured).
   mappedInput.setReaderMode(true);
 
+  // Jester (feature 1): keep a favorite's title and author current.
+  Favorites::updateMetadata(epub->getPath(), epub->getTitle(), epub->getAuthor());
   // Jester (feature 2): record the book size for Home and Library percentages.
   BookPercentFormat::saveBookSize(epub->getCachePath(), epub->getBookSize());
   BOOKMARKS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
@@ -2595,6 +2599,7 @@ void EpubReaderActivity::openReaderMenu() {
         bookSettings.dictionarySdFontFamilyName, bookSettings.dictionaryFontPointSize,
         bookSettings.hasDictionaryFontOverride, saveDictionaryFontForBookReader, this);
     if (buttonMenu) {
+      buttonMenu->setFavorite(Favorites::contains(epub->getPath()));
       buttonMenu->setBookProgressLabel(
           BookPercentFormat::format(bookProgress, epub && BookPercentFormat::isShortBook(epub->getBookSize())));
     }
@@ -4145,6 +4150,10 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       activityManager.replaceActivity(std::move(syncActivity));
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::FAVORITE_TOGGLE:
+      if (epub) BookActions::toggleFavorite(renderer, epub->getPath(), epub->getTitle(), epub->getAuthor());
+      requestUpdate();
+      break;
     case EpubReaderMenuActivity::MenuAction::BOOKMARK_TOGGLE: {
       const int bookmarkPageCount = section ? section->estimatedTotalPages() : 0;
       if (activeFootnotePreview || !section || bookmarkPageCount == 0 || section->pageCount == 0) break;

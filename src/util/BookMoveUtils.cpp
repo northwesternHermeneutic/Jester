@@ -16,6 +16,7 @@
 #include "ClippingStore.h"
 #include "CrossPointState.h"
 #include "RecentBooksStore.h"
+#include "FavoritesStore.h"
 
 namespace {
 constexpr char READ_FOLDER[] = "/Read";
@@ -267,6 +268,7 @@ RenameMigrationResult migrateRenamedBookState(const std::string& oldPath, const 
     return recover();
   }
   recentMoved = true;
+  Favorites::renamePath(oldPath, newPath);  // Jester (feature 1), best effort
 
   if (shouldMoveOpenPath) {
     APP_STATE.openEpubPath = newPath;
@@ -306,6 +308,7 @@ bool migrateMovedEpubState(const std::string& oldPath, const std::string& newPat
     ok = false;
   }
 
+  Favorites::renamePath(oldPath, newPath);  // Jester (feature 1), best effort
   if (keepInRecents) {
     (void)RECENT_BOOKS.updatePath(oldPath, newPath, oldCachePath, newCachePath);
   } else {

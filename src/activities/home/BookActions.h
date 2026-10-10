@@ -24,5 +24,11 @@ std::string confirmationHeading(StrId actionLabelId);
 bool isBookCompleted(const std::string& fullPath);
 bool toggleBookCompleted(const std::string& fullPath, const std::string& displayName, bool& completed);
 void drawToast(const GfxRenderer& renderer, const char* msg);
+// Jester (feature 1): books that can be favorites (EPUB, TXT, XTC).
+bool canBeFavorite(const std::string& path);
+// Adds or removes a favorite and shows the outcome as a toast. An empty title
+// falls back to the recent-books title or the file name.
+void toggleFavorite(const GfxRenderer& renderer, const std::string& path, const std::string& title,
+                    const std::string& author);
 
 }  // namespace BookActions
