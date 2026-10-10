@@ -155,6 +155,10 @@ class LibraryActivity final : public Activity {
   void openSettings();
   void openLibrarySwitcher();  // Jester (feature 19)
   std::string libraryName;     // Jester (feature 19): header title
+  // Jester (feature 18): pre-broken two-line row title and its measuring state.
+  std::string rowTitleScratch;
+  int rowLabelWidth = 0;
+  freeink::ui::TextStyle rowLabelStyle{};
   void activateControl(int control);
   // Owns the allocation-failure check and render lock for every child result.
   void openDialog(std::unique_ptr<Activity>&& activity, ActivityResultHandler handler);

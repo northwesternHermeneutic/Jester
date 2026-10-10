@@ -40,6 +40,7 @@
 #include "fontIds.h"
 #include "util/BookMoveUtils.h"
 #include "JesterLibraries.h"
+#include "util/TwoLineName.h"
 
 namespace fui = freeink::ui;
 
@@ -1423,6 +1424,9 @@ void FileBrowserActivity::buildListScreen(UiApp::ScreenType& screen) {
   std::vector<std::string> values(drawCount);
   std::vector<fui::ListItem> items;
   items.reserve(drawCount);
+  // Jester (feature 18): two-line names break long words at a hyphenation point.
+  TwoLineName::UiMeasure labelMeasure{&uiTarget, props.labelText};
+  TwoLineName::UiMeasure valueMeasure{&uiTarget, props.valueText};
   for (size_t i = 0; i < drawCount; i++) {
     const size_t entryIndex = static_cast<size_t>(topIndex) + i;
     const std::string entry = entryNameAt(entryIndex);
@@ -1434,6 +1438,12 @@ void FileBrowserActivity::buildListScreen(UiApp::ScreenType& screen) {
     }
     if ((entry.back() == '/' && isPreferredSleepFolder(fullPath)) || isPinnedSleepFavorite(fullPath)) {
       values[i] = values[i].empty() ? "*" : "* " + values[i];
+    }
+    if (twoLineRows) {
+      const int valueWidth = values[i].empty() ? 0 : TwoLineName::measureUiText(&valueMeasure, values[i].c_str());
+      const int labelWidth = TwoLineName::listLabelWidth(listRect.width, props.sidePadding, 32, props.textGap,
+                                                         valueWidth, props.valueInset);
+      names[i] = TwoLineName::prebreak(names[i], labelWidth, &TwoLineName::measureUiText, &labelMeasure);
     }
     fui::ListItem item;
     item.label = names[i].c_str();

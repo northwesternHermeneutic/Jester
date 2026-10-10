@@ -35,6 +35,7 @@
 #include "components/icons/libraryIcons.h"
 #include "components/icons/listIcons.h"
 #include "JesterLibraries.h"
+#include "util/TwoLineName.h"
 
 namespace fui = freeink::ui;
 
@@ -1022,7 +1023,10 @@ void LibraryActivity::provideRow(void* user, const uint16_t row, fui::ListItem& 
     item.enabled = false;
     return;
   }
-  item.label = self->rowScratch.title.c_str();
+  TwoLineName::UiMeasure measure{&self->uiTarget, self->rowLabelStyle};
+  self->rowTitleScratch =
+      TwoLineName::prebreak(self->rowScratch.title, self->rowLabelWidth, &TwoLineName::measureUiText, &measure);
+  item.label = self->rowTitleScratch.c_str();
   if (!self->rowScratch.author.empty()) item.subtitle = self->rowScratch.author.c_str();
   if (self->sort != Sort::RecentlyRead && SETTINGS.libraryUseMetadata &&
       (SETTINGS.libraryShowSeries || SETTINGS.libraryShowGenre)) {
@@ -1268,12 +1272,16 @@ void LibraryActivity::buildListScreen(UiApp::ScreenType& screen) {
   props.iconSize = 28;
   props.labelText = screen.theme().bodyText;
   props.labelText.bold = true;
-  props.labelText.maxLines = 1;
+  props.labelText.maxLines = 2;  // Jester (feature 18)
+  props.partialTrailingRow = false;
   props.headerText = screen.theme().bodyText;
   props.headerText.bold = true;
   props.rtl = (I18N.getLanguage() == Language::AR || I18N.getLanguage() == Language::HE);
   configureUiList(props, screen.theme(), screen.body(), UiListRowType::WithSubtitle);
   props.subtitleText.maxLines = 3;
+  rowLabelStyle = props.labelText;
+  rowLabelWidth = TwoLineName::listLabelWidth(screen.body().width, props.sidePadding, props.iconSize, props.textGap,
+                                              0, props.valueInset);
   listNav.selected = showSelection ? selection - CONTROL_COUNT : -1;
   listNav.top = topIndex;
   listNav.syncToProps(screen.body(), props.rowHeight, props.rowGap, rowCount(), props);

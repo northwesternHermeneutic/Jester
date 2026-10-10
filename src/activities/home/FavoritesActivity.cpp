@@ -17,6 +17,7 @@
 #include "components/UITheme.h"
 #include "components/UIThemeTokens.h"
 #include "components/UiAppHelpers.h"
+#include "util/TwoLineName.h"
 
 namespace fui = freeink::ui;
 
@@ -184,11 +185,19 @@ void FavoritesActivity::buildListScreen(UiApp::ScreenType& screen) {
                                               static_cast<int16_t>(metrics.contentSidePadding)});
   uiTarget.text(sortRow, sortLine.c_str(), screen.theme().smallText);
 
+  // Jester (feature 18): two-line titles break long words at a hyphenation point.
+  fui::TextStyle labelStyle = screen.theme().bodyText;
+  labelStyle.bold = true;
+  labelStyle.maxLines = 2;
+  TwoLineName::UiMeasure measure{&uiTarget, labelStyle};
+  const int labelWidth = TwoLineName::listLabelWidth(screen.body().width, -1, 0, 10, 0, 0);
+  std::vector<std::string> titles(books.size());
   std::vector<fui::ListItem> items;
   items.reserve(books.size());
   for (size_t i = 0; i < books.size(); ++i) {
+    titles[i] = TwoLineName::prebreak(books[i].title, labelWidth, &TwoLineName::measureUiText, &measure);
     fui::ListItem item;
-    item.label = books[i].title.c_str();
+    item.label = titles[i].c_str();
     if (!books[i].author.empty()) item.subtitle = books[i].author.c_str();
     item.actionValue = static_cast<int16_t>(i);
     items.push_back(item);
