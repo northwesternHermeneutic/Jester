@@ -158,3 +158,34 @@ bool ClippingsManager::saveClipping(const std::string& bookTitle, const std::str
 
   return true;
 }
+
+bool ClippingsManager::saveDogEar(const std::string& bookFileName, const std::string& bookTitle,
+                                  const std::string& author, const std::string& chapterTitle, const int pageNumber,
+                                  const std::string& percentLabel, const TextWriter writeText, void* context) {
+  Storage.mkdir(DOGEARS_TEXT_DIR);
+  const std::string path = std::string(DOGEARS_TEXT_DIR) + "/dogears-" + bookFileName + ".txt";
+  FsFile file = Storage.open(path.c_str(), O_RDWR | O_CREAT | O_AT_END);
+  if (!file) {
+    LOG_ERR("CLIP", "Failed to open %s for append", path.c_str());
+    return false;
+  }
+
+  std::string header = bookTitle + " (" + author + ")\n- Your Dog Ear on Page " + std::to_string(pageNumber) + " | " +
+                       percentLabel;
+  if (!chapterTitle.empty()) header += " | " + chapterTitle;
+  char addedOn[80];
+  if (formatKindleAddedOn(addedOn, sizeof(addedOn))) {
+    header += " | ";
+    header += addedOn;
+  }
+  header += "\n\n";
+  static constexpr char separator[] = "\n==========\n";
+
+  bool ok = file.write(header.data(), header.size()) == header.size();
+  if (ok && writeText) ok = writeText(context, file);
+  if (ok) ok = file.write(separator, sizeof(separator) - 1) == sizeof(separator) - 1;
+  file.flush();
+  file.close();
+  if (!ok) LOG_ERR("CLIP", "Failed to write dog ear to %s", path.c_str());
+  return ok;
+}

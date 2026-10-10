@@ -17,7 +17,7 @@ constexpr uint8_t VERSION = 5;
 // Stored count is uint16_t in v3+, but we keep an in-memory safety cap for ESP32-C3 RAM.
 constexpr uint16_t MAX_BOOKMARKS = 1024;
 constexpr size_t INITIAL_BOOKMARK_RESERVE = 8;
-constexpr char BOOKMARKS_DIR[] = "/.crosspoint/bookmarks";
+constexpr const char* BOOKMARKS_DIR = BOOKMARKS_STORE_DIR;
 constexpr char READ_FOLDER[] = "/Read";
 
 struct BookmarkFileHeader {
@@ -28,13 +28,15 @@ struct BookmarkFileHeader {
   uint16_t count = 0;
 };
 
-std::string currentStoreFilePathForBook(const std::string& filePath, const std::string& bookType) {
+std::string currentStoreFilePathForBook(const std::string& filePath, const std::string& bookType,
+                                        const char* dir = BOOKMARKS_DIR) {
   const uint32_t crc = uzlib_crc32(filePath.data(), static_cast<unsigned int>(filePath.size()), 0);
-  return std::string(BOOKMARKS_DIR) + "/" + bookType + "_" + std::to_string(crc) + ".bin";
+  return std::string(dir) + "/" + bookType + "_" + std::to_string(crc) + ".bin";
 }
 
-std::string legacyStoreFilePathForBook(const std::string& filePath, const std::string& bookType) {
-  return std::string(BOOKMARKS_DIR) + "/" + bookType + "_" + std::to_string(std::hash<std::string>{}(filePath)) +
+std::string legacyStoreFilePathForBook(const std::string& filePath, const std::string& bookType,
+                                       const char* dir = BOOKMARKS_DIR) {
+  return std::string(dir) + "/" + bookType + "_" + std::to_string(std::hash<std::string>{}(filePath)) +
          ".bin";
 }
 
@@ -213,6 +215,7 @@ bool readBookmarkFileHeader(const std::string& fullPath, const char* name, Bookm
 }  // namespace
 
 BookmarkStore BookmarkStore::instance;
+BookmarkStore BookmarkStore::dogEarInstance(DOGEARS_STORE_DIR);
 
 bool BookmarkStore::loadForBook(const std::string& filePath, const std::string& title, const std::string& author,
                                 const std::string& bookType) {
@@ -230,16 +233,16 @@ bool BookmarkStore::loadForBook(const std::string& filePath, const std::string& 
     bookmarks.reserve(INITIAL_BOOKMARK_RESERVE);
   }
 
-  storeFilePath = currentStoreFilePathForBook(filePath, bookType);
-  const std::string legacyStoreFilePath = legacyStoreFilePathForBook(filePath, bookType);
+  storeFilePath = currentStoreFilePathForBook(filePath, bookType, storeDir);
+  const std::string legacyStoreFilePath = legacyStoreFilePathForBook(filePath, bookType, storeDir);
   const bool hasCurrentFile = Storage.exists(storeFilePath.c_str());
   const bool hasLegacyFile = legacyStoreFilePath != storeFilePath && Storage.exists(legacyStoreFilePath.c_str());
 
   if (!hasCurrentFile && !hasLegacyFile) {
-    if (bookType == "epub" && isInReadFolder(filePath) && Storage.exists(BOOKMARKS_DIR)) {
-      for (const auto& name : Storage.listFiles(BOOKMARKS_DIR)) {
+    if (bookType == "epub" && isInReadFolder(filePath) && Storage.exists(storeDir)) {
+      for (const auto& name : Storage.listFiles(storeDir)) {
         BookmarkFileHeader header;
-        const std::string fullPath = std::string(BOOKMARKS_DIR) + "/" + name.c_str();
+        const std::string fullPath = std::string(storeDir) + "/" + name.c_str();
         if (!readBookmarkFileHeader(fullPath, name.c_str(), header)) continue;
         if (header.bookType != bookType || header.count == 0 || Storage.exists(header.path.c_str())) continue;
         if (!title.empty() && !header.title.empty() && header.title != title) continue;
@@ -524,7 +527,7 @@ bool BookmarkStore::readFromFile(const std::string& path, std::vector<Bookmark>&
 }
 
 bool BookmarkStore::writeToFile() const {
-  Storage.mkdir(BOOKMARKS_DIR);
+  Storage.mkdir(storeDir);
 
   FsFile f;
   if (!Storage.openFileForWrite("BKS", storeFilePath, f)) {
@@ -552,9 +555,10 @@ bool BookmarkStore::writeToFile() const {
   return true;
 }
 
-void BookmarkStore::deleteForFilePath(const std::string& filePath, const std::string& bookType) {
-  const std::string currentPath = currentStoreFilePathForBook(filePath, bookType);
-  const std::string legacyPath = legacyStoreFilePathForBook(filePath, bookType);
+void BookmarkStore::deleteForFilePath(const std::string& filePath, const std::string& bookType, const char* dir) {
+  const char* root = dir ? dir : BOOKMARKS_DIR;
+  const std::string currentPath = currentStoreFilePathForBook(filePath, bookType, root);
+  const std::string legacyPath = legacyStoreFilePathForBook(filePath, bookType, root);
   bool deletedAny = false;
 
   if (Storage.exists(currentPath.c_str())) {
@@ -570,7 +574,8 @@ void BookmarkStore::deleteForFilePath(const std::string& filePath, const std::st
 
 bool BookmarkStore::migrateForFilePath(const std::string& oldFilePath, const std::string& newFilePath,
                                        const std::string& title, const std::string& author,
-                                       const std::string& bookType) {
+                                       const std::string& bookType, const char* dir) {
+  const char* root = dir ? dir : BOOKMARKS_DIR;
   if (bookType != "epub" && bookType != "xtc" && bookType != "txt") {
     LOG_ERR("BKS", "Unknown book type for bookmark migration: %s", bookType.c_str());
     return false;
@@ -579,10 +584,10 @@ bool BookmarkStore::migrateForFilePath(const std::string& oldFilePath, const std
     return true;
   }
 
-  const std::string srcCurrentPath = currentStoreFilePathForBook(oldFilePath, bookType);
-  const std::string srcLegacyPath = legacyStoreFilePathForBook(oldFilePath, bookType);
-  const std::string dstCurrentPath = currentStoreFilePathForBook(newFilePath, bookType);
-  const std::string dstLegacyPath = legacyStoreFilePathForBook(newFilePath, bookType);
+  const std::string srcCurrentPath = currentStoreFilePathForBook(oldFilePath, bookType, root);
+  const std::string srcLegacyPath = legacyStoreFilePathForBook(oldFilePath, bookType, root);
+  const std::string dstCurrentPath = currentStoreFilePathForBook(newFilePath, bookType, root);
+  const std::string dstLegacyPath = legacyStoreFilePathForBook(newFilePath, bookType, root);
 
   const bool hasSrcCurrent = Storage.exists(srcCurrentPath.c_str());
   const bool hasSrcLegacy = srcLegacyPath != srcCurrentPath && Storage.exists(srcLegacyPath.c_str());
@@ -683,9 +688,11 @@ bool BookmarkStore::migrateForFilePath(const std::string& oldFilePath, const std
   return true;
 }
 
-bool BookmarkStore::hasStoredStateForFilePath(const std::string& filePath, const std::string& bookType) {
-  for (const auto& path :
-       {currentStoreFilePathForBook(filePath, bookType), legacyStoreFilePathForBook(filePath, bookType)}) {
+bool BookmarkStore::hasStoredStateForFilePath(const std::string& filePath, const std::string& bookType,
+                                              const char* dir) {
+  const char* root = dir ? dir : BOOKMARKS_DIR;
+  for (const auto& path : {currentStoreFilePathForBook(filePath, bookType, root),
+                           legacyStoreFilePathForBook(filePath, bookType, root)}) {
     if (Storage.exists(path.c_str()) || Storage.exists((path + ".rename.bak").c_str())) return true;
   }
   return false;
@@ -693,7 +700,9 @@ bool BookmarkStore::hasStoredStateForFilePath(const std::string& filePath, const
 
 bool BookmarkStore::beginRenameMigration(const std::string& oldFilePath, const std::string& newFilePath,
                                          const std::string& title, const std::string& author,
-                                         const std::string& bookType, RenameMigration& migration) {
+                                         const std::string& bookType, RenameMigration& migration,
+                                         const char* dir) {
+  const char* root = dir ? dir : BOOKMARKS_DIR;
   migration = {};
   if (bookType != "epub" && bookType != "xtc" && bookType != "txt") {
     LOG_ERR("BKS", "Unknown book type for bookmark rename migration: %s", bookType.c_str());
@@ -701,10 +710,10 @@ bool BookmarkStore::beginRenameMigration(const std::string& oldFilePath, const s
   }
   if (oldFilePath.empty() || newFilePath.empty() || oldFilePath == newFilePath) return true;
 
-  migration.sourceCurrentPath = currentStoreFilePathForBook(oldFilePath, bookType);
-  migration.sourceLegacyPath = legacyStoreFilePathForBook(oldFilePath, bookType);
-  migration.destinationCurrentPath = currentStoreFilePathForBook(newFilePath, bookType);
-  migration.destinationLegacyPath = legacyStoreFilePathForBook(newFilePath, bookType);
+  migration.sourceCurrentPath = currentStoreFilePathForBook(oldFilePath, bookType, root);
+  migration.sourceLegacyPath = legacyStoreFilePathForBook(oldFilePath, bookType, root);
+  migration.destinationCurrentPath = currentStoreFilePathForBook(newFilePath, bookType, root);
+  migration.destinationLegacyPath = legacyStoreFilePathForBook(newFilePath, bookType, root);
   migration.destinationCurrentBackupPath = migration.destinationCurrentPath + ".rename.bak";
   migration.destinationLegacyBackupPath = migration.destinationLegacyPath + ".rename.bak";
 
@@ -856,17 +865,19 @@ bool BookmarkStore::rollbackRenameMigration(RenameMigration& migration) {
   return ok;
 }
 
-bool BookmarkStore::hasAnyBookmarks() {
-  if (!Storage.exists(BOOKMARKS_DIR)) return false;
-  return !Storage.listFiles(BOOKMARKS_DIR, 1).empty();
+bool BookmarkStore::hasAnyBookmarks(const char* dir) {
+  const char* root = dir ? dir : BOOKMARKS_DIR;
+  if (!Storage.exists(root)) return false;
+  return !Storage.listFiles(root, 1).empty();
 }
 
-bool BookmarkStore::getAllBookmarkedBooks(std::vector<BookmarkedBookEntry>& out) {
-  if (!Storage.exists(BOOKMARKS_DIR)) return true;
+bool BookmarkStore::getAllBookmarkedBooks(std::vector<BookmarkedBookEntry>& out, const char* dir) {
+  const char* root = dir ? dir : BOOKMARKS_DIR;
+  if (!Storage.exists(root)) return true;
 
-  const auto files = Storage.listFiles(BOOKMARKS_DIR);
+  const auto files = Storage.listFiles(root);
   for (const auto& name : files) {
-    const std::string fullPath = std::string(BOOKMARKS_DIR) + "/" + name.c_str();
+    const std::string fullPath = std::string(root) + "/" + name.c_str();
 
     FsFile f;
     if (!Storage.openFileForRead("BKS", fullPath, f)) continue;

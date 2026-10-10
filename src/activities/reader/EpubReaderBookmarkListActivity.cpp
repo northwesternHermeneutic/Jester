@@ -20,9 +20,13 @@ constexpr fui::ActionId ACTION_ROW = 1;
 
 EpubReaderBookmarkListActivity::EpubReaderBookmarkListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                                                const std::vector<Bookmark>& bookmarks,
-                                                               const bool shortBook)
+                                                               const bool shortBook, BookmarkStore* store,
+                                                               const StrId titleId, const StrId emptyId)
     : Activity("EpubReaderBookmarkList", renderer, mappedInput),
       shortBook(shortBook),
+      store(store ? store : &BOOKMARKS),
+      titleId(titleId),
+      emptyId(emptyId),
       bookmarks(bookmarks),
       uiTarget(makeUiTarget(renderer)),
       app(uiTarget, uiTarget.deviceContext()) {}
@@ -43,8 +47,8 @@ void EpubReaderBookmarkListActivity::onExit() { Activity::onExit(); }
 
 void EpubReaderBookmarkListActivity::deleteSelectedBookmark() {
   if (bookmarks.empty() || selectedIndex < 0 || selectedIndex >= static_cast<int>(bookmarks.size())) return;
-  if (!BOOKMARKS.removeBookmarkAt(static_cast<size_t>(selectedIndex))) return;
-  bookmarks = BOOKMARKS.getBookmarks();
+  if (!store->removeBookmarkAt(static_cast<size_t>(selectedIndex))) return;
+  bookmarks = store->getBookmarks();
   if (bookmarks.empty())
     selectedIndex = 0;
   else if (selectedIndex >= static_cast<int>(bookmarks.size()))
@@ -160,7 +164,7 @@ void EpubReaderBookmarkListActivity::buildListScreen(UiApp::ScreenType& screen) 
       static_cast<int16_t>(renderer.getScreenHeight() - safe.y - safe.height), static_cast<int16_t>(safe.x)});
   screen.spacer(static_cast<int16_t>(metrics.verticalSpacing));
   if (bookmarks.empty()) {
-    screen.centeredText(tr(STR_NO_BOOKMARKS), screen.theme().bodyText);
+    screen.centeredText(I18N.get(emptyId), screen.theme().bodyText);
     return;
   }
   std::vector<std::string> values(bookmarks.size());
@@ -202,9 +206,9 @@ void EpubReaderBookmarkListActivity::render(RenderLock&&) {
   const Rect header{safe.x, safe.y + metrics.topPadding, safe.width,
                     TouchHeaderBackButton::height(metrics, mappedInput)};
   if (mappedInput.hasTouchHardware()) {
-    TouchHeaderBackButton::draw(renderer, uiTarget, header, tr(STR_BOOKMARKS), true);
+    TouchHeaderBackButton::draw(renderer, uiTarget, header, I18N.get(titleId), true);
   } else {
-    GUI.drawHeader(renderer, header, tr(STR_BOOKMARKS), nullptr, true);
+    GUI.drawHeader(renderer, header, I18N.get(titleId), nullptr, true);
   }
   uiReady = false;
   app.render();

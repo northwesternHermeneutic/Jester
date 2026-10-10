@@ -8,6 +8,11 @@
 inline constexpr size_t BOOKMARK_CHAPTER_TITLE_MAX = 48;
 inline constexpr size_t BOOKMARK_SNIPPET_MAX = 64;
 
+// Storage folders. Jester (feature 4) keeps dog ear locations in the same
+// per-book .bin format as bookmarks, in a sibling folder.
+inline constexpr char BOOKMARKS_STORE_DIR[] = "/.crosspoint/bookmarks";
+inline constexpr char DOGEARS_STORE_DIR[] = "/.crosspoint/dogears";
+
 struct Bookmark {
   uint16_t spineIndex;
   float progress;
@@ -45,7 +50,11 @@ class BookmarkStore {
     bool active = false;
   };
 
+  BookmarkStore() = default;
+  explicit BookmarkStore(const char* dir) : storeDir(dir) {}
   static BookmarkStore& getInstance() { return instance; }
+  // Jester (feature 4): dog ear locations, same API and format as bookmarks.
+  static BookmarkStore& dogEars() { return dogEarInstance; }
 
   // Load bookmarks for a book. Returns true even when no file exists yet (empty store).
   // bookType must be "epub", "xtc", or "txt" — used to form the cache filename.
@@ -67,34 +76,39 @@ class BookmarkStore {
   void clearAll();
 
   // Returns true if any bookmark files exist on disk (directory scan, no file parsing).
-  static bool hasAnyBookmarks();
+  static bool hasAnyBookmarks(const char* dir = nullptr);
 
   // Delete the bookmark file for a given file path and book type without loading the book.
   // bookType must be "epub", "xtc", or "txt".
-  static void deleteForFilePath(const std::string& filePath, const std::string& bookType);
+  // `dir` selects the storage folder (nullptr = bookmarks); dog ears pass DOGEARS_STORE_DIR.
+  static void deleteForFilePath(const std::string& filePath, const std::string& bookType, const char* dir = nullptr);
 
   // Rewrite bookmark storage to follow a file move/rename while preserving existing bookmarks.
   // oldFilePath and newFilePath must refer to the same logical book.
   static bool migrateForFilePath(const std::string& oldFilePath, const std::string& newFilePath,
-                                 const std::string& title, const std::string& author, const std::string& bookType);
-  static bool hasStoredStateForFilePath(const std::string& filePath, const std::string& bookType);
+                                 const std::string& title, const std::string& author, const std::string& bookType,
+                                 const char* dir = nullptr);
+  static bool hasStoredStateForFilePath(const std::string& filePath, const std::string& bookType,
+                                        const char* dir = nullptr);
 
   // Transactional variant used by file rename. Source files and destination
   // backups remain in place until commit, so a later failure can restore both
   // logical books without reverse-merging their metadata.
   static bool beginRenameMigration(const std::string& oldFilePath, const std::string& newFilePath,
                                    const std::string& title, const std::string& author, const std::string& bookType,
-                                   RenameMigration& migration);
+                                   RenameMigration& migration, const char* dir = nullptr);
   static bool commitRenameMigration(RenameMigration& migration);
   static bool rollbackRenameMigration(RenameMigration& migration);
 
   // Scan /.crosspoint/bookmarks/ and populate `out` with one entry per book that has bookmarks.
   // Reads only the file header (does not load full bookmark records).
   // Caller should reserve `out` before calling.
-  static bool getAllBookmarkedBooks(std::vector<BookmarkedBookEntry>& out);
+  static bool getAllBookmarkedBooks(std::vector<BookmarkedBookEntry>& out, const char* dir = nullptr);
 
  private:
   static BookmarkStore instance;
+  static BookmarkStore dogEarInstance;
+  const char* storeDir = BOOKMARKS_STORE_DIR;
 
   std::vector<Bookmark> bookmarks;
   std::string bookFilePath;
@@ -109,3 +123,4 @@ class BookmarkStore {
 };
 
 #define BOOKMARKS BookmarkStore::getInstance()
+#define DOGEARS BookmarkStore::dogEars()

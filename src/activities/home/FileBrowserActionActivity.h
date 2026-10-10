@@ -35,6 +35,8 @@ enum class FileBrowserAction : int {
   IncludeInLibrary = 103,     // feature 19
   MakeLibrary = 104,          // feature 19
   RemoveLibrary = 105,        // feature 19
+  ViewDogEars = 106,          // feature 4
+  DeleteDogEars = 107,        // feature 4
 };
 
 class FileBrowserActionActivity final : public Activity {

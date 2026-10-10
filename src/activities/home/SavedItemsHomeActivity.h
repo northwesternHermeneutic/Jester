@@ -17,6 +17,7 @@ struct SavedBookEntry {
   std::string bookType;
   uint16_t bookmarkCount = 0;
   uint16_t clippingCount = 0;
+  uint16_t dogEarCount = 0;  // Jester (feature 4)
 };
 
 class SavedItemsHomeActivity final : public Activity {
@@ -47,6 +48,7 @@ class SavedItemsHomeActivity final : public Activity {
   void reloadSavedBooks();
   void openSavedItems(int bookIndex);
   void openBookmarkList(const SavedBookEntry& entry);
+  void openDogEarList(const SavedBookEntry& entry);
   void openClippingList(const SavedBookEntry& entry);
   void showSavedKindMenu(int bookIndex);
   void showSavedBookActionMenu(int bookIndex, bool ignoreInitialConfirmRelease);

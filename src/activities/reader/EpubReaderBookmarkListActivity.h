@@ -2,6 +2,7 @@
 
 #include <FreeInkApp.h>
 #include <FreeInkUIGfxRenderer.h>
+#include <I18n.h>
 
 #include <atomic>
 #include <vector>
@@ -14,7 +15,9 @@
 class EpubReaderBookmarkListActivity final : public Activity {
  public:
   EpubReaderBookmarkListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
-                                 const std::vector<Bookmark>& bookmarks, bool shortBook = false);
+                                 const std::vector<Bookmark>& bookmarks, bool shortBook = false,
+                                 BookmarkStore* store = nullptr, StrId titleId = StrId::STR_BOOKMARKS,
+                                 StrId emptyId = StrId::STR_NO_BOOKMARKS);
 
   void onEnter() override;
   void onExit() override;
@@ -25,6 +28,10 @@ class EpubReaderBookmarkListActivity final : public Activity {
 
  private:
   bool shortBook = false;  // Jester (feature 2): whole-number percentages
+  // Jester (feature 4): the same list shows dog ears (DOGEARS store, own titles).
+  BookmarkStore* store = nullptr;
+  StrId titleId = StrId::STR_BOOKMARKS;
+  StrId emptyId = StrId::STR_NO_BOOKMARKS;
   std::vector<Bookmark> bookmarks;
   int selectedIndex = 0;
   bool confirmingDelete = false;

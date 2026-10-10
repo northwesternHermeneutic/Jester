@@ -22,6 +22,13 @@ class EpubReaderMenuActivity final : public Activity {
  public:
   using MenuAction = EpubReaderMenuAction;
 
+  // Jester (feature 4): Add/Remove Dog Ear and View Dog Ears lead the bookmarks page.
+  void setDogEarState(const bool isDogEared, const bool hasDogEars) {
+    auto& items = menuItems[BOOKMARKS_TAB_INDEX];
+    if (hasDogEars) items.insert(items.begin(), {MenuAction::VIEW_DOG_EARS, StrId::STR_VIEW_DOG_EARS});
+    items.insert(items.begin(),
+                 {MenuAction::DOG_EAR_TOGGLE, isDogEared ? StrId::STR_REMOVE_DOG_EAR : StrId::STR_ADD_DOG_EAR});
+  }
   // Jester (feature 1): adds Add/Remove Favorite at the end of the bookmarks page.
   void setFavorite(const bool isFavorite) {
     menuItems[BOOKMARKS_TAB_INDEX].push_back(

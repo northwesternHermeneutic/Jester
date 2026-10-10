@@ -131,6 +131,7 @@ RenameMigrationResult migrateRenamedBookState(const std::string& oldPath, const 
   // staging anything, even if the source book has never created a cache.
   const auto& recentBooks = RECENT_BOOKS.getBooks();
   if (Storage.exists(newCachePath.c_str()) || BookmarkStore::hasStoredStateForFilePath(newPath, bookType) ||
+      BookmarkStore::hasStoredStateForFilePath(newPath, bookType, DOGEARS_STORE_DIR) ||
       (strcmp(bookType, "epub") == 0 && ClippingStore::hasStoredStateForFilePath(newPath, bookType)) ||
       std::any_of(recentBooks.begin(), recentBooks.end(),
                   [&newPath](const RecentBook& book) { return book.path == newPath; })) {
@@ -144,11 +145,15 @@ RenameMigrationResult migrateRenamedBookState(const std::string& oldPath, const 
   bool openPathMoved = false;
   const bool shouldMoveOpenPath = APP_STATE.openEpubPath == oldPath;
   BookmarkStore::RenameMigration bookmarkMigration;
+  BookmarkStore::RenameMigration dogEarMigration;  // Jester (feature 4)
   ClippingStore::RenameMigration clippingMigration;
 
   const auto commitMetadata = [&]() {
     if (!BookmarkStore::commitRenameMigration(bookmarkMigration)) {
       LOG_ERR("BookMove", "Renamed book kept stale bookmark rollback files: %s", newPath.c_str());
+    }
+    if (!BookmarkStore::commitRenameMigration(dogEarMigration)) {
+      LOG_ERR("BookMove", "Renamed book kept stale dog ear rollback files: %s", newPath.c_str());
     }
     if (!ClippingStore::commitRenameMigration(clippingMigration)) {
       LOG_ERR("BookMove", "Renamed book kept stale clipping rollback files: %s", newPath.c_str());
@@ -184,6 +189,10 @@ RenameMigrationResult migrateRenamedBookState(const std::string& oldPath, const 
     }
     if (!BookmarkStore::rollbackRenameMigration(bookmarkMigration)) {
       LOG_ERR("BookMove", "Failed to restore bookmark metadata after rename: %s", newPath.c_str());
+      rolledBack = false;
+    }
+    if (!BookmarkStore::rollbackRenameMigration(dogEarMigration)) {
+      LOG_ERR("BookMove", "Failed to restore dog ear metadata after rename: %s", newPath.c_str());
       rolledBack = false;
     }
     if (cacheMoved && Storage.exists(newCachePath.c_str()) &&
@@ -239,6 +248,11 @@ RenameMigrationResult migrateRenamedBookState(const std::string& oldPath, const 
   // intact; after it succeeds, the new-path metadata is already discoverable.
   if (!BookmarkStore::beginRenameMigration(oldPath, newPath, title, author, bookType, bookmarkMigration)) {
     LOG_ERR("BookMove", "Failed to migrate bookmarks for renamed book %s -> %s", oldPath.c_str(), newPath.c_str());
+    return recover();
+  }
+  if (!BookmarkStore::beginRenameMigration(oldPath, newPath, title, author, bookType, dogEarMigration,
+                                           DOGEARS_STORE_DIR)) {
+    LOG_ERR("BookMove", "Failed to migrate dog ears for renamed book %s -> %s", oldPath.c_str(), newPath.c_str());
     return recover();
   }
 
@@ -298,6 +312,10 @@ bool migrateMovedEpubState(const std::string& oldPath, const std::string& newPat
     }
   }
 
+  if (!BookmarkStore::migrateForFilePath(oldPath, newPath, title, author, "epub", DOGEARS_STORE_DIR)) {
+    LOG_ERR("BookMove", "Failed to migrate dog ears for moved book %s -> %s", oldPath.c_str(), newPath.c_str());
+    ok = false;
+  }
   if (!BookmarkStore::migrateForFilePath(oldPath, newPath, title, author, "epub")) {
     LOG_ERR("BookMove", "Failed to migrate bookmarks for moved book %s -> %s", oldPath.c_str(), newPath.c_str());
     ok = false;

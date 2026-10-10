@@ -928,6 +928,18 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
     renderer.fillPolygon(notchX, notchY, 3, content.darkMode);
     bookmarkReserve = bookmarkWidth + 4;
   }
+  if (!top && content.dogEared) {
+    // Jester (feature 4): a folded page corner, in the bookmark's place or beside it.
+    constexpr int earSize = ReaderStatusBarConfig::BOOKMARK_HEIGHT;
+    const int earY = hasText ? textY + (metrics.batteryHeight - earSize) / 2 + 5 : edgeY;
+    const int earX = marginLeft + metrics.statusBarHorizontalMargin + 1 + bookmarkReserve;
+    const int foldX[3] = {earX, earX + earSize, earX};
+    const int foldY[3] = {earY, earY, earY + earSize};
+    renderer.fillPolygon(foldX, foldY, 3, foregroundBlack);
+    renderer.drawLine(earX + earSize, earY, earX + earSize, earY + earSize, foregroundBlack);
+    renderer.drawLine(earX, earY + earSize, earX + earSize, earY + earSize, foregroundBlack);
+    bookmarkReserve += earSize + 4;
+  }
   if (!hasText) return;
 
   const bool batteryPercent = SETTINGS.hideBatteryPercentage == CrossPointSettings::HIDE_NEVER;

@@ -2325,6 +2325,7 @@ void EpubReaderActivity::onEnter() {
   // Jester (feature 2): record the book size for Home and Library percentages.
   BookPercentFormat::saveBookSize(epub->getCachePath(), epub->getBookSize());
   BOOKMARKS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
+  DOGEARS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
   CLIPPINGS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
 
   uint16_t restartPageBuildSpine = UINT16_MAX;
@@ -2499,6 +2500,7 @@ void EpubReaderActivity::onExit() {
   }
 
   BOOKMARKS.unload();
+  DOGEARS.unload();
   CLIPPINGS.unload();
   section.reset();
   if (epub && !saveLinkStack()) {
@@ -2599,6 +2601,13 @@ void EpubReaderActivity::openReaderMenu() {
         bookSettings.dictionarySdFontFamilyName, bookSettings.dictionaryFontPointSize,
         bookSettings.hasDictionaryFontOverride, saveDictionaryFontForBookReader, this);
     if (buttonMenu) {
+      const int earPageCount = section ? section->estimatedTotalPages() : 0;
+      const bool dogEared =
+          !previewActive && section && earPageCount > 0 &&
+          DOGEARS.hasBookmarkForPage(static_cast<uint16_t>(currentSpineIndex),
+                                     static_cast<float>(section->currentPage) / static_cast<float>(earPageCount),
+                                     earPageCount);
+      buttonMenu->setDogEarState(dogEared, !DOGEARS.getBookmarks().empty());
       buttonMenu->setFavorite(Favorites::contains(epub->getPath()));
       buttonMenu->setBookProgressLabel(
           BookPercentFormat::format(bookProgress, epub && BookPercentFormat::isShortBook(epub->getBookSize())));
@@ -4150,6 +4159,12 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       activityManager.replaceActivity(std::move(syncActivity));
       break;
     }
+    case EpubReaderMenuActivity::MenuAction::DOG_EAR_TOGGLE:
+      toggleDogEar();
+      break;
+    case EpubReaderMenuActivity::MenuAction::VIEW_DOG_EARS:
+      openDogEarList();
+      break;
     case EpubReaderMenuActivity::MenuAction::FAVORITE_TOGGLE:
       if (epub) BookActions::toggleFavorite(renderer, epub->getPath(), epub->getTitle(), epub->getAuthor());
       requestUpdate();
@@ -4197,33 +4212,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
               epub && BookPercentFormat::isShortBook(epub->getBookSize())),
           [this, returnToReaderMenu](const ActivityResult& result) {
             if (!result.isCancelled) {
-              const auto& bm = std::get<BookmarkResult>(result.data);
-              RenderLock lock(*this);
-              clearFootnotePreviewState();
-              if (section && currentSpineIndex == bm.spineIndex) {
-                bool resolved = false;
-                const uint16_t fallbackPage =
-                    pageFromStoredProgress(bm.progress, static_cast<uint16_t>(section->estimatedTotalPages()));
-                if (bm.paragraphIndex != UINT16_MAX) {
-                  section->currentPage = resolveParagraphJumpPage(*section, bm.paragraphIndex, fallbackPage);
-                  resolved = true;
-                  LOG_DBG("ERS", "Resolved bookmark paragraph %u to page %d", bm.paragraphIndex, section->currentPage);
-                }
-                if (!resolved) {
-                  section->currentPage = fallbackPage;
-                }
-                nextPageNumber = section->currentPage;
-                pendingPercentJump = false;
-                pendingParagraphIndex = UINT16_MAX;
-              } else {
-                currentSpineIndex = bm.spineIndex;
-                pendingSpineProgress = bm.progress;
-                pendingParagraphIndex = bm.paragraphIndex;
-                pendingPercentJump = true;
-                section.reset();
-              }
-              armReadingPaceWarmup("bookmark_jump");
-              pauseReadingPaceTimer("bookmark_jump");
+              jumpToSavedLocation(std::get<BookmarkResult>(result.data));
             } else {
               resumeReadingPaceTimer("bookmark_list_cancel");
               if (returnToReaderMenu && mappedInput.hasTouchHardware()) {
@@ -4926,6 +4915,9 @@ void EpubReaderActivity::executeReaderQuickAction(CrossPointSettings::LONG_PRESS
         requestUpdate();
       }
       break;
+    case CrossPointSettings::LONG_MENU_DOG_EAR:
+      toggleDogEar();
+      break;
     case CrossPointSettings::LONG_MENU_QUICK_ACTIONS:
       openQuickActionsPopup();
       break;
@@ -4941,6 +4933,9 @@ void EpubReaderActivity::executeReaderQuickAction(CrossPointSettings::LONG_PRESS
 bool EpubReaderActivity::handleShortcutAction(const uint8_t rawAction) {
   const auto action = static_cast<CrossPointSettings::SHORT_PWRBTN>(rawAction);
   switch (action) {
+    case CrossPointSettings::SHORT_PWRBTN::DOG_EAR:
+      toggleDogEar();
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
       applyOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
       requestUpdate();
@@ -5035,6 +5030,9 @@ bool EpubReaderActivity::handleShortcutAction(const uint8_t rawAction) {
 
 bool EpubReaderActivity::handleShortcutAction(const CrossPointSettings::SHORT_PWRBTN action) {
   switch (action) {
+    case CrossPointSettings::SHORT_PWRBTN::DOG_EAR:
+      toggleDogEar();
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
       applyOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
       requestUpdate();
@@ -5144,6 +5142,146 @@ void EpubReaderActivity::openQuickActionsPopup() {
     mappedInput.setReaderTouchscreenOverride(true);
     quickActionsPopup.setCancelCallback([this] { mappedInput.setReaderTouchscreenOverride(false); });
   }
+}
+
+void EpubReaderActivity::jumpToSavedLocation(const BookmarkResult& bm) {
+  RenderLock lock(*this);
+  clearFootnotePreviewState();
+  if (section && currentSpineIndex == bm.spineIndex) {
+    bool resolved = false;
+    const uint16_t fallbackPage =
+        pageFromStoredProgress(bm.progress, static_cast<uint16_t>(section->estimatedTotalPages()));
+    if (bm.paragraphIndex != UINT16_MAX) {
+      section->currentPage = resolveParagraphJumpPage(*section, bm.paragraphIndex, fallbackPage);
+      resolved = true;
+      LOG_DBG("ERS", "Resolved bookmark paragraph %u to page %d", bm.paragraphIndex, section->currentPage);
+    }
+    if (!resolved) {
+      section->currentPage = fallbackPage;
+    }
+    nextPageNumber = section->currentPage;
+    pendingPercentJump = false;
+    pendingParagraphIndex = UINT16_MAX;
+  } else {
+    currentSpineIndex = bm.spineIndex;
+    pendingSpineProgress = bm.progress;
+    pendingParagraphIndex = bm.paragraphIndex;
+    pendingPercentJump = true;
+    section.reset();
+  }
+  armReadingPaceWarmup("bookmark_jump");
+  pauseReadingPaceTimer("bookmark_jump");
+}
+
+namespace {
+// Streams the page's words into the dog ear text file through a small buffer,
+// so no whole-page string is built (casper f7843009: page text capture OOM).
+struct DogEarTextSource {
+  const Page* page = nullptr;
+};
+
+bool writeDogEarText(void* context, FsFile& file) {
+  const auto* source = static_cast<const DogEarTextSource*>(context);
+  if (!source || !source->page) return true;
+  char buffer[256];
+  size_t used = 0;
+  bool first = true;
+  const auto flush = [&]() {
+    if (used == 0) return true;
+    const bool ok = file.write(buffer, used) == used;
+    used = 0;
+    return ok;
+  };
+  const auto put = [&](const char* data, const size_t len) {
+    for (size_t offset = 0; offset < len;) {
+      if (used == sizeof(buffer) && !flush()) return false;
+      const size_t chunk = std::min(len - offset, sizeof(buffer) - used);
+      memcpy(buffer + used, data + offset, chunk);
+      used += chunk;
+      offset += chunk;
+    }
+    return true;
+  };
+  for (const auto& element : source->page->elements) {
+    if (element->getTag() != TAG_PageLine) continue;
+    const auto& line = static_cast<const PageLine&>(*element);
+    if (!line.getBlock()) continue;
+    const auto& block = *line.getBlock();
+    for (uint16_t i = 0; i < block.wordCount(); ++i) {
+      const char* word = block.wordText(i);
+      if (isSnippetWhitespace(word)) continue;
+      if (!first && !put(" ", 1)) return false;
+      if (!put(word, std::strlen(word))) return false;
+      first = false;
+    }
+  }
+  return flush();
+}
+}  // namespace
+
+void EpubReaderActivity::toggleDogEar() {
+  const int pageCount = section ? section->estimatedTotalPages() : 0;
+  if (!epub || activeFootnotePreview || !section || pageCount == 0 || section->pageCount == 0) return;
+  const uint16_t spine = static_cast<uint16_t>(currentSpineIndex);
+  const float progress = static_cast<float>(section->currentPage) / static_cast<float>(pageCount);
+
+  if (DOGEARS.hasBookmarkForPage(spine, progress, pageCount)) {
+    // The text record stays in /DogEars; only the location is removed.
+    DOGEARS.removeBookmarkForPage(spine, progress, pageCount);
+    drawToast(renderer, tr(STR_DOG_EAR_REMOVED));
+    requestUpdate();
+    return;
+  }
+
+  std::string chapterTitle;
+  const int tocIndex = epub->getTocIndexForSpineIndex(currentSpineIndex);
+  if (tocIndex != -1) chapterTitle = epub->getTocItem(tocIndex).title;
+  uint16_t paragraphIndex = UINT16_MAX;
+  if (const auto pIdx = section->getParagraphIndexForPage(static_cast<uint16_t>(section->currentPage))) {
+    paragraphIndex = *pIdx;
+  }
+  auto page = section->loadPage(section->currentPage);
+  char snippet[BOOKMARK_SNIPPET_MAX] = {};
+  if (page) buildBookmarkSnippet(*page, snippet, sizeof(snippet));
+
+  if (DOGEARS.addBookmark(spine, progress, pageCount, chapterTitle.empty() ? nullptr : chapterTitle.c_str(),
+                          paragraphIndex, snippet) != BookmarkStore::AddResult::Added) {
+    drawToast(renderer, tr(STR_DOG_EAR_LIMIT));
+    requestUpdate();
+    return;
+  }
+
+  // Book file name without folder or extension, for /DogEars/dogears-<name>.txt.
+  std::string fileName = epub->getPath();
+  const size_t slash = fileName.find_last_of('/');
+  if (slash != std::string::npos) fileName.erase(0, slash + 1);
+  const size_t dot = fileName.find_last_of('.');
+  if (dot != std::string::npos && dot > 0) fileName.resize(dot);
+
+  const std::string percent =
+      BookPercentFormat::format(getCurrentBookProgressPercent(), BookPercentFormat::isShortBook(epub->getBookSize()));
+  DogEarTextSource source{page.get()};
+  const bool textSaved =
+      ClippingsManager::saveDogEar(fileName, epub->getTitle(), epub->getAuthor(), chapterTitle,
+                                   section->currentPage + 1, percent, &writeDogEarText, &source);
+  drawToast(renderer, textSaved ? tr(STR_DOG_EAR_ADDED) : tr(STR_DOG_EAR_TEXT_FAILED));
+  requestUpdate();
+}
+
+void EpubReaderActivity::openDogEarList() {
+  pauseReadingPaceTimer("dog_ear_list");
+  startActivityForResult(
+      std::make_unique<EpubReaderBookmarkListActivity>(
+          renderer, mappedInput, DOGEARS.getBookmarks(), epub && BookPercentFormat::isShortBook(epub->getBookSize()),
+          &DOGEARS, StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS),
+      [this](const ActivityResult& result) {
+        if (!result.isCancelled) {
+          jumpToSavedLocation(std::get<BookmarkResult>(result.data));
+        } else {
+          resumeReadingPaceTimer("dog_ear_list_cancel");
+        }
+        requestUpdate();
+      });
 }
 
 void EpubReaderActivity::executeFootnoteQuickAction(const bool suppressInitialPowerRelease) {
@@ -7629,6 +7767,9 @@ void EpubReaderActivity::renderStatusBar() const {
                                 ? chapterTime
                                 : nullptr;
   content.bookmarked = bookmarked;
+  content.dogEared =
+      !activeFootnotePreview &&
+      DOGEARS.hasBookmarkForPage(static_cast<uint16_t>(currentSpineIndex), rawProgress, bookmarkPageCount);
   content.showProgress = !activeFootnotePreview;
   content.pageCountEstimated = pageCountEstimated;
   content.darkMode = ReaderUtils::readerDarkModeEnabled();

@@ -425,6 +425,11 @@ class EpubReaderActivity final : public Activity {
                                 QuickLockTrigger quickLockTrigger = QuickLockTrigger::LongMenu);
   void openQuickActionsPopup();
   void executeFootnoteQuickAction(bool suppressInitialPowerRelease = false);
+  // Jester (feature 4): add or remove a dog ear on the current page; adding also
+  // appends the page text to /DogEars/dogears-<book>.txt.
+  void toggleDogEar();
+  void openDogEarList();
+  void jumpToSavedLocation(const BookmarkResult& bm);
 #if CROSSINK_APP_CAP_TOUCH
   bool handlePinchFontResize();
   void resetPinchFontGesture();

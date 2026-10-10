@@ -110,11 +110,14 @@ void clearFileMetadata(const std::string& fullPath) {
   if (FsHelpers::hasEpubExtension(fullPath)) {
     Epub(fullPath, "/.crosspoint").clearCache();
     BookmarkStore::deleteForFilePath(fullPath, "epub");
+    BookmarkStore::deleteForFilePath(fullPath, "epub", DOGEARS_STORE_DIR);
     ClippingStore::deleteForFilePath(fullPath, "epub");
   } else if (FsHelpers::hasXtcExtension(fullPath)) {
     BookmarkStore::deleteForFilePath(fullPath, "xtc");
+    BookmarkStore::deleteForFilePath(fullPath, "xtc", DOGEARS_STORE_DIR);
   } else if (FsHelpers::hasTxtExtension(fullPath) || FsHelpers::hasMarkdownExtension(fullPath)) {
     BookmarkStore::deleteForFilePath(fullPath, "txt");
+    BookmarkStore::deleteForFilePath(fullPath, "txt", DOGEARS_STORE_DIR);
   }
 }
 

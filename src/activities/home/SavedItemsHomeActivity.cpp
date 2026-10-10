@@ -55,6 +55,20 @@ void mergeClippingEntry(std::vector<SavedBookEntry>& out, const ClippedBookEntry
   out.push_back(
       {entry.bookTitle, entry.bookAuthor, entry.bookPath, entry.bookType, static_cast<uint16_t>(0), entry.count});
 }
+void mergeDogEarEntry(std::vector<SavedBookEntry>& out, const BookmarkedBookEntry& entry) {
+  auto it = std::find_if(out.begin(), out.end(), [&](const SavedBookEntry& existing) {
+    return existing.bookPath == entry.bookPath && existing.bookType == entry.bookType;
+  });
+  if (it != out.end()) {
+    it->dogEarCount = entry.count;
+    if (it->bookTitle.empty()) it->bookTitle = entry.bookTitle;
+    if (it->bookAuthor.empty()) it->bookAuthor = entry.bookAuthor;
+    return;
+  }
+  SavedBookEntry added{entry.bookTitle, entry.bookAuthor, entry.bookPath, entry.bookType};
+  added.dogEarCount = entry.count;
+  out.push_back(std::move(added));
+}
 }  // namespace
 
 SavedItemsHomeActivity::SavedItemsHomeActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
@@ -66,11 +80,16 @@ void SavedItemsHomeActivity::reloadSavedBooks() {
   books.clear();
 
   std::vector<BookmarkedBookEntry> bookmarkedBooks;
+  std::vector<BookmarkedBookEntry> dogEaredBooks;
   std::vector<ClippedBookEntry> clippedBooks;
   BookmarkStore::getAllBookmarkedBooks(bookmarkedBooks);
+  BookmarkStore::getAllBookmarkedBooks(dogEaredBooks, DOGEARS_STORE_DIR);
   ClippingStore::getAllClippedBooks(clippedBooks);
 
-  books.reserve(bookmarkedBooks.size() + clippedBooks.size());
+  books.reserve(bookmarkedBooks.size() + dogEaredBooks.size() + clippedBooks.size());
+  for (const auto& entry : dogEaredBooks) {
+    mergeDogEarEntry(books, entry);
+  }
   for (const auto& entry : bookmarkedBooks) {
     mergeBookmarkEntry(books, entry);
   }
@@ -245,9 +264,12 @@ void SavedItemsHomeActivity::openSavedItems(const int bookIndex) {
   const SavedBookEntry entry = books[bookIndex];
   const bool hasBookmarks = entry.bookmarkCount > 0;
   const bool hasClippings = entry.clippingCount > 0;
+  const bool hasDogEars = entry.dogEarCount > 0;
 
-  if (hasBookmarks && hasClippings) {
+  if (static_cast<int>(hasBookmarks) + static_cast<int>(hasClippings) + static_cast<int>(hasDogEars) > 1) {
     showSavedKindMenu(bookIndex);
+  } else if (hasDogEars) {
+    openDogEarList(entry);
   } else if (hasBookmarks) {
     openBookmarkList(entry);
   } else if (hasClippings) {
@@ -260,9 +282,11 @@ void SavedItemsHomeActivity::showSavedKindMenu(const int bookIndex) {
   const SavedBookEntry entry = books[bookIndex];
 
   std::vector<FileBrowserActionActivity::MenuItem> items;
-  items.reserve(2);
-  items.push_back({FileBrowserAction::ViewBookmarks, StrId::STR_BOOKMARKS});
-  items.push_back({FileBrowserAction::ViewClippings, StrId::STR_CLIPPINGS});
+  items.reserve(3);
+  // Jester (feature 4): dog ears come first wherever bookmarks and clippings appear.
+  if (entry.dogEarCount > 0) items.push_back({FileBrowserAction::ViewDogEars, StrId::STR_DOG_EARS});
+  if (entry.bookmarkCount > 0) items.push_back({FileBrowserAction::ViewBookmarks, StrId::STR_BOOKMARKS});
+  if (entry.clippingCount > 0) items.push_back({FileBrowserAction::ViewClippings, StrId::STR_CLIPPINGS});
 
   startActivityForResult(
       std::make_unique<FileBrowserActionActivity>(renderer, mappedInput, entry.bookTitle, std::move(items)),
@@ -274,6 +298,9 @@ void SavedItemsHomeActivity::showSavedKindMenu(const int bookIndex) {
         }
 
         switch (static_cast<FileBrowserAction>(actionResult->action)) {
+          case FileBrowserAction::ViewDogEars:
+            openDogEarList(entry);
+            break;
           case FileBrowserAction::ViewBookmarks:
             openBookmarkList(entry);
             break;
@@ -292,7 +319,10 @@ void SavedItemsHomeActivity::showSavedBookActionMenu(const int bookIndex, const 
   const SavedBookEntry entry = books[bookIndex];
 
   std::vector<FileBrowserActionActivity::MenuItem> items;
-  items.reserve(2);
+  items.reserve(3);
+  if (entry.dogEarCount > 0) {
+    items.push_back({FileBrowserAction::DeleteDogEars, StrId::STR_DELETE_DOG_EARS});
+  }
   if (entry.bookmarkCount > 0) {
     items.push_back({FileBrowserAction::DeleteBookmarks, StrId::STR_DELETE_BOOKMARKS});
   }
@@ -332,6 +362,12 @@ void SavedItemsHomeActivity::showSavedBookActionMenu(const int bookIndex, const 
               CLIPPINGS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
               CLIPPINGS.clearAll();
               break;
+            case FileBrowserAction::DeleteDogEars:
+              // Locations only; the /DogEars text file is the user's to keep.
+              DOGEARS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
+              DOGEARS.clearAll();
+              DOGEARS.unload();
+              break;
             default:
               break;
           }
@@ -365,6 +401,29 @@ void SavedItemsHomeActivity::openBookmarkList(const SavedBookEntry& entry) {
           requestUpdate();
         }
       });
+}
+
+void SavedItemsHomeActivity::openDogEarList(const SavedBookEntry& entry) {
+  DOGEARS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
+  startActivityForResult(std::make_unique<EpubReaderBookmarkListActivity>(renderer, mappedInput, DOGEARS.getBookmarks(),
+                                                                          false, &DOGEARS, StrId::STR_DOG_EARS,
+                                                                          StrId::STR_NO_DOG_EARS),
+                         [this, entry](const ActivityResult& result) {
+                           const auto* mark = result.isCancelled ? nullptr : std::get_if<BookmarkResult>(&result.data);
+                           if (mark) {
+                             APP_STATE.pendingBookmarkSpine = mark->spineIndex;
+                             APP_STATE.pendingBookmarkProgress = mark->progress;
+                             APP_STATE.pendingBookmarkParagraphIndex = mark->paragraphIndex;
+                             APP_STATE.pendingClippingIndex = UINT16_MAX;
+                             APP_STATE.saveToFile();
+                             DOGEARS.unload();
+                             onSelectBook(entry.bookPath);
+                             return;
+                           }
+                           DOGEARS.unload();
+                           reloadSavedBooks();
+                           requestUpdate();
+                         });
 }
 
 void SavedItemsHomeActivity::openClippingList(const SavedBookEntry& entry) {

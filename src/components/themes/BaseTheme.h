@@ -42,6 +42,7 @@ struct ReaderStatusBarContent {
   const char* previewClock = nullptr;
   const char* autoTurnLabel = nullptr;
   bool bookmarked = false;
+  bool dogEared = false;  // Jester (feature 4)
   bool showProgress = true;
   bool pageCountEstimated = false;
   bool darkMode = false;

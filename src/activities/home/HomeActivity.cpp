@@ -858,7 +858,8 @@ void HomeActivity::onEnter() {
       static_cast<CrossPointSettings::UI_THEME>(SETTINGS.uiTheme) == CrossPointSettings::UI_THEME::LYRA_CAROUSEL;
 
   // Check if any books have bookmarks (directory scan only, no file parsing)
-  hasBookmarks = BookmarkStore::hasAnyBookmarks();
+  // Jester (feature 4): dog ears also open the Bookmarks & Clippings section.
+  hasBookmarks = BookmarkStore::hasAnyBookmarks() || BookmarkStore::hasAnyBookmarks(DOGEARS_STORE_DIR);
   hasClippings = ClippingStore::hasAnyClippings();
 
   selectorIndex = 0;
