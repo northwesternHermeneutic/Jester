@@ -161,7 +161,8 @@ bool ClippingsManager::saveClipping(const std::string& bookTitle, const std::str
 
 bool ClippingsManager::saveDogEar(const std::string& bookFileName, const std::string& bookTitle,
                                   const std::string& author, const std::string& chapterTitle, const int pageNumber,
-                                  const std::string& percentLabel, const TextWriter writeText, void* context) {
+                                  const std::string& percentLabel, const char* publisherPage,
+                                  const TextWriter writeText, void* context) {
   Storage.mkdir(DOGEARS_TEXT_DIR);
   const std::string path = std::string(DOGEARS_TEXT_DIR) + "/dogears-" + bookFileName + ".txt";
   FsFile file = Storage.open(path.c_str(), O_RDWR | O_CREAT | O_AT_END);
@@ -172,6 +173,10 @@ bool ClippingsManager::saveDogEar(const std::string& bookFileName, const std::st
 
   std::string header = bookTitle + " (" + author + ")\n- Your Dog Ear on Page " + std::to_string(pageNumber) + " | " +
                        percentLabel;
+  if (publisherPage && publisherPage[0] != '\0') {
+    header += " | Publisher Page ";
+    header += publisherPage;
+  }
   if (!chapterTitle.empty()) header += " | " + chapterTitle;
   char addedOn[80];
   if (formatKindleAddedOn(addedOn, sizeof(addedOn))) {

@@ -17,6 +17,6 @@ class ClippingsManager {
   using TextWriter = bool (*)(void* context, FsFile& file);
   static bool saveDogEar(const std::string& bookFileName, const std::string& bookTitle, const std::string& author,
                          const std::string& chapterTitle, int pageNumber, const std::string& percentLabel,
-                         TextWriter writeText, void* context);
+                         const char* publisherPage, TextWriter writeText, void* context);
   static constexpr const char* DOGEARS_TEXT_DIR = "/DogEars";
 };

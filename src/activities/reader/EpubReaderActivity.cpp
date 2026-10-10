@@ -5273,12 +5273,14 @@ void EpubReaderActivity::toggleDogEar() {
   const size_t dot = fileName.find_last_of('.');
   if (dot != std::string::npos && dot > 0) fileName.resize(dot);
 
-  const std::string percent =
-      BookPercentFormat::format(getCurrentBookProgressPercent(), BookPercentFormat::isShortBook(epub->getBookSize()));
+  // The record always gives the location to a tenth of a percent.
+  char percent[16];
+  snprintf(percent, sizeof(percent), "%.1f%%", std::clamp(getCurrentBookProgressPercent(), 0.0f, 100.0f));
+  if (page) updatePublisherLabel(*page, true);
   DogEarTextSource source{page.get()};
   const bool textSaved =
       ClippingsManager::saveDogEar(fileName, epub->getTitle(), epub->getAuthor(), chapterTitle,
-                                   section->currentPage + 1, percent, &writeDogEarText, &source);
+                                   section->currentPage + 1, percent, publisherLabel, &writeDogEarText, &source);
   drawToast(renderer, textSaved ? tr(STR_DOG_EAR_ADDED) : tr(STR_DOG_EAR_TEXT_FAILED));
   requestUpdate();
 }
@@ -7157,23 +7159,52 @@ void EpubReaderActivity::prepareCurrentSectionForRelayout() {
   cacheCurrentSectionPosition();
 }
 
-void EpubReaderActivity::updatePublisherLabel(const Page& page) {
+bool EpubReaderActivity::publisherLabelShown() const {
+  return SETTINGS.readerStatusBar(ReaderStatusBarPosition::Top).contains(ReaderStatusBarItem::PublisherPageNumber) ||
+         SETTINGS.readerStatusBar(ReaderStatusBarPosition::Bottom).contains(ReaderStatusBarItem::PublisherPageNumber);
+}
+
+void EpubReaderActivity::updatePublisherLabel(const Page& page, const bool force) {
   if (!section) return;
+  // The label costs page loads after a jump. Skip it when no status bar shows it;
+  // a new dog ear asks for it with force.
+  if (!force && !publisherLabelShown()) {
+    publisherLabelSpine = -1;
+    publisherLabelPage = -1;
+    publisherLabel[0] = '\0';
+    return;
+  }
   const int spine = currentSpineIndex;
   const int pageIndex = section->currentPage;
   if (spine == publisherLabelSpine && pageIndex == publisherLabelPage) return;
   const bool forwardStep = (spine == publisherLabelSpine && pageIndex == publisherLabelPage + 1) ||
                            (spine == publisherLabelSpine + 1 && pageIndex == 0);
-  publisherLabelSpine = spine;
-  publisherLabelPage = pageIndex;
   if (!page.publisherPageMarkers.empty()) {
+    publisherLabelSpine = spine;
+    publisherLabelPage = pageIndex;
     std::strncpy(publisherLabel, page.publisherPageMarkers.back().label, sizeof(publisherLabel) - 1);
     publisherLabel[sizeof(publisherLabel) - 1] = '\0';
     return;
   }
-  if (forwardStep) return;  // reading on: the label carries over
-  // After a jump or a step back, look a few pages back in this section.
+  if (forwardStep) {  // reading on: the label carries over
+    publisherLabelSpine = spine;
+    publisherLabelPage = pageIndex;
+    return;
+  }
   publisherLabel[0] = '\0';
+  // While the chapter is still being laid out, the parser needs the heap; loading
+  // earlier pages here could push it under its layout floor. Without spare heap,
+  // leave the label empty and unresolved so a later render retries the lookback.
+  if (section->isBuilding() &&
+      !MemoryBudget::hasHeap(MemoryBudget::snapshot(), MemoryBudget::OPTIONAL_EPUB_REBUILD_MIN_FREE,
+                             MemoryBudget::OPTIONAL_EPUB_REBUILD_MIN_MAX_ALLOC)) {
+    publisherLabelSpine = -1;
+    publisherLabelPage = -1;
+    return;
+  }
+  publisherLabelSpine = spine;
+  publisherLabelPage = pageIndex;
+  // After a jump or a step back, look a few pages back in this section.
   constexpr int MAX_LOOKBACK_PAGES = 10;
   for (int index = pageIndex - 1; index >= 0 && index >= pageIndex - MAX_LOOKBACK_PAGES; --index) {
     const auto earlier = section->loadPage(index);

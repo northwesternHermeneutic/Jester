@@ -435,7 +435,8 @@ class EpubReaderActivity final : public Activity {
   char publisherLabel[16] = {};
   int publisherLabelSpine = -1;
   int publisherLabelPage = -1;
-  void updatePublisherLabel(const Page& page);
+  bool publisherLabelShown() const;
+  void updatePublisherLabel(const Page& page, bool force = false);
 #if CROSSINK_APP_CAP_TOUCH
   bool handlePinchFontResize();
   void resetPinchFontGesture();
