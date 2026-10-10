@@ -601,21 +601,17 @@ static_assert(HomeActivity::kMaxCachedBooks >= LyraCarouselMetrics::values.homeR
 
 int HomeActivity::getMenuItemCount() const {
   const auto& metrics = UITheme::getInstance().getMetrics();
-  int count = 4;  // File Browser, Library, File transfer, Settings
+  // Jester: count the entries the menu builder actually produces, so added
+  // (Favorites) or hidden (OPDS, Reading Stats) entries cannot leave the
+  // selection range out of step with what is drawn.
+  int count = 0;
   if (!metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
     count += getVisibleRecentBookCount();
-  } else if (metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
-    count++;  // Continue Reading menu item
   }
-  if (hasOpdsServers) {
-    count++;
-  }
-  if (hasReadingStats) {
-    count++;
-  }
-  if (hasBookmarks || hasClippings) {
-    count++;
-  }
+  const bool includeContinueReading = metrics.homeContinueReadingInMenu && !recentBooks.empty();
+  count += buildSelectableHomeMenuItems(hasOpdsServers, hasReadingStats, hasBookmarks, hasClippings,
+                                        includeContinueReading)
+               .size();
   return count;
 }
 
