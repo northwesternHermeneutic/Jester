@@ -733,6 +733,7 @@ void SettingsActivity::onEnter() {
   }
 
   rebuildSettingsLists();
+  if (view == View::SleepScreen) openSubmenu(SettingAction::DisplaySleepScreen);
 
   uiReady = false;
   visibleRows = 1;
