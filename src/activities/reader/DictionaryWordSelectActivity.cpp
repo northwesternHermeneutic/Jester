@@ -309,27 +309,7 @@ void DictionaryWordSelectActivity::prebuildAdvanceTable() {
   }
 }
 
-void DictionaryWordSelectActivity::clearFrontButtonHintArea() {
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  const int hintSize = metrics.buttonHintsHeight;
-  const int screenWidth = renderer.getScreenWidth();
-  const int screenHeight = renderer.getScreenHeight();
-
-  switch (renderer.getOrientation()) {
-    case GfxRenderer::Orientation::Portrait:
-      renderer.fillRect(0, screenHeight - hintSize, screenWidth, hintSize, false);
-      break;
-    case GfxRenderer::Orientation::LandscapeClockwise:
-      renderer.fillRect(0, 0, hintSize, screenHeight, false);
-      break;
-    case GfxRenderer::Orientation::PortraitInverted:
-      renderer.fillRect(0, 0, screenWidth, hintSize, false);
-      break;
-    case GfxRenderer::Orientation::LandscapeCounterClockwise:
-      renderer.fillRect(screenWidth - hintSize, 0, hintSize, screenHeight, false);
-      break;
-  }
-}
+void DictionaryWordSelectActivity::clearFrontButtonHintArea() { DictUtils::clearFrontButtonHintArea(renderer); }
 
 void DictionaryWordSelectActivity::renderDefinitionBackground() {
   std::unique_ptr<Page> reloadedPage;

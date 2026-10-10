@@ -16,6 +16,7 @@
 #include "clippings/ClipTextBuilder.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "util/DictionaryActivityUtils.h"
 #include "util/InputReleaseGuard.h"
 
 namespace {
@@ -24,27 +25,6 @@ constexpr int CLIP_SELECTION_FALLBACK_FONT_ID = UI_12_FONT_ID;
 constexpr unsigned long TOUCH_CLIP_HOLD_MS = 500;
 
 bool hasEmSpace(const char* text) { return text[0] == '\xe2' && text[1] == '\x80' && text[2] == '\x83'; }
-
-bool pageUsesButtonHintBand(GfxRenderer& renderer) {
-  // Button hints occupy the physical portrait footer in every reader orientation.
-  const auto originalOrientation = renderer.getOrientation();
-  renderer.setOrientation(GfxRenderer::Portrait);
-  const int screenWidth = renderer.getScreenWidth();
-  const int screenHeight = renderer.getScreenHeight();
-  const int hintTop = std::max(0, screenHeight - UITheme::getInstance().getMetrics().buttonHintsHeight);
-  const bool foregroundBlack = ReaderUtils::readerForegroundBlack();
-  bool hasInk = false;
-  for (int y = hintTop; y < screenHeight && !hasInk; ++y) {
-    for (int x = 0; x < screenWidth; ++x) {
-      if (renderer.isPixelBlack(x, y) == foregroundBlack) {
-        hasInk = true;
-        break;
-      }
-    }
-  }
-  renderer.setOrientation(originalOrientation);
-  return hasInk;
-}
 
 }  // namespace
 
@@ -334,22 +314,25 @@ void ClipSelectionActivity::loop() {
     return;
   }
 
-  buttonNavigator.onRelease({Button::Left}, [this, &moveCursor] {
+  // Jester: same buttons as Look Up Word in every orientation. Row buttons step
+  // to the start of the previous or next line; word buttons step one word.
+  const auto buttons = DictUtils::wordCursorButtons(mappedInput, renderer);
+  const auto wordPrev = [this, &moveCursor] {
     if (cursorIdx > 0) moveCursor(cursorIdx - 1);
-  });
-  buttonNavigator.onContinuous({Button::Left}, [this, &moveCursor] {
-    if (cursorIdx > 0) moveCursor(cursorIdx - 1);
-  });
-  buttonNavigator.onRelease({Button::Right}, [this, total, &moveCursor] {
+  };
+  const auto wordNext = [this, total, &moveCursor] {
     if (cursorIdx + 1 < total) moveCursor(cursorIdx + 1);
-  });
-  buttonNavigator.onContinuous({Button::Right}, [this, total, &moveCursor] {
-    if (cursorIdx + 1 < total) moveCursor(cursorIdx + 1);
-  });
-  buttonNavigator.onRelease({Button::Down}, [this, &moveCursor] { moveCursor(lineEndForward(cursorIdx)); });
-  buttonNavigator.onContinuous({Button::Down}, [this, &moveCursor] { moveCursor(lineEndForward(cursorIdx)); });
-  buttonNavigator.onRelease({Button::Up}, [this, &moveCursor] { moveCursor(lineEndBackward(cursorIdx)); });
-  buttonNavigator.onContinuous({Button::Up}, [this, &moveCursor] { moveCursor(lineEndBackward(cursorIdx)); });
+  };
+  const auto rowPrev = [this, &moveCursor] { moveCursor(lineEndBackward(cursorIdx)); };
+  const auto rowNext = [this, &moveCursor] { moveCursor(lineEndForward(cursorIdx)); };
+  buttonNavigator.onRelease({buttons.wordPrev}, wordPrev);
+  buttonNavigator.onContinuous({buttons.wordPrev}, wordPrev);
+  buttonNavigator.onRelease({buttons.wordNext}, wordNext);
+  buttonNavigator.onContinuous({buttons.wordNext}, wordNext);
+  buttonNavigator.onRelease({buttons.rowPrev}, rowPrev);
+  buttonNavigator.onContinuous({buttons.rowPrev}, rowPrev);
+  buttonNavigator.onRelease({buttons.rowNext}, rowNext);
+  buttonNavigator.onContinuous({buttons.rowNext}, rowNext);
 
   if (mappedInput.wasReleased(Button::Confirm)) {
     confirmSelection();
@@ -517,11 +500,10 @@ void ClipSelectionActivity::render(RenderLock&&) {
 
   drawHighlights();
 
-  const auto confirmLabel = startMarkIdx == -1 ? tr(STR_SELECT) : tr(STR_DONE);
-  const auto labels =
-      mappedInput.mapLabels(mappedInput.withBackArrow(tr(STR_BACK)), confirmLabel, tr(STR_DIR_LEFT), tr(STR_DIR_RIGHT));
-  if (!mappedInput.hasTouchHardware() && !pageUsesButtonHintBand(renderer)) {
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
+  // Jester: always show the hints, drawn like Look Up Word over a cleared strip.
+  if (!mappedInput.hasTouchHardware()) {
+    DictUtils::clearFrontButtonHintArea(renderer);
+    DictUtils::drawWordCursorButtonHints(renderer, mappedInput, startMarkIdx == -1 ? tr(STR_SELECT) : tr(STR_DONE));
   }
 
   renderer.displayBuffer();

@@ -8,6 +8,7 @@
 
 #include "MappedInputManager.h"
 #include "TextPool.h"
+#include "util/DictionaryActivityUtils.h"
 
 namespace {
 constexpr unsigned long WORD_REPEAT_START_MS = 500;
@@ -180,47 +181,14 @@ int WordSelectNavigator::findClosestWordFromX(int targetRow, int refCenterX) con
 bool WordSelectNavigator::handleNavigation(const MappedInputManager& input, const GfxRenderer& renderer) {
   if (rows.empty()) return false;
 
-  const auto orient = renderer.getOrientation();
-  const bool isLandscapeCw = orient == GfxRenderer::Orientation::LandscapeClockwise;
-  const bool isLandscapeCcw = orient == GfxRenderer::Orientation::LandscapeCounterClockwise;
-  const bool isInverted = orient == GfxRenderer::Orientation::PortraitInverted;
-  const bool landscape = isLandscapeCw || isLandscapeCcw;
-
-  bool rowPrevPressed, rowNextPressed, wordPrevPressed, wordNextPressed;
-  bool wordPrevHeld, wordNextHeld;
-
-  if (isLandscapeCw) {
-    rowPrevPressed = input.wasReleased(MappedInputManager::Button::Left);
-    rowNextPressed = input.wasReleased(MappedInputManager::Button::Right);
-    wordPrevPressed = input.wasReleased(MappedInputManager::Button::Down);
-    wordNextPressed = input.wasReleased(MappedInputManager::Button::Up);
-    wordPrevHeld = input.isPressed(MappedInputManager::Button::Down);
-    wordNextHeld = input.isPressed(MappedInputManager::Button::Up);
-  } else if (landscape) {
-    const bool frontNavSwapped = input.isFrontNavButtonSwapActive();
-    rowPrevPressed =
-        input.wasReleased(frontNavSwapped ? MappedInputManager::Button::Left : MappedInputManager::Button::Right);
-    rowNextPressed =
-        input.wasReleased(frontNavSwapped ? MappedInputManager::Button::Right : MappedInputManager::Button::Left);
-    wordPrevPressed = input.wasReleased(MappedInputManager::Button::Up);
-    wordNextPressed = input.wasReleased(MappedInputManager::Button::Down);
-    wordPrevHeld = input.isPressed(MappedInputManager::Button::Up);
-    wordNextHeld = input.isPressed(MappedInputManager::Button::Down);
-  } else if (isInverted) {
-    rowPrevPressed = input.wasReleased(MappedInputManager::Button::Down);
-    rowNextPressed = input.wasReleased(MappedInputManager::Button::Up);
-    wordPrevPressed = input.wasReleased(MappedInputManager::Button::Right);
-    wordNextPressed = input.wasReleased(MappedInputManager::Button::Left);
-    wordPrevHeld = input.isPressed(MappedInputManager::Button::Right);
-    wordNextHeld = input.isPressed(MappedInputManager::Button::Left);
-  } else {
-    rowPrevPressed = input.wasReleased(MappedInputManager::Button::Up);
-    rowNextPressed = input.wasReleased(MappedInputManager::Button::Down);
-    wordPrevPressed = input.wasReleased(MappedInputManager::Button::Left);
-    wordNextPressed = input.wasReleased(MappedInputManager::Button::Right);
-    wordPrevHeld = input.isPressed(MappedInputManager::Button::Left);
-    wordNextHeld = input.isPressed(MappedInputManager::Button::Right);
-  }
+  // Jester: shared with Create Clipping (DictUtils::wordCursorButtons).
+  const auto buttons = DictUtils::wordCursorButtons(input, renderer);
+  const bool rowPrevPressed = input.wasReleased(buttons.rowPrev);
+  const bool rowNextPressed = input.wasReleased(buttons.rowNext);
+  bool wordPrevPressed = input.wasReleased(buttons.wordPrev);
+  bool wordNextPressed = input.wasReleased(buttons.wordNext);
+  const bool wordPrevHeld = input.isPressed(buttons.wordPrev);
+  const bool wordNextHeld = input.isPressed(buttons.wordNext);
 
   const unsigned long now = millis();
   const bool repeatDue = (wordPrevHeld || wordNextHeld) && input.getHeldTime() >= WORD_REPEAT_START_MS &&
