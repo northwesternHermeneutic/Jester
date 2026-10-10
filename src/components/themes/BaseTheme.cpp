@@ -970,6 +970,8 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
         (void)config;
         BookPercentFormat::format(scratch, len, content.bookProgress, content.shortBook);
         return scratch;
+      case ReaderStatusBarItem::PublisherPageNumber:
+        return content.publisherPage && content.publisherPage[0] != '\0' ? content.publisherPage : nullptr;
       case ReaderStatusBarItem::TitleBook:
         return content.bookTitle;
       case ReaderStatusBarItem::TitleChapter:

@@ -24,9 +24,12 @@ enum class ReaderStatusBarItem : uint8_t {
   TitleBook,
   TitleChapter,
   Count,
+  // Jester (feature 13): reserved block outside CrossInk's values (rule G2).
+  PublisherPageNumber = 192,
 };
 
 constexpr bool validReaderStatusBarItemValue(const int value, const bool clockAvailable) {
+  if (value == static_cast<int>(ReaderStatusBarItem::PublisherPageNumber)) return true;
   return value >= 0 && value < static_cast<int>(ReaderStatusBarItem::Count) &&
          (value != static_cast<int>(ReaderStatusBarItem::Clock) || clockAvailable);
 }
@@ -78,6 +81,7 @@ constexpr bool jesterOffersStatusBarItem(const ReaderStatusBarItem item) {
     case ReaderStatusBarItem::ChapterPageCount:
     case ReaderStatusBarItem::StablePageNumber:
     case ReaderStatusBarItem::BookProgressPercentage:
+    case ReaderStatusBarItem::PublisherPageNumber:
       return true;
     default:
       return false;

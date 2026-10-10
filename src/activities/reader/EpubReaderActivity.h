@@ -430,6 +430,12 @@ class EpubReaderActivity final : public Activity {
   void toggleDogEar();
   void openDogEarList();
   void jumpToSavedLocation(const BookmarkResult& bm);
+  // Jester (feature 13): label of the most recent publisher page break at or
+  // before the shown page, for the status bar item.
+  char publisherLabel[16] = {};
+  int publisherLabelSpine = -1;
+  int publisherLabelPage = -1;
+  void updatePublisherLabel(const Page& page);
 #if CROSSINK_APP_CAP_TOUCH
   bool handlePinchFontResize();
   void resetPinchFontGesture();

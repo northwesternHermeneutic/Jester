@@ -7157,9 +7157,37 @@ void EpubReaderActivity::prepareCurrentSectionForRelayout() {
   cacheCurrentSectionPosition();
 }
 
+void EpubReaderActivity::updatePublisherLabel(const Page& page) {
+  if (!section) return;
+  const int spine = currentSpineIndex;
+  const int pageIndex = section->currentPage;
+  if (spine == publisherLabelSpine && pageIndex == publisherLabelPage) return;
+  const bool forwardStep = (spine == publisherLabelSpine && pageIndex == publisherLabelPage + 1) ||
+                           (spine == publisherLabelSpine + 1 && pageIndex == 0);
+  publisherLabelSpine = spine;
+  publisherLabelPage = pageIndex;
+  if (!page.publisherPageMarkers.empty()) {
+    std::strncpy(publisherLabel, page.publisherPageMarkers.back().label, sizeof(publisherLabel) - 1);
+    publisherLabel[sizeof(publisherLabel) - 1] = '\0';
+    return;
+  }
+  if (forwardStep) return;  // reading on: the label carries over
+  // After a jump or a step back, look a few pages back in this section.
+  publisherLabel[0] = '\0';
+  constexpr int MAX_LOOKBACK_PAGES = 10;
+  for (int index = pageIndex - 1; index >= 0 && index >= pageIndex - MAX_LOOKBACK_PAGES; --index) {
+    const auto earlier = section->loadPage(index);
+    if (!earlier || earlier->publisherPageMarkers.empty()) continue;
+    std::strncpy(publisherLabel, earlier->publisherPageMarkers.back().label, sizeof(publisherLabel) - 1);
+    publisherLabel[sizeof(publisherLabel) - 1] = '\0';
+    return;
+  }
+}
+
 bool EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fontId, const int orientedMarginTop,
                                         const int orientedMarginRight, const int orientedMarginBottom,
                                         const int orientedMarginLeft, const bool updatePanel) {
+  if (page) updatePublisherLabel(*page);
 #if CROSSINK_APP_CAP_TOUCH
   if (mappedInput.hasTouchHardware()) {
     if (!touchReaderPreviewAllocationAttempted) {
@@ -7758,6 +7786,7 @@ void EpubReaderActivity::renderStatusBar() const {
   ReaderStatusBarContent content;
   content.bookProgress = bookProgress;
   content.shortBook = epub && BookPercentFormat::isShortBook(epub->getBookSize());
+  content.publisherPage = activeFootnotePreview ? nullptr : publisherLabel;
   content.chapterProgress = chapterProgress * 100.0f;
   content.chapterPage = currentPage;
   content.chapterPageCount = pageCount;

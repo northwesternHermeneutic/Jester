@@ -43,6 +43,7 @@ struct ReaderStatusBarContent {
   const char* autoTurnLabel = nullptr;
   bool bookmarked = false;
   bool dogEared = false;  // Jester (feature 4)
+  const char* publisherPage = nullptr;  // Jester (feature 13): printed page label
   bool showProgress = true;
   bool pageCountEstimated = false;
   bool darkMode = false;

@@ -38,6 +38,7 @@ constexpr ReaderStatusBarItem pickerItems[] = {
     ReaderStatusBarItem::ChapterPageCount,
     ReaderStatusBarItem::StablePageNumber,
     ReaderStatusBarItem::BookProgressPercentage,
+    ReaderStatusBarItem::PublisherPageNumber,
     ReaderStatusBarItem::TitleBook,
     ReaderStatusBarItem::TitleChapter,
     ReaderStatusBarItem::Empty,
@@ -61,6 +62,8 @@ std::string itemLabel(const ReaderStatusBarItem item) {
       return tr(STR_BOOK_PROGRESS_PERCENTAGE);
     case ReaderStatusBarItem::TitleBook:
       return std::string(tr(STR_TITLE)) + " (" + tr(STR_BOOK) + ")";
+    case ReaderStatusBarItem::PublisherPageNumber:
+      return tr(STR_PUBLISHER_PAGE_NUMBER_ITEM);
     case ReaderStatusBarItem::TitleChapter:
       return std::string(tr(STR_TITLE)) + " (" + tr(STR_CHAPTER) + ")";
     default:

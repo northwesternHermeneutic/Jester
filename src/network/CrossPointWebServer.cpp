@@ -1509,6 +1509,7 @@ void CrossPointWebServer::handleGetStatusBars() const {
   addOption(ReaderStatusBarItem::ChapterPageCount, tr(STR_CHAPTER_PAGE_COUNT));
   addOption(ReaderStatusBarItem::StablePageNumber, tr(STR_STABLE_PAGE_NUMBERS));
   addOption(ReaderStatusBarItem::BookProgressPercentage, tr(STR_BOOK_PROGRESS_PERCENTAGE));
+  addOption(ReaderStatusBarItem::PublisherPageNumber, tr(STR_PUBLISHER_PAGE_NUMBER_ITEM));  // Jester (feature 13)
   addOption(ReaderStatusBarItem::TitleBook, combined(tr(STR_TITLE), tr(STR_BOOK)).c_str());
   addOption(ReaderStatusBarItem::TitleChapter, combined(tr(STR_TITLE), tr(STR_CHAPTER)).c_str());
   addOption(ReaderStatusBarItem::Empty, tr(STR_STATUS_BAR_EMPTY));
