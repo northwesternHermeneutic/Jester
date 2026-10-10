@@ -80,6 +80,48 @@ int EpubReaderPercentSelectionActivity::deltaForDisplayStep(const int displaySte
   return mode == Mode::StablePage ? displaySteps : displaySteps * 100;
 }
 
+int EpubReaderPercentSelectionActivity::frontStepDelta() const {
+  if (mode == Mode::StablePage) return kSmallStep;
+  return fineSteps ? 10 : 500;
+}
+
+int EpubReaderPercentSelectionActivity::sideStepDelta() const {
+  if (mode == Mode::StablePage) return kLargeStep;
+  return fineSteps ? 100 : 1000;
+}
+
+namespace {
+// The power press not mapped to Sleep cycles the steps (feature 2a).
+bool powerCyclesOnLongPress() { return SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP; }
+
+void formatPercentStep(char* out, const size_t outSize, const int centipercent) {
+  if (centipercent % 100 == 0) {
+    snprintf(out, outSize, "%d%%", centipercent / 100);
+  } else {
+    snprintf(out, outSize, "%d.%d%%", centipercent / 100, (centipercent % 100) / 10);
+  }
+}
+}  // namespace
+
+void EpubReaderPercentSelectionActivity::handlePowerCycle() {
+  if (mode != Mode::Percent || isKeypadVisible()) return;
+  const unsigned long longMs = SETTINGS.getPowerButtonLongPressDuration();
+  if (powerCyclesOnLongPress()) {
+    if (!powerHoldCycled && mappedInput.isPressed(MappedInputManager::Button::Power) &&
+        mappedInput.getHeldTime() >= longMs) {
+      powerHoldCycled = true;
+      fineSteps = !fineSteps;
+      requestUpdate();
+    }
+    if (!mappedInput.isPressed(MappedInputManager::Button::Power)) powerHoldCycled = false;
+    return;
+  }
+  if (mappedInput.wasReleased(MappedInputManager::Button::Power) && mappedInput.getHeldTime() < longMs) {
+    fineSteps = !fineSteps;
+    requestUpdate();
+  }
+}
+
 void EpubReaderPercentSelectionActivity::adjustValue(const int delta) {
   if (mode == Mode::StablePage) {
     value = adjustStablePage(value, delta, maximum);
@@ -329,6 +371,7 @@ void EpubReaderPercentSelectionActivity::loop() {
   }
 
   // Slider mode (non-touch only; touch is always keypadVisible above).
+  handlePowerCycle();
   const auto swipe = mappedInput.wasSwipe();
   if (swipe == MappedInputManager::SwipeDir::Right) {
     adjustValue(deltaForDisplayStep(kLargeStep));
@@ -352,19 +395,19 @@ void EpubReaderPercentSelectionActivity::loop() {
   }
 
   buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Left},
-                                       [this] { adjustValue(deltaForDisplayStep(-kSmallStep)); });
+                                       [this] { adjustValue(-frontStepDelta()); });
   buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Right},
-                                       [this] { adjustValue(deltaForDisplayStep(kSmallStep)); });
+                                       [this] { adjustValue(frontStepDelta()); });
 
   // On edge-button boards (X3, X4 Pro) the side buttons sit on the left/right edges of the screen rather
   // than as a vertical up/down rocker (X4), so BTN_UP is physically the left button and BTN_DOWN the right
   // one. Flip the large-step direction there so the left button decreases and the right button increases.
-  const int upDelta = deviceHasEdgeSideButtons(gpio) ? -kLargeStep : kLargeStep;
-  const int downDelta = deviceHasEdgeSideButtons(gpio) ? kLargeStep : -kLargeStep;
+  const int upDelta = deviceHasEdgeSideButtons(gpio) ? -sideStepDelta() : sideStepDelta();
+  const int downDelta = -upDelta;
   buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Up},
-                                       [this, upDelta] { adjustValue(deltaForDisplayStep(upDelta)); });
+                                       [this, upDelta] { adjustValue(upDelta); });
   buttonNavigator.onPressAndContinuous({MappedInputManager::Button::Down},
-                                       [this, downDelta] { adjustValue(deltaForDisplayStep(downDelta)); });
+                                       [this, downDelta] { adjustValue(downDelta); });
 }
 
 void EpubReaderPercentSelectionActivity::percentScreen(UiApp::ScreenType& screen, void* user) {
@@ -419,12 +462,27 @@ void EpubReaderPercentSelectionActivity::buildPercentScreen(UiApp::ScreenType& s
   fui::TextStyle hint = theme.smallText;
   hint.align = fui::TextAlign::Center;
   const int16_t hintLh = screen.target().lineHeight(hint.font);
-  snprintf(line, sizeof(line), mode == Mode::StablePage ? "%s %d" : "%s %d%%", I18N.get(StrId::STR_STEP_HINT_FRONT),
-           kSmallStep);
+  char step[16];
+  if (mode == Mode::StablePage) {
+    snprintf(step, sizeof(step), "%d", kSmallStep);
+  } else {
+    formatPercentStep(step, sizeof(step), frontStepDelta());
+  }
+  snprintf(line, sizeof(line), "%s %s", I18N.get(StrId::STR_STEP_HINT_FRONT), step);
   screen.target().text(screen.takeTop(hintLh, theme.spaceSm), line, hint);
-  snprintf(line, sizeof(line), mode == Mode::StablePage ? "%s %d" : "%s %d%%", I18N.get(StrId::STR_STEP_HINT_SIDE),
-           kLargeStep);
+  if (mode == Mode::StablePage) {
+    snprintf(step, sizeof(step), "%d", kLargeStep);
+  } else {
+    formatPercentStep(step, sizeof(step), sideStepDelta());
+  }
+  snprintf(line, sizeof(line), "%s %s", I18N.get(StrId::STR_STEP_HINT_SIDE), step);
   screen.target().text(screen.takeTop(hintLh, theme.spaceSm), line, hint);
+  if (mode == Mode::Percent) {
+    // Jester (feature 2a): which power press cycles the step sizes.
+    screen.target().text(screen.takeTop(hintLh, theme.spaceSm),
+                         powerCyclesOnLongPress() ? tr(STR_CYCLE_STEPS_LONG_POWER) : tr(STR_CYCLE_STEPS_SHORT_POWER),
+                         hint);
+  }
 
   // Discoverability for the keypad escape hatch: names the actual on-screen label for
   // Confirm on this screen (STR_SELECT), so the hint always matches what's shown below.
@@ -538,9 +596,16 @@ void EpubReaderPercentSelectionActivity::render(RenderLock&&) {
 
   // Button hints follow the current front button layout and auto-hide on touch devices.
   const bool percentSlider = mode == Mode::Percent && !isKeypadVisible();
+  char minusLabel[16];
+  char plusLabel[16];
+  char stepText[12];
+  formatPercentStep(stepText, sizeof(stepText), frontStepDelta());
+  snprintf(minusLabel, sizeof(minusLabel), "-%s", stepText);
+  snprintf(plusLabel, sizeof(plusLabel), "+%s", stepText);
   const auto labels =
       mappedInput.mapLabels(mappedInput.withBackArrow(tr(STR_BACK)), tr(STR_SELECT),
-                            percentSlider ? "-1" : tr(STR_DIR_LEFT), percentSlider ? "+1" : tr(STR_DIR_RIGHT));
+                            percentSlider ? minusLabel : tr(STR_DIR_LEFT),
+                            percentSlider ? plusLabel : tr(STR_DIR_RIGHT));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4, true);
 
   renderer.displayBuffer();

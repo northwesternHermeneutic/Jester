@@ -23,7 +23,8 @@ class EpubReaderPercentSelectionActivity final : public Activity {
   void render(RenderLock&&) override;
   bool isReaderActivity() const override { return true; }
   bool keepsFrontLeftRightInCcw() const override { return true; }
-  bool allowPowerAsConfirmInReaderMode() const override { return true; }
+  // Jester (feature 2a): the power button cycles step sizes here instead of confirming.
+  bool allowPowerAsConfirmInReaderMode() const override { return false; }
 
  private:
   // FreeInkApp hosts the 4x3 numeric keypad (touch always; non-touch once the user
@@ -54,6 +55,13 @@ class EpubReaderPercentSelectionActivity final : public Activity {
   // snapshots against it while this is true (the two run on different tasks).
   std::atomic<bool> uiReady{false};
 
+  // Jester (feature 2a): Percent mode steps in centipercent; fine = 0.1% front / 1% side,
+  // coarse = 5% front / 10% side. The power press that is not mapped to Sleep cycles them.
+  bool fineSteps = false;
+  bool powerHoldCycled = false;
+  int frontStepDelta() const;
+  int sideStepDelta() const;
+  void handlePowerCycle();
   // Change the current value by a delta (page count, or centipercent) and wrap within bounds.
   void adjustValue(int delta);
   // Maps a display step (1 or 10, same units shown in the front/side button hints)
