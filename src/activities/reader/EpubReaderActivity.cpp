@@ -78,6 +78,7 @@
 #include "util/BookPercentFormat.h"
 #include "FavoritesStore.h"
 #include "activities/home/BookActions.h"
+#include "activities/home/UnifyBookmarksActivity.h"
 
 namespace {
 constexpr unsigned long TOUCH_DICTIONARY_LOOKUP_HOLD_MS = 1000;
@@ -4164,6 +4165,20 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       break;
     case EpubReaderMenuActivity::MenuAction::VIEW_DOG_EARS:
       openDogEarList();
+      break;
+    case EpubReaderMenuActivity::MenuAction::UNIFY_BOOKMARKS:
+      pauseReadingPaceTimer("unify_bookmarks");
+      startActivityForResult(std::make_unique<UnifyBookmarksActivity>(renderer, mappedInput),
+                             [this](const ActivityResult&) {
+                               // Merges may have targeted this book: reload its saved items.
+                               if (epub) {
+                                 BOOKMARKS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
+                                 DOGEARS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
+                                 CLIPPINGS.loadForBook(epub->getPath(), epub->getTitle(), epub->getAuthor(), "epub");
+                               }
+                               resumeReadingPaceTimer("unify_bookmarks_return");
+                               requestUpdate();
+                             });
       break;
     case EpubReaderMenuActivity::MenuAction::FAVORITE_TOGGLE:
       if (epub) BookActions::toggleFavorite(renderer, epub->getPath(), epub->getTitle(), epub->getAuthor());

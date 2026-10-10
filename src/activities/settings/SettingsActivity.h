@@ -46,6 +46,7 @@ enum class SettingAction {
   ClearCache,
   CheckForUpdates,
   SdFirmwareUpdate,
+  UnifyBookmarks,  // Jester (feature 6)
   Language,
   KeyboardLayouts,
   DownloadFonts,

@@ -49,6 +49,7 @@
 #include "fontIds.h"
 #include "util/DictionaryRegistry.h"
 #include "util/FrontlightSchedule.h"
+#include "activities/home/UnifyBookmarksActivity.h"
 
 namespace fui = freeink::ui;
 
@@ -1108,6 +1109,9 @@ void SettingsActivity::toggleCurrentSetting() {
               }
               requestUpdate();
             });
+        break;
+      case SettingAction::UnifyBookmarks:
+        startActivityForResult(std::make_unique<UnifyBookmarksActivity>(renderer, mappedInput), resultHandler);
         break;
       case SettingAction::ClearCache:
         startActivityForResult(std::make_unique<ClearCacheActivity>(renderer, mappedInput), resultHandler);

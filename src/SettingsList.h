@@ -1479,6 +1479,8 @@ inline std::vector<SettingInfo> buildSystemSettingsParentList(const std::vector<
   systemSettings.push_back(SettingInfo::Submenu(StrId::STR_SYSTEM_FILES_CACHE, SettingAction::SystemFilesCache));
   // Jester (feature 17): no Reading Stats submenu.
   addSettingByName(systemSettings, allSettings, StrId::STR_LIBRARY_INDEX_LIMIT);  // Jester (feature 19)
+  // Jester (feature 6).
+  systemSettings.push_back(SettingInfo::Action(StrId::STR_UNIFY_BOOKMARKS, SettingAction::UnifyBookmarks));
   // Jester (feature 16): no WiFi Networks, KOReader Sync, OPDS Servers or Check
   // for Updates. SD Card Firmware Update (and USB flashing) remain.
   systemSettings.push_back(SettingInfo::Action(StrId::STR_SD_FIRMWARE_UPDATE, SettingAction::SdFirmwareUpdate));

@@ -33,6 +33,8 @@ class EpubReaderMenuActivity final : public Activity {
   void setFavorite(const bool isFavorite) {
     menuItems[BOOKMARKS_TAB_INDEX].push_back(
         {MenuAction::FAVORITE_TOGGLE, isFavorite ? StrId::STR_REMOVE_FROM_FAVORITES : StrId::STR_ADD_TO_FAVORITES});
+    // Jester (feature 6).
+    menuItems[BOOKMARKS_TAB_INDEX].push_back({MenuAction::UNIFY_BOOKMARKS, StrId::STR_UNIFY_BOOKMARKS});
   }
   // Jester (feature 2): replaces the whole-number book percentage in the header.
   void setBookProgressLabel(std::string label) { bookProgressLabel = std::move(label); }
