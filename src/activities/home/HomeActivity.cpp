@@ -1852,7 +1852,8 @@ void HomeActivity::loop() {
     return;
   }
 
-  if (static_cast<CrossPointSettings::UI_THEME>(SETTINGS.uiTheme) == CrossPointSettings::UI_THEME::LYRA &&
+  if ((SETTINGS.uiTheme == CrossPointSettings::UI_THEME::LYRA ||
+       SETTINGS.uiTheme == CrossPointSettings::UI_THEME::BELACQUA) &&
       mappedInput.hasTouch() && canSwapHomeBook() && mappedInput.wasSwipe() == MappedInputManager::SwipeDir::Left) {
     showNextRecentBookOnHome();
     return;

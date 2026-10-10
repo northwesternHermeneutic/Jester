@@ -23,6 +23,7 @@
 #include "components/themes/lyra/LyraTheme.h"
 #include "components/themes/minimal/MinimalTheme.h"
 #include "components/themes/roundedraff/RoundedRaffTheme.h"
+#include "components/themes/belacqua/BelacquaTheme.h"
 
 namespace {
 constexpr char kWidthPlaceholder[] = "[WIDTH]";
@@ -72,6 +73,11 @@ void UITheme::setTheme(CrossPointSettings::UI_THEME type) {
       LOG_DBG("UI", "Using Classic theme");
       currentTheme = std::make_unique<BaseTheme>();
       currentMetrics = &BaseMetrics::values;
+      break;
+    case CrossPointSettings::UI_THEME::BELACQUA:
+      LOG_DBG("UI", "Using Belacqua theme");
+      currentTheme = std::make_unique<BelacquaTheme>();
+      currentMetrics = &BelacquaMetrics::values;
       break;
     case CrossPointSettings::UI_THEME::LYRA:
       LOG_DBG("UI", "Using Lyra theme");

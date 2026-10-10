@@ -379,7 +379,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     LYRA_CAROUSEL = 4,
     MINIMAL = 5,
     DASHBOARD = 6,
-    UI_THEME_COUNT = 7
+    UI_THEME_COUNT = 7,
+    // Jester (feature 5): reserved block outside CrossInk's values (rule G2).
+    BELACQUA = 192,
   };
   enum RECENT_BOOKS_VIEW { RECENT_BOOKS_LIST = 0, RECENT_BOOKS_GRID = 1, RECENT_BOOKS_VIEW_COUNT };
 
@@ -631,7 +633,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Long-press page turn button behavior
   uint8_t longPressButtonBehavior = OFF;
   // UI Theme
-  uint8_t uiTheme = LYRA;
+  uint8_t uiTheme = BELACQUA;  // Jester default (features 5, 10)
   // Recently Opened layout in Library; keep the original raw values for older settings.
   uint8_t recentBooksView = RECENT_BOOKS_LIST;
   // UI scale (list fonts + row heights); touch boards default one step larger
