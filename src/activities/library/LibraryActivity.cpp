@@ -34,6 +34,7 @@
 #include "components/UiAppHelpers.h"
 #include "components/icons/libraryIcons.h"
 #include "components/icons/listIcons.h"
+#include "JesterLibraries.h"
 
 namespace fui = freeink::ui;
 
@@ -88,6 +89,9 @@ LibraryActivity::LibraryActivity(GfxRenderer& renderer, MappedInputManager& mapp
       app(uiTarget, uiTarget.deviceContext()) {}
 
 void LibraryActivity::onEnter() {
+  // Jester (feature 19): active library, exclusions and Index Limit.
+  JesterLibraries::applyToBuilder();
+  libraryName = JesterLibraries::active().name;
   pendingInput.clear();
   inputOverflow = false;
   touchTracking = false;
@@ -189,7 +193,8 @@ bool LibraryActivity::rebuildIndex(const bool showScanning) {
   callbacks.progress = &LibraryActivity::onScanProgress;
   scanCancelledThisVisit = false;
   scanBackHeldAtStart = mappedInput.isPressed(MappedInputManager::Button::Back);
-  scanFailed = !library::buildLibraryIndex("/", stats, SETTINGS.libraryUseMetadata != 0, &callbacks);
+  const std::string libraryRoot = JesterLibraries::active().root;
+  scanFailed = !library::buildLibraryIndex(libraryRoot.c_str(), stats, SETTINGS.libraryUseMetadata != 0, &callbacks);
   scanFailureText = stats.failure == library::BuildFailure::Cancelled      ? StrId::STR_LIBRARY_SCAN_CANCELLED
                     : stats.failure == library::BuildFailure::TooManyBooks ? StrId::STR_LIBRARY_TOO_MANY_BOOKS
                                                                            : StrId::STR_LIBRARY_SCAN_FAILED;
@@ -652,6 +657,37 @@ void LibraryActivity::openMenu() {
   requestUpdate();
 }
 
+void LibraryActivity::openLibrarySwitcher() {
+  const auto libraries = JesterLibraries::list();
+  std::vector<std::string> names;
+  names.reserve(libraries.size());
+  int current = 0;
+  const uint8_t activeSlot = JesterLibraries::active().slot;
+  for (size_t i = 0; i < libraries.size(); ++i) {
+    names.push_back(libraries[i].name);
+    if (libraries[i].slot == activeSlot) current = static_cast<int>(i);
+  }
+  std::vector<uint8_t> slots;
+  slots.reserve(libraries.size());
+  for (const auto& library : libraries) slots.push_back(library.slot);
+  actionPopup.setDismissOnOutsideTouchDown(true);
+  actionPopup.show(StrId::STR_SWITCH_LIBRARY, names, current, [this, slots](const int selected) {
+    if (selected < 0 || static_cast<size_t>(selected) >= slots.size()) return;
+    if (!JesterLibraries::setActive(slots[selected])) {
+      LOG_ERR("LIB", "Cannot switch library");
+      return;
+    }
+    JesterLibraries::applyToBuilder();
+    libraryName = JesterLibraries::active().name;
+    index.close();
+    query.clear();
+    refreshIndexIfNeeded(true);
+    resetViewport();
+    requestUpdate();
+  });
+  requestUpdate();
+}
+
 void LibraryActivity::openSearch() {
   openDialog(
       makeUniqueNoThrow<KeyboardEntryActivity>(renderer, mappedInput, tr(STR_SEARCH), query, 48, InputType::Text),
@@ -689,6 +725,7 @@ void LibraryActivity::activateControl(const int control) {
   if (control == 1) openSearch();
   if (control == 2) openSettings();
   if (control == 3) openSortPicker();
+  if (control == 5) openLibrarySwitcher();
   if (control == 4) {
     descending = !descending;
     SETTINGS.librarySortDescending = descending;
@@ -1098,15 +1135,18 @@ void LibraryActivity::buildSortHeader(UiApp::ScreenType& screen) {
       band.width / 3, uiTarget.measureText(labelStyle.font, tr(STR_LIBRARY_SORT_BY), labelStyle).width);
   // The 32px glyph sits inside a wider selection box with even side padding.
   const int16_t iconWidth = 48;
+  // Jester (feature 19): a second icon slot for Switch Library at the right.
   const int16_t methodWidth = std::min<int16_t>(
-      band.width - labelWidth - iconWidth - 4 * margin,
+      band.width - labelWidth - 2 * iconWidth - 4 * margin,
       std::max<int16_t>(
           (sort == Sort::AuthorLast || sort == Sort::AuthorFirst) ? 220 : 0,
           uiTarget.measureText(screen.theme().bodyText.font, sortLabel(), screen.theme().bodyText).width + 20));
-  const int16_t gap = std::max<int16_t>(0, (band.width - 2 * margin - labelWidth - methodWidth - iconWidth) / 2);
+  const int16_t gap =
+      std::max<int16_t>(0, (band.width - 2 * margin - labelWidth - methodWidth - 2 * iconWidth) / 2);
   const fui::Rect label{static_cast<int16_t>(band.x + margin), band.y, labelWidth, band.height};
   const fui::Rect method{static_cast<int16_t>(label.right() + gap), band.y, methodWidth, band.height};
-  const fui::Rect direction{static_cast<int16_t>(band.right() - margin - iconWidth), band.y, iconWidth, band.height};
+  const fui::Rect libraryRect{static_cast<int16_t>(band.right() - margin - iconWidth), band.y, iconWidth, band.height};
+  const fui::Rect direction{static_cast<int16_t>(libraryRect.x - iconWidth), band.y, iconWidth, band.height};
   uiTarget.text(label, tr(STR_LIBRARY_SORT_BY), labelStyle);
   // Each target owns half of the adjacent whitespace. SDK buttons provide
   // their draw/selection state; explicit hit regions avoid enlarged overlap.
@@ -1123,12 +1163,18 @@ void LibraryActivity::buildSortHeader(UiApp::ScreenType& screen) {
   button.state =
       showSelection && selection == 4 ? fui::StateSelected : fui::StateNormal;
   screen.button(button, direction);
+  button.icon = fui::bitmapFromIcon(icon_lyra_library_32);
+  button.state = showSelection && selection == 5 ? fui::StateSelected : fui::StateNormal;
+  screen.button(button, libraryRect);
   const int16_t split = static_cast<int16_t>((method.right() + direction.x) / 2);
   if (mappedInput.hasTouchHardware()) {
     screen.frame().hit(fui::Rect{band.x, band.y, static_cast<int16_t>(split - band.x), band.height}, ACTION_CONTROL, 3,
                        fui::InputTouch);
-    screen.frame().hit(fui::Rect{split, band.y, static_cast<int16_t>(band.right() - split), band.height},
+    screen.frame().hit(fui::Rect{split, band.y, static_cast<int16_t>(libraryRect.x - split), band.height},
                        ACTION_CONTROL, 4, fui::InputTouch);
+    const int16_t libraryHitWidth = static_cast<int16_t>(band.right() - libraryRect.x);
+    screen.frame().hit(fui::Rect{libraryRect.x, band.y, libraryHitWidth, band.height}, ACTION_CONTROL, 5,
+                       fui::InputTouch);
   }
   uiTarget.fill(fui::Rect{band.x, band.y, band.width, 1}, fui::Paint::solid(fui::Color::Black));
   uiTarget.fill(fui::Rect{band.x, static_cast<int16_t>(band.bottom() - 1), band.width, 1},
@@ -1263,7 +1309,9 @@ void LibraryActivity::buildGrid(UiApp::ScreenType& screen) {
       readBook(selectedRow, rowScratch)) {
     const bool hasProgress = gridProgressRow == selectedRow && RecentBookProgress::hasPercent(gridProgress);
     subtitleScratch.clear();
-    if (hasProgress) subtitleScratch.assign("  ·  ").append(RecentBookProgress::formatPercent(gridProgress, rowScratch.path));
+    if (hasProgress) {
+      subtitleScratch.assign("  ·  ").append(RecentBookProgress::formatPercent(gridProgress, rowScratch.path));
+    }
     auto style = screen.theme().bodyText;
     style.maxLines = 1;
     // Center the whole title row between the sort divider and the first cover.
@@ -1404,10 +1452,10 @@ void LibraryActivity::render(RenderLock&&) {
     renderer.clearScreen();
     const auto header = TouchHeaderBackButton::headerRect(renderer, mappedInput);
     if (mappedInput.hasTouchHardware())
-      TouchHeaderBackButton::draw(renderer, uiTarget, header, tr(STR_LIBRARY), false,
+      TouchHeaderBackButton::draw(renderer, uiTarget, header, libraryName.c_str(), false,
                                   3 * HEADER_CONTROL_SIZE + 2 * HEADER_CONTROL_GAP + headerControlRightInset() + 10);
     else
-      GUI.drawHeader(renderer, header, tr(STR_LIBRARY));
+      GUI.drawHeader(renderer, header, libraryName.c_str());
     app.render();
     topIndex = listNav.top;
     if (!listNav.consumeRebuildNeeded()) break;
@@ -1505,6 +1553,11 @@ void LibraryActivity::showBookActionMenu(const size_t bookIndex, const bool igno
                  case FileBrowserAction::RemoveFromFavorites:
                    BookActions::toggleFavorite(renderer, book.path, book.title, book.author);
                    requestUpdate();
+                   return;
+                 case FileBrowserAction::ExcludeFromLibrary:
+                 case FileBrowserAction::IncludeInLibrary:
+                 case FileBrowserAction::MakeLibrary:
+                 case FileBrowserAction::RemoveLibrary:
                    return;
                  case FileBrowserAction::Delete:
                    promptDeleteBook(book);

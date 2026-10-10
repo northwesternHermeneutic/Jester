@@ -858,6 +858,13 @@ inline const std::vector<SettingInfo>& getBaseSettingsList() {
                             "moveFinishedToReadFolder", StrId::STR_CAT_SYSTEM));
     add(SettingInfo::Toggle(StrId::STR_AUTO_BACKUP_STATS, &CrossPointSettings::autoBackupStats, "autoBackupStats",
                             StrId::STR_CAT_SYSTEM));
+    // Jester (feature 19): how many of the most recently added books each Library indexes.
+    add(SettingInfo::Enum(StrId::STR_LIBRARY_INDEX_LIMIT, &CrossPointSettings::libraryIndexLimit,
+                          {StrId::STR_INDEX_LIMIT_10, StrId::STR_INDEX_LIMIT_25, StrId::STR_INDEX_LIMIT_50,
+                           StrId::STR_INDEX_LIMIT_75, StrId::STR_INDEX_LIMIT_100, StrId::STR_INDEX_LIMIT_200,
+                           StrId::STR_INDEX_LIMIT_300, StrId::STR_INDEX_LIMIT_400, StrId::STR_INDEX_LIMIT_500,
+                           StrId::STR_ALL_BOOKS},
+                          "libraryIndexLimit", StrId::STR_CAT_SYSTEM));
     // Persisted and available to the web settings API, but category-less because
     // the on-device editor lives under System > OPDS Servers.
     add(SettingInfo::String(StrId::STR_OPDS_DOWNLOAD_FOLDER, SETTINGS.opdsDownloadFolder,
@@ -1471,6 +1478,7 @@ inline std::vector<SettingInfo> buildSystemSettingsParentList(const std::vector<
   systemSettings.push_back(SettingInfo::Submenu(StrId::STR_SYSTEM_DEVICE, SettingAction::SystemDevice));
   systemSettings.push_back(SettingInfo::Submenu(StrId::STR_SYSTEM_FILES_CACHE, SettingAction::SystemFilesCache));
   // Jester (feature 17): no Reading Stats submenu.
+  addSettingByName(systemSettings, allSettings, StrId::STR_LIBRARY_INDEX_LIMIT);  // Jester (feature 19)
   // Jester (feature 16): no WiFi Networks, KOReader Sync, OPDS Servers or Check
   // for Updates. SD Card Firmware Update (and USB flashing) remain.
   systemSettings.push_back(SettingInfo::Action(StrId::STR_SD_FIRMWARE_UPDATE, SettingAction::SdFirmwareUpdate));

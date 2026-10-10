@@ -397,6 +397,11 @@ void BmpViewerActivity::showContextMenu() {
                              case FileBrowserAction::AddToFavorites:
                              case FileBrowserAction::RemoveFromFavorites:
                                return;
+                             case FileBrowserAction::ExcludeFromLibrary:
+                             case FileBrowserAction::IncludeInLibrary:
+                             case FileBrowserAction::MakeLibrary:
+                             case FileBrowserAction::RemoveLibrary:
+                               return;
                              case FileBrowserAction::Delete:
                                promptDeleteImage();
                                return;

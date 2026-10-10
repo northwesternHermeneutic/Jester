@@ -39,6 +39,7 @@
 #include "components/themes/minimal/MinimalTheme.h"
 #include "fontIds.h"
 #include "util/BookMoveUtils.h"
+#include "JesterLibraries.h"
 
 namespace fui = freeink::ui;
 
@@ -528,6 +529,14 @@ void FileBrowserActivity::showDirectoryActionMenu(const std::string& entry, bool
   std::vector<FileBrowserActionActivity::MenuItem> items;
   items.push_back({useDefaultFolders ? FileBrowserAction::ClearSleepFolder : FileBrowserAction::SetSleepFolder,
                    useDefaultFolders ? StrId::STR_USE_DEFAULT_SLEEP_FOLDERS : StrId::STR_SET_AS_SLEEP_FOLDER});
+  // Jester (feature 19): Library exclusions and user-made libraries.
+  items.push_back({JesterLibraries::isLibraryRoot(fullPath) ? FileBrowserAction::RemoveLibrary
+                                                            : FileBrowserAction::MakeLibrary,
+                   JesterLibraries::isLibraryRoot(fullPath) ? StrId::STR_REMOVE_LIBRARY : StrId::STR_MAKE_LIBRARY});
+  items.push_back({JesterLibraries::isExcluded(fullPath) ? FileBrowserAction::IncludeInLibrary
+                                                         : FileBrowserAction::ExcludeFromLibrary,
+                   JesterLibraries::isExcluded(fullPath) ? StrId::STR_INCLUDE_IN_LIBRARY
+                                                         : StrId::STR_EXCLUDE_FROM_LIBRARY});
   items.push_back({FileBrowserAction::Delete, StrId::STR_DELETE});
 
   startActivityForResult(std::make_unique<FileBrowserActionActivity>(renderer, mappedInput, getFileName(entry),
@@ -543,6 +552,35 @@ void FileBrowserActivity::showDirectoryActionMenu(const std::string& entry, bool
                            switch (action) {
                              case FileBrowserAction::AddToFavorites:
                              case FileBrowserAction::RemoveFromFavorites:
+                               return;
+                             case FileBrowserAction::ExcludeFromLibrary:
+                             case FileBrowserAction::IncludeInLibrary:
+                               if (!JesterLibraries::setExcluded(fullPath,
+                                                                 action == FileBrowserAction::ExcludeFromLibrary)) {
+                                 BookActions::drawToast(renderer, tr(STR_LIBRARY_UPDATE_FAILED));
+                               }
+                               requestUpdate();
+                               return;
+                             case FileBrowserAction::MakeLibrary: {
+                               uint8_t slot = 0;
+                               if (JesterLibraries::makeLibrary(fullPath, slot)) {
+                                 BookActions::drawToast(renderer, tr(STR_LIBRARY_CREATED));
+                               } else {
+                                 BookActions::drawToast(renderer, tr(STR_LIBRARY_LIMIT_REACHED));
+                               }
+                               requestUpdate();
+                               return;
+                             }
+                             case FileBrowserAction::RemoveLibrary:
+                               for (const auto& library : JesterLibraries::list()) {
+                                 if (library.slot != 0 && library.root == fullPath) {
+                                   if (!JesterLibraries::removeLibrary(library.slot)) {
+                                     BookActions::drawToast(renderer, tr(STR_LIBRARY_UPDATE_FAILED));
+                                   }
+                                   JesterLibraries::applyToBuilder();
+                                 }
+                               }
+                               requestUpdate();
                                return;
                              case FileBrowserAction::Delete:
                                promptDeleteDirectory(fullPath, entry);
@@ -717,6 +755,11 @@ void FileBrowserActivity::showFileActionMenu(const std::string& entry, bool igno
           case FileBrowserAction::RemoveFromFavorites:
             BookActions::toggleFavorite(renderer, fullPath, "", "");
             requestUpdate();
+            return;
+          case FileBrowserAction::ExcludeFromLibrary:
+          case FileBrowserAction::IncludeInLibrary:
+          case FileBrowserAction::MakeLibrary:
+          case FileBrowserAction::RemoveLibrary:
             return;
           case FileBrowserAction::Rename:
             startRenameFile(fullPath, entry);

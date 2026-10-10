@@ -21,6 +21,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "LibraryFormat.h"
 
@@ -126,5 +127,15 @@ void restoreLibraryIndexAfterSleep();
 
 // Live index path, shared by the builder and activity.
 const char* libraryIndexPath();
+
+// Jester (feature 19): several libraries, each a root folder with its own
+// index file (library 0 keeps library.idx). The metadata cache is shared.
+inline constexpr uint8_t MAX_LIBRARIES = 8;
+void setActiveLibrary(uint8_t slot);
+uint8_t activeLibrary();
+// Folders skipped, with their subtrees, by every build (full paths).
+void setExcludedDirectories(std::vector<std::string> directories);
+// Keep only the `limit` most recently added books (0 = all).
+void setIndexLimit(uint16_t limit);
 
 }  // namespace library

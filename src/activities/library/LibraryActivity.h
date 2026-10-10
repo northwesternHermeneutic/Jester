@@ -41,7 +41,9 @@ class LibraryActivity final : public Activity {
  private:
   enum class Sort : uint8_t { DateAdded, Title, AuthorLast, AuthorFirst, RecentlyRead, Series, Genre };
   // Touch header controls precede the book rows; button-only navigation visits books directly.
-  static constexpr int CONTROL_COUNT = 5;
+  // Controls: 0 refresh, 1 search, 2 settings, 3 sort method, 4 sort
+  // direction, 5 Switch Library (Jester, feature 19).
+  static constexpr int CONTROL_COUNT = 6;
   using UiApp = freeink::ui::FreeInkApp<32, 4>;
   freeink::ui::GfxRendererTarget uiTarget;
   UiApp app;
@@ -151,6 +153,8 @@ class LibraryActivity final : public Activity {
   void refreshLibrary();
   void openSearch();
   void openSettings();
+  void openLibrarySwitcher();  // Jester (feature 19)
+  std::string libraryName;     // Jester (feature 19): header title
   void activateControl(int control);
   // Owns the allocation-failure check and render lock for every child result.
   void openDialog(std::unique_ptr<Activity>&& activity, ActivityResultHandler handler);

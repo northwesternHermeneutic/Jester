@@ -121,6 +121,7 @@ inline esp_sleep_wakeup_cause_t esp_sleep_get_wakeup_cause() { return ESP_SLEEP_
 #include "util/FrontlightSchedule.h"
 #include "util/ScreenshotUtil.h"
 #include "util/SleepWakePolicy.h"
+#include "JesterLibraries.h"
 
 GfxRenderer renderer(display);
 MappedInputManager mappedInputManager(gpio, renderer);
@@ -1357,6 +1358,8 @@ void setup() {
   HalSystem::checkPanic();
 
   SETTINGS.loadFromFile();
+  // Jester (feature 19): active library, exclusions and Index Limit for the Library builder.
+  JesterLibraries::applyToBuilder();
   Storage.installDateTimeCallback(&SETTINGS.clockUtcOffsetQ);
   APP_STATE.loadFromFile();
   mirrorWakeShortPressToNvs();

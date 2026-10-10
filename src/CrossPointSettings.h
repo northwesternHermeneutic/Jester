@@ -659,6 +659,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t showHiddenFiles = 0;
   // Prefer embedded EPUB titles/authors in Library; disable for filename-only scans.
   uint8_t libraryUseMetadata = 1;
+  // Jester (feature 19): index into JesterLibraries::INDEX_LIMIT_VALUES; 9 = All Books.
+  uint8_t libraryIndexLimit = 9;
   uint8_t librarySortMethod = 4;
   uint8_t librarySortDescending = 1;
   uint8_t libraryListExpanded = 1;

@@ -29,9 +29,17 @@
 namespace library {
 namespace {
 
-constexpr char INDEX_PATH[] = "/.crosspoint/library.idx";
+// Jester (feature 19): each library has its own index; library 0 keeps the
+// upstream file names so an existing index stays valid.
+char gIndexPath[40] = "/.crosspoint/library.idx";
+char gBackupPath[40] = "/.crosspoint/library.bak";
+uint8_t gActiveLibrary = 0;
+std::vector<std::string> gExcludedDirectories;
+uint16_t gIndexLimit = 0;
+uint32_t gCreationCutoff = 0;
+const char* activeIndexPath() { return gIndexPath; }
+const char* activeBackupPath() { return gBackupPath; }
 constexpr char NEW_PATH[] = "/.crosspoint/library.new";
-constexpr char BACKUP_PATH[] = "/.crosspoint/library.bak";
 constexpr char STAGE_PATH[] = "/.crosspoint/library.stage";
 // Build-only scratch. Each holds 16 bytes or less per book and is streamed, so
 // nothing proportional to the library stays in RAM between phases.
@@ -254,13 +262,13 @@ struct StreamWriter {
 };
 
 bool recoverInterruptedInstall() {
-  if (!Storage.exists(BACKUP_PATH)) return true;
-  if (!Storage.exists(INDEX_PATH)) {
-    if (Storage.rename(BACKUP_PATH, INDEX_PATH)) {
+  if (!Storage.exists(activeBackupPath())) return true;
+  if (!Storage.exists(activeIndexPath())) {
+    if (Storage.rename(activeBackupPath(), activeIndexPath())) {
       LOG_INF("LIBIDX", "restored previous index after interrupted install");
       return true;
     }
-    LOG_ERR("LIBIDX", "cannot restore %s; rebuild deferred", BACKUP_PATH);
+    LOG_ERR("LIBIDX", "cannot restore %s; rebuild deferred", activeBackupPath());
     return false;
   }
 
@@ -270,9 +278,9 @@ bool recoverInterruptedInstall() {
   LibraryIndexFile candidate;
   // An older live index is still valid during a format upgrade. Keep it over
   // a stale backup so interrupted cleanup cannot roll back arrival history.
-  if (candidate.openForReconciliation(INDEX_PATH)) {
+  if (candidate.openForReconciliation(activeIndexPath())) {
     candidate.close();
-    if (Storage.remove(BACKUP_PATH)) return true;
+    if (Storage.remove(activeBackupPath())) return true;
     LOG_ERR("LIBIDX", "cannot remove stale backup; rebuild deferred");
     return false;
   }
@@ -282,9 +290,9 @@ bool recoverInterruptedInstall() {
   }
   candidate.close();
 
-  if (candidate.openForReconciliation(BACKUP_PATH)) {
+  if (candidate.openForReconciliation(activeBackupPath())) {
     candidate.close();
-    if (!Storage.remove(INDEX_PATH) || !Storage.rename(BACKUP_PATH, INDEX_PATH)) {
+    if (!Storage.remove(activeIndexPath()) || !Storage.rename(activeBackupPath(), activeIndexPath())) {
       LOG_ERR("LIBIDX", "validated backup could not replace an invalid live index");
       return false;
     }
@@ -299,7 +307,7 @@ bool recoverInterruptedInstall() {
 
   // Neither file validates. The live path will be preserved until a complete
   // new index is ready; the unusable backup only blocks transactional install.
-  if (!Storage.remove(BACKUP_PATH)) {
+  if (!Storage.remove(activeBackupPath())) {
     LOG_ERR("LIBIDX", "invalid stale backup cannot be removed; rebuild deferred");
     return false;
   }
@@ -307,35 +315,35 @@ bool recoverInterruptedInstall() {
 }
 
 bool installNewIndex() {
-  const bool hadPrevious = Storage.exists(INDEX_PATH);
+  const bool hadPrevious = Storage.exists(activeIndexPath());
 
   // A backup beside a live index is left by a successful install interrupted
   // before cleanup. It is stale now; remove it before reserving that name for
   // the current previous index.
-  if (Storage.exists(BACKUP_PATH) && !Storage.remove(BACKUP_PATH)) {
+  if (Storage.exists(activeBackupPath()) && !Storage.remove(activeBackupPath())) {
     LOG_ERR("LIBIDX", "cannot remove stale backup; keeping the live index");
     Storage.remove(NEW_PATH);
     return false;
   }
 
-  if (hadPrevious && !Storage.rename(INDEX_PATH, BACKUP_PATH)) {
+  if (hadPrevious && !Storage.rename(activeIndexPath(), activeBackupPath())) {
     LOG_ERR("LIBIDX", "cannot stage previous index for replacement");
     Storage.remove(NEW_PATH);
     return false;
   }
 
-  if (!Storage.rename(NEW_PATH, INDEX_PATH)) {
-    LOG_ERR("LIBIDX", "rename %s -> %s failed", NEW_PATH, INDEX_PATH);
-    if (hadPrevious && !Storage.rename(BACKUP_PATH, INDEX_PATH)) {
+  if (!Storage.rename(NEW_PATH, activeIndexPath())) {
+    LOG_ERR("LIBIDX", "rename %s -> %s failed", NEW_PATH, activeIndexPath());
+    if (hadPrevious && !Storage.rename(activeBackupPath(), activeIndexPath())) {
       // recoverInterruptedInstall() retries this on the next rebuild. Do not
       // remove the backup: it is the only complete index left.
-      LOG_ERR("LIBIDX", "previous index rollback failed; backup retained at %s", BACKUP_PATH);
+      LOG_ERR("LIBIDX", "previous index rollback failed; backup retained at %s", activeBackupPath());
     }
     Storage.remove(NEW_PATH);
     return false;
   }
 
-  if (hadPrevious && !Storage.remove(BACKUP_PATH)) {
+  if (hadPrevious && !Storage.remove(activeBackupPath())) {
     // The new live index is already complete. A stale backup is harmless and is
     // removed before the next replacement attempt.
     LOG_ERR("LIBIDX", "new index installed but stale backup cleanup failed");
@@ -827,9 +835,17 @@ void walk(WalkState& st, const std::string& path, const int depth) {
     const std::string name(st.nameBuf);
 
     if (isDir) {
+      const std::string childPath = joinLibraryPath(path, name);
+      // Jester (feature 19): an excluded folder is skipped with its subtree. A
+      // library rooted inside an excluded folder never meets it here, so the
+      // exclusion does not apply to that library.
+      if (std::find(gExcludedDirectories.begin(), gExcludedDirectories.end(), childPath) !=
+          gExcludedDirectories.end()) {
+        continue;
+      }
       const size_t resumePosition = dir.position();
       dir.close();
-      walk(st, joinLibraryPath(path, name), depth + 1);
+      walk(st, childPath, depth + 1);
       if (st.failed) return;
 
       dir = Storage.open(path.c_str());
@@ -849,6 +865,9 @@ void walk(WalkState& st, const std::string& path, const int depth) {
       st.unreadableSkipped++;
       continue;
     }
+    // Jester (feature 19): Library Index Limit keeps only the most recently
+    // added books (cutoff found by a cheap pre-pass, before any metadata read).
+    if (gCreationCutoff != 0 && creationTime < gCreationCutoff) continue;
     // The index stores the name and the folder path behind one length byte
     // each, and readPath() reconstructs "<folder>/<name>" from those bytes. An
     // entry that does not fit is skipped and counted, never clamped: a clamped
@@ -1657,7 +1676,81 @@ bool writeTitleOrder(const uint16_t n) {
 
 }  // namespace
 
-const char* libraryIndexPath() { return INDEX_PATH; }
+const char* libraryIndexPath() { return activeIndexPath(); }
+
+// Jester (feature 19): creation times of the newest `limit` books under
+// `path`, kept in a fixed min-heap so RAM stays bounded (limit <= 500 -> 2 KB).
+static void collectNewestCreationTimes(const std::string& path, const int depth, uint32_t* heap, uint16_t& count,
+                                       const uint16_t limit, uint16_t& seen) {
+  if (depth > LIBRARY_MAX_DEPTH) return;
+  HalFile dir = Storage.open(path.c_str());
+  if (!dir || !dir.isDirectory()) {
+    if (dir) dir.close();
+    return;
+  }
+  // Static: recursion copies the name out before descending, and builds are
+  // single-threaded, so one buffer avoids 512 B of stack per folder level.
+  static char name[NAME_BUF_SIZE];
+  for (HalFile entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+    if (buildCancelled()) {
+      entry.close();
+      break;
+    }
+    name[0] = '\0';
+    entry.getName(name, sizeof(name));
+    const bool isDir = entry.isDirectory();
+    const uint32_t size = isDir ? 0 : static_cast<uint32_t>(entry.fileSize());
+    const uint32_t creationTime = isDir ? 0 : entry.creationTime();
+    entry.close();
+    if (name[0] == '\0' || isHiddenOrSidecar(name)) continue;
+    const std::string entryName(name);
+    if (isDir) {
+      const std::string childPath = joinLibraryPath(path, entryName);
+      if (std::find(gExcludedDirectories.begin(), gExcludedDirectories.end(), childPath) !=
+          gExcludedDirectories.end()) {
+        continue;
+      }
+      const size_t resumePosition = dir.position();
+      dir.close();
+      collectNewestCreationTimes(childPath, depth + 1, heap, count, limit, seen);
+      dir = Storage.open(path.c_str());
+      if (!dir || !dir.isDirectory() || !dir.seekSet(resumePosition)) {
+        if (dir) dir.close();
+        return;
+      }
+      continue;
+    }
+    if (!isBookName(entryName) || size == 0) continue;
+    seen++;
+    const auto greater = [](const uint32_t a, const uint32_t b) { return a > b; };
+    if (count < limit) {
+      heap[count++] = creationTime;
+      std::push_heap(heap, heap + count, greater);
+    } else if (creationTime > heap[0]) {
+      std::pop_heap(heap, heap + count, greater);
+      heap[count - 1] = creationTime;
+      std::push_heap(heap, heap + count, greater);
+    }
+  }
+  if (dir) dir.close();
+}
+
+static uint32_t creationCutoffFor(const char* rootPath, const uint16_t limit) {
+  if (limit == 0) return 0;
+  auto heap = makeUniqueNoThrow<uint32_t[]>(limit);
+  if (!heap) {
+    LOG_ERR("LIBIDX", "OOM: index limit heap (%u); indexing every book", static_cast<unsigned>(limit));
+    return 0;
+  }
+  uint16_t count = 0;
+  uint16_t seen = 0;
+  collectNewestCreationTimes(rootPath, 0, heap.get(), count, limit, seen);
+  // Fewer books than the limit: keep them all. Otherwise heap[0] is the oldest
+  // creation time still among the newest `limit`; ties at it are all kept.
+  if (seen <= limit || count == 0) return 0;
+  LOG_DBG("LIBIDX", "index limit %u of %u books", static_cast<unsigned>(limit), static_cast<unsigned>(seen));
+  return heap[0] == 0 ? 1 : heap[0];
+}
 
 static bool rebuildLibraryIndex(const char* rootPath, BuildStats& stats, const bool readMetadata) {
   const uint32_t startMs = millis();
@@ -1699,8 +1792,8 @@ static bool rebuildLibraryIndex(const char* rootPath, BuildStats& stats, const b
   uint16_t priorCount = 0;
   uint16_t nextFirstSeen = 0;
   LibraryIndexFile previous;
-  if (Storage.exists(INDEX_PATH)) {
-    if (previous.openForReconciliation(INDEX_PATH)) {
+  if (Storage.exists(activeIndexPath())) {
+    if (previous.openForReconciliation(activeIndexPath())) {
       nextFirstSeen = previous.header().nextFirstSeen;
       priorCount = previous.bookCount();
       if (!buildPriorByPath(previous, priorByPath)) {
@@ -1743,7 +1836,9 @@ static bool rebuildLibraryIndex(const char* rootPath, BuildStats& stats, const b
   {
     serialization::BufferedFileWriter stageOut(st.stage, LIBRARY_IO_BUFFER_SIZE);
     st.stageOut = &stageOut;
+    gCreationCutoff = creationCutoffFor(rootPath, gIndexLimit);
     walk(st, rootPath, 0);
+    gCreationCutoff = 0;
     st.stageOut = nullptr;
     stageFlushed = stageOut.flush();
   }
@@ -1830,14 +1925,41 @@ static bool rebuildLibraryIndex(const char* rootPath, BuildStats& stats, const b
 }
 
 namespace {
-std::atomic<bool> indexDirty{true};
+// One dirty bit per library (Jester, feature 19). Any file change may affect
+// every library, so invalidation marks them all; a build clears its own bit.
+std::atomic<uint32_t> indexDirty{0xFFFFFFFFu};
+uint32_t activeDirtyBit() { return 1u << gActiveLibrary; }
+}  // namespace
+
+void invalidateLibraryIndex() { indexDirty.store(0xFFFFFFFFu, std::memory_order_relaxed); }
+
+bool libraryIndexNeedsRefresh() { return (indexDirty.load(std::memory_order_relaxed) & activeDirtyBit()) != 0; }
+
+// Boot runs this before settings and the library registry are read, so the
+// clean state is applied to whichever library setActiveLibrary() selects first.
+bool gRestoredAfterSleep = false;
+void restoreLibraryIndexAfterSleep() { gRestoredAfterSleep = true; }
+
+void setActiveLibrary(const uint8_t slot) {
+  gActiveLibrary = slot < MAX_LIBRARIES ? slot : 0;
+  if (gRestoredAfterSleep) {
+    gRestoredAfterSleep = false;
+    indexDirty.fetch_and(~activeDirtyBit(), std::memory_order_relaxed);
+  }
+  if (gActiveLibrary == 0) {
+    snprintf(gIndexPath, sizeof(gIndexPath), "/.crosspoint/library.idx");
+    snprintf(gBackupPath, sizeof(gBackupPath), "/.crosspoint/library.bak");
+  } else {
+    snprintf(gIndexPath, sizeof(gIndexPath), "/.crosspoint/library%u.idx", static_cast<unsigned>(gActiveLibrary));
+    snprintf(gBackupPath, sizeof(gBackupPath), "/.crosspoint/library%u.bak", static_cast<unsigned>(gActiveLibrary));
+  }
 }
 
-void invalidateLibraryIndex() { indexDirty.store(true, std::memory_order_relaxed); }
+uint8_t activeLibrary() { return gActiveLibrary; }
 
-bool libraryIndexNeedsRefresh() { return indexDirty.load(std::memory_order_relaxed); }
+void setExcludedDirectories(std::vector<std::string> directories) { gExcludedDirectories = std::move(directories); }
 
-void restoreLibraryIndexAfterSleep() { indexDirty.store(false, std::memory_order_relaxed); }
+void setIndexLimit(const uint16_t limit) { gIndexLimit = limit; }
 
 uint16_t libraryBookLimit() { return CLIX_MAX_RECORDS; }
 
@@ -1845,7 +1967,7 @@ bool buildLibraryIndex(const char* rootPath, BuildStats& stats, const bool readM
                        const BuildCallbacks* callbacks) {
   // Clear before scanning, not after: a file mutation during the scan must
   // survive as a request for another reconciliation. Builds are foreground-only.
-  indexDirty.exchange(false, std::memory_order_relaxed);
+  indexDirty.fetch_and(~activeDirtyBit(), std::memory_order_relaxed);
   buildControl = BuildControl{};
   buildControl.callbacks = callbacks;
   buildControl.lastPollMs = buildControl.lastProgressMs = millis();
