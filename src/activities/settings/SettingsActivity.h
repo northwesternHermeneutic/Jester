@@ -223,9 +223,7 @@ inline bool settingShowsNavigationCaret(const SettingInfo& setting) {
 
 class SettingsActivity final : public Activity {
  public:
-  // SleepScreen (Jester, feature 14): the full settings tree opened at
-  // Display > Sleep Screen, used from the in-book menu.
-  enum class View : uint8_t { Root, FileBrowser, SleepScreen };
+  enum class View : uint8_t { Root, FileBrowser };
 
  private:
   ButtonNavigator buttonNavigator;

@@ -22,7 +22,6 @@
 #include "components/UiAppHelpers.h"
 #include "components/icons/touchscreenStateIcons.h"
 #include "fontIds.h"
-#include "activities/settings/SettingsActivity.h"
 
 namespace fui = freeink::ui;
 
@@ -276,8 +275,6 @@ EpubReaderMenuActivity::TabMenuItems EpubReaderMenuActivity::buildMenuItems(
   settingsItems.push_back({MenuAction::DELETE_CACHE, StrId::STR_DELETE_CACHE});
   (void)showReadingPaceReset;  // Jester (feature 17): no Delete Stats or Reset Reading Pace entries.
   settingsItems.push_back({MenuAction::CONTROLS_OPTIONS, StrId::STR_CAT_CONTROLS});
-  // Jester (feature 14): sleep screen settings without leaving the book.
-  settingsItems.push_back({MenuAction::SLEEP_SCREEN_SETTINGS, StrId::STR_DISPLAY_SLEEP_SCREEN});
   settingsItems.push_back(
       {MenuAction::TOGGLE_COMPLETED, isBookCompleted ? StrId::STR_MARK_UNFINISHED : StrId::STR_MARK_FINISHED});
   return items;
@@ -390,23 +387,6 @@ bool EpubReaderMenuActivity::activateSelectedItem() {
           }
           requestUpdate();
         });
-    return true;
-  }
-
-  if (selectedAction == MenuAction::SLEEP_SCREEN_SETTINGS) {
-    if (beginGlobalSettingsEditCallback) beginGlobalSettingsEditCallback(beginGlobalSettingsEditContext);
-    startActivityForResult(std::make_unique<SettingsActivity>(renderer, mappedInput, /*dismissOnUpSwipe=*/false,
-                                                              /*returnToParentOnClose=*/true,
-                                                              SettingsActivity::View::SleepScreen),
-                           [this](const ActivityResult&) {
-                             if (endGlobalSettingsEditCallback)
-                               endGlobalSettingsEditCallback(endGlobalSettingsEditContext);
-                             ActivityResult result;
-                             result.isCancelled = true;
-                             result.data = makeMenuResult(-1);
-                             setResult(std::move(result));
-                             finish();
-                           });
     return true;
   }
 
