@@ -61,6 +61,12 @@ constexpr size_t MIN_FREE_HEAP_FOR_CSS = 48 * 1024;
 // fall back to the disk-backed selector index.
 constexpr size_t MIN_FREE_HEAP_FOR_CSS_RULE_ARENA = 96 * 1024;
 constexpr size_t CSS_RULE_ARENA_MIN_FREE_AFTER_ALLOC = 80 * 1024;
+// Jester: without PSRAM the hydrated table (about 120 bytes per rule) stays in
+// internal RAM for the whole incremental chapter build, while the reader keeps
+// rendering pages. Large publisher stylesheets could take 60+ KB and leave the
+// layout parser short. Above this size, use the disk index (8 bytes per rule);
+// lookups that hit a rule then read it from the SD cache instead.
+constexpr size_t CSS_RULE_ARENA_MAX_INTERNAL_BYTES = 16 * 1024;
 constexpr size_t CSS_RULE_ARENA_EXTRA_BYTES = 1024;
 
 // Maximum length for a single selector string
@@ -1454,8 +1460,8 @@ bool CssParser::loadFromCache() {
     return false;
   }
 
-  // Size the bucket array up front to avoid incremental rehashes while loading rules.
-  rulesBySelector_.reserve(ruleCount);
+  // Jester: rules loaded from the cache never enter rulesBySelector_, so its
+  // bucket array is not reserved here (it held ruleCount pointers for nothing).
 
   auto hasRemainingBytes = [&file](const size_t neededBytes) -> bool {
     return static_cast<size_t>(file.available()) >= neededBytes;
@@ -1483,7 +1489,8 @@ bool CssParser::loadFromCache() {
   // arena payload from their budget, never their existing 80 KiB reserve.
   const bool admitted = external ? MemoryBudget::canAllocateInternal(0, CSS_RULE_ARENA_MIN_FREE_AFTER_ALLOC,
                                                                      MIN_LARGEST_BLOCK_FOR_RULE_GROWTH)
-                                 : freeHeapBeforeHydrate >= MIN_FREE_HEAP_FOR_CSS_RULE_ARENA &&
+                                 : arenaBytes <= CSS_RULE_ARENA_MAX_INTERNAL_BYTES &&
+                                       freeHeapBeforeHydrate >= MIN_FREE_HEAP_FOR_CSS_RULE_ARENA &&
                                        freeHeapBeforeHydrate >= arenaBytes + CSS_RULE_ARENA_MIN_FREE_AFTER_ALLOC;
   if (ruleCount > 0 && admitted) {
     if (cachedRuleArena_.init(arenaBytes)) {

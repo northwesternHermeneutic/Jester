@@ -7166,52 +7166,27 @@ bool EpubReaderActivity::publisherLabelShown() const {
 
 void EpubReaderActivity::updatePublisherLabel(const Page& page, const bool force) {
   if (!section) return;
-  // The label costs page loads after a jump. Skip it when no status bar shows it;
-  // a new dog ear asks for it with force.
   if (!force && !publisherLabelShown()) {
     publisherLabelSpine = -1;
     publisherLabelPage = -1;
     publisherLabel[0] = '\0';
     return;
   }
+  // No page loads here: the label comes from the page on screen. Reading on
+  // carries it forward; after a jump or a step back it stays empty until a
+  // page with a publisher page marker is reached.
   const int spine = currentSpineIndex;
   const int pageIndex = section->currentPage;
   if (spine == publisherLabelSpine && pageIndex == publisherLabelPage) return;
   const bool forwardStep = (spine == publisherLabelSpine && pageIndex == publisherLabelPage + 1) ||
                            (spine == publisherLabelSpine + 1 && pageIndex == 0);
-  if (!page.publisherPageMarkers.empty()) {
-    publisherLabelSpine = spine;
-    publisherLabelPage = pageIndex;
-    std::strncpy(publisherLabel, page.publisherPageMarkers.back().label, sizeof(publisherLabel) - 1);
-    publisherLabel[sizeof(publisherLabel) - 1] = '\0';
-    return;
-  }
-  if (forwardStep) {  // reading on: the label carries over
-    publisherLabelSpine = spine;
-    publisherLabelPage = pageIndex;
-    return;
-  }
-  publisherLabel[0] = '\0';
-  // While the chapter is still being laid out, the parser needs the heap; loading
-  // earlier pages here could push it under its layout floor. Without spare heap,
-  // leave the label empty and unresolved so a later render retries the lookback.
-  if (section->isBuilding() &&
-      !MemoryBudget::hasHeap(MemoryBudget::snapshot(), MemoryBudget::OPTIONAL_EPUB_REBUILD_MIN_FREE,
-                             MemoryBudget::OPTIONAL_EPUB_REBUILD_MIN_MAX_ALLOC)) {
-    publisherLabelSpine = -1;
-    publisherLabelPage = -1;
-    return;
-  }
   publisherLabelSpine = spine;
   publisherLabelPage = pageIndex;
-  // After a jump or a step back, look a few pages back in this section.
-  constexpr int MAX_LOOKBACK_PAGES = 10;
-  for (int index = pageIndex - 1; index >= 0 && index >= pageIndex - MAX_LOOKBACK_PAGES; --index) {
-    const auto earlier = section->loadPage(index);
-    if (!earlier || earlier->publisherPageMarkers.empty()) continue;
-    std::strncpy(publisherLabel, earlier->publisherPageMarkers.back().label, sizeof(publisherLabel) - 1);
+  if (!page.publisherPageMarkers.empty()) {
+    std::strncpy(publisherLabel, page.publisherPageMarkers.back().label, sizeof(publisherLabel) - 1);
     publisherLabel[sizeof(publisherLabel) - 1] = '\0';
-    return;
+  } else if (!forwardStep) {
+    publisherLabel[0] = '\0';
   }
 }
 
