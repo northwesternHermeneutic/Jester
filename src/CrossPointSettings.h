@@ -482,8 +482,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t statusBarBattery = 1;
   uint8_t xtcStatusBarMode = XTC_STATUS_BAR_HIDE;
   // Jester defaults (feature 13): top bar empty; bottom bar Battery in the
-  // first left slot and book percentage (one decimal, feature 2) in the first
-  // right slot; no progress bar; chapter page count off.
+  // first left slot, Publisher Page Number in the center and book percentage
+  // (one decimal, feature 2) in the first right slot; no progress bar.
   ReaderStatusBarConfig topReaderStatusBar = [] {
     ReaderStatusBarConfig config;
     config.percentageFormat = BOOK_PERCENTAGE_ONE_DECIMAL;
@@ -495,7 +495,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     config.slots = {ReaderStatusBarItem::Battery,
                     ReaderStatusBarItem::Empty,
                     ReaderStatusBarItem::Empty,
-                    ReaderStatusBarItem::Empty,
+                    ReaderStatusBarItem::PublisherPageNumber,
                     ReaderStatusBarItem::BookProgressPercentage,
                     ReaderStatusBarItem::Empty,
                     ReaderStatusBarItem::Empty};

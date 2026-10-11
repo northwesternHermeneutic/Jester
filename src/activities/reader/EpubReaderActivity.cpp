@@ -126,6 +126,8 @@ constexpr uint16_t FOOTNOTE_PREVIEW_MAX_PAGES = 3;
 #if CROSSINK_APP_CAP_TOUCH
 constexpr int TOUCH_FOOTNOTE_TARGET_SIZE = 48;
 #endif
+// Jester (feature 13): margin publisher page numbers removed; status bar item only.
+constexpr bool JESTER_MARGIN_PUBLISHER_PAGE_NUMBERS = false;
 constexpr uint8_t PUBLISHER_PAGE_NUMBER_LEFT_MARGIN_MIN = 15;
 constexpr int PUBLISHER_PAGE_NUMBER_X = 5;
 constexpr uint16_t CLIP_ADVANCE_CODEPOINT_CAPACITY = 256;
@@ -880,7 +882,9 @@ void drawToast(const GfxRenderer& renderer, const char* msg) {
 
 void drawPublisherPageMarkers(const GfxRenderer& renderer, const Page& page, const int contentTop,
                               const int contentBottom, const bool foregroundBlack = true) {
-  if (!SETTINGS.publisherPageNumbers || page.publisherPageMarkers.empty()) {
+  // Jester: printed page numbers show only in the status bar; the margin labels
+  // are removed and the stored publisherPageNumbers value is ignored.
+  if (!JESTER_MARGIN_PUBLISHER_PAGE_NUMBERS || page.publisherPageMarkers.empty()) {
     return;
   }
 
@@ -945,7 +949,7 @@ void drawPublisherPageMarkers(const GfxRenderer& renderer, const Page& page, con
 }
 
 uint8_t effectiveReaderLeftMargin() {
-  return SETTINGS.publisherPageNumbers
+  return JESTER_MARGIN_PUBLISHER_PAGE_NUMBERS && SETTINGS.publisherPageNumbers
              ? std::max<uint8_t>(SETTINGS.screenMarginHorizontal, PUBLISHER_PAGE_NUMBER_LEFT_MARGIN_MIN)
              : SETTINGS.screenMarginHorizontal;
 }

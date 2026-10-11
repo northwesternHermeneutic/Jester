@@ -1194,7 +1194,7 @@ inline std::vector<SettingInfo> getSettingsList(const SdCardFontRegistry* regist
   return v;
 }
 
-// Settings whose feature Jester removed (features 16 and 17). They stay in the
+// Settings whose feature Jester removed (features 13, 16 and 17). They stay in the
 // catalog so their persisted keys and values remain reserved, but no device or
 // web settings screen shows them.
 inline bool isSettingRemovedInJester(const SettingInfo& setting) {
@@ -1206,6 +1206,7 @@ inline bool isSettingRemovedInJester(const SettingInfo& setting) {
     case StrId::STR_AUTO_BACKUP_STATS:      // feature 17
     case StrId::STR_OPDS_DOWNLOAD_FOLDER:   // feature 16 (OPDS)
     case StrId::STR_NEARBY_RECEIVE_FOLDER:  // feature 16 (Nearby transfer)
+    case StrId::STR_PUBLISHER_PAGE_NUMBERS: // feature 13 (margin labels; status bar item only)
       return true;
     default:
       // Legacy front long-press behaviour, replaced by feature 20.

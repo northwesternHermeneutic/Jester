@@ -140,7 +140,7 @@ constexpr ReaderDrawerCatalog makeReaderDrawerCatalog(const ReaderDrawerAvailabi
   layout.add(ReaderDrawerCatalogItem::Alignment);
   layout.add(ReaderDrawerCatalogItem::Images);
   layout.add(ReaderDrawerCatalogItem::Hyphenation);
-  layout.add(ReaderDrawerCatalogItem::PublisherPages);
+  // Jester (feature 13): no margin Publisher Pages toggle.
   layout.add(ReaderDrawerCatalogItem::ExtraSpacing);
   layout.add(ReaderDrawerCatalogItem::ForceIndents);
   layout.add(ReaderDrawerCatalogItem::EmbeddedStyle);
