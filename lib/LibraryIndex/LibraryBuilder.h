@@ -124,6 +124,10 @@ void invalidateLibraryIndex();
 bool libraryIndexNeedsRefresh();
 // Boot-only: called after validating a clean scan retained across deep sleep.
 void restoreLibraryIndexAfterSleep();
+// Jester: the per-library dirty bits, carried across the X4's power-off sleep
+// and silent restarts (see JesterLibraries::saveIndexState()).
+uint32_t libraryDirtyMask();
+void setLibraryDirtyMask(uint32_t mask);
 
 // Live index path, shared by the builder and activity.
 const char* libraryIndexPath();

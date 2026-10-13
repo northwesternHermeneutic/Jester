@@ -205,6 +205,45 @@ bool setExcluded(const std::string& folder, const bool excluded) {
   return true;
 }
 
+namespace {
+constexpr char INDEX_STATE_PATH[] = "/.crosspoint/jester-library-state.bin";
+constexpr uint32_t INDEX_STATE_MAGIC = 0x4A4C4942;  // "JLIB"
+}  // namespace
+
+void saveIndexStateForSleep() {
+  const uint32_t mask = library::libraryDirtyMask();
+  const uint32_t record[3] = {INDEX_STATE_MAGIC, mask, ~mask};
+  HalFile file;
+  if (!Storage.openFileForWrite("JLIB", INDEX_STATE_PATH, file)) {
+    LOG_ERR("JLIB", "Cannot write %s", INDEX_STATE_PATH);
+    return;
+  }
+  if (file.write(record, sizeof(record)) != sizeof(record)) {
+    file.close();
+    Storage.remove(INDEX_STATE_PATH);
+    LOG_ERR("JLIB", "Short write to %s", INDEX_STATE_PATH);
+    return;
+  }
+  file.close();
+}
+
+bool restoreIndexStateAtBoot(uint32_t& maskOut) {
+  if (!Storage.exists(INDEX_STATE_PATH)) return false;
+  uint32_t record[3] = {};
+  bool valid = false;
+  HalFile file;
+  if (Storage.openFileForRead("JLIB", INDEX_STATE_PATH, file)) {
+    valid = file.read(record, sizeof(record)) == static_cast<int>(sizeof(record)) && record[0] == INDEX_STATE_MAGIC &&
+            record[2] == ~record[1];
+    file.close();
+  }
+  // Consumed on every boot: only the boot right after a sleep may trust it.
+  Storage.remove(INDEX_STATE_PATH);
+  if (!valid) return false;
+  maskOut = record[1];
+  return true;
+}
+
 void applyToBuilder() {
   State state;
   readState(state);

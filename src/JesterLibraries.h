@@ -41,4 +41,15 @@ bool setExcluded(const std::string& folder, bool excluded);
 // Library builder; marks indexes dirty when the limit changed.
 void applyToBuilder();
 
+// Library index state across the X4's sleep. On battery the X4's sleep is a
+// power-off (GPIO13 low cuts the battery), so RAM and RTC memory are lost and
+// every wake looked like a cold boot that must rescan. saveIndexStateForSleep()
+// writes the dirty bits to the card as the last step before sleeping;
+// restoreIndexStateAtBoot() reads and deletes that file on every boot, so only
+// the boot right after an orderly sleep finds it. A reset, crash or battery
+// pull leaves no file and still rescans. Books added with a computer while the
+// device sleeps need Library > Refresh.
+void saveIndexStateForSleep();
+bool restoreIndexStateAtBoot(uint32_t& maskOut);
+
 }  // namespace JesterLibraries

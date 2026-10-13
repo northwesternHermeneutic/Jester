@@ -326,6 +326,16 @@ void logMemoryStats(const char* phase) {
 // Retain only a successfully reconciled Library across real deep-sleep wakes.
 // Consume the pair on every boot, including resets that preserve RTC memory.
 RTC_NOINIT_ATTR library::ScanSleepToken libraryScanSleepToken;
+// Jester: every library's dirty bits across silent restarts (RTC memory
+// survives ESP.restart()); the X4's power-off sleep uses the SD file instead
+// (JesterLibraries::saveIndexStateForSleep()).
+struct LibraryDirtyToken {
+  uint32_t magic;
+  uint32_t mask;
+  uint32_t check;
+  static constexpr uint32_t MAGIC = 0x4A4C4452;  // "JLDR"
+};
+RTC_NOINIT_ATTR LibraryDirtyToken libraryDirtyToken;
 
 // Definitions for SilentRestart.h. RTC_NOINIT survives ESP.restart() but not power loss.
 RTC_NOINIT_ATTR uint32_t silentRebootMagic;
@@ -358,6 +368,11 @@ using BootResume = SleepWakePolicy::Resume;
 static bool deepSleepInProgress = false;
 
 static void restartWithSilentToken() {
+  // A silent restart does not touch the card, so the Library keeps its state.
+  // Callers that changed files invalidated the index before restarting.
+  libraryDirtyToken.mask = library::libraryDirtyMask();
+  libraryDirtyToken.check = ~libraryDirtyToken.mask;
+  libraryDirtyToken.magic = LibraryDirtyToken::MAGIC;
 #ifdef SIMULATOR
   SimulatorLifecycle::setSilentRebootToken(silentRebootMagic, silentRebootTarget, silentRebootPayload);
 #endif
@@ -1140,6 +1155,7 @@ void enterDeepSleep(bool fromTimeout) {
   // All sleep-time file writes are complete. Stop SDMMC before the power path
   // cuts peripheral rails and isolates the bus pads; SPI boards are a no-op.
   libraryScanSleepToken.save(!library::libraryIndexNeedsRefresh());
+  JesterLibraries::saveIndexStateForSleep();
   Storage.shutdown();
 
   putTiltSensorToSleepForDeepSleep();
@@ -1358,6 +1374,23 @@ void setup() {
   HalSystem::checkPanic();
 
   SETTINGS.loadFromFile();
+  {
+    // Jester: keep a clean Library index across a silent restart (RTC token)
+    // or the X4's power-off sleep (SD file, consumed on every boot). Any other
+    // boot keeps the cold-boot default: every library rescans once.
+    const bool silentRestartBoot = rawResetReason == ESP_RST_SW &&
+                                   libraryDirtyToken.magic == LibraryDirtyToken::MAGIC &&
+                                   libraryDirtyToken.check == ~libraryDirtyToken.mask;
+    const uint32_t silentMask = libraryDirtyToken.mask;
+    libraryDirtyToken.magic = libraryDirtyToken.mask = libraryDirtyToken.check = 0;
+    uint32_t sleepMask = 0;
+    const bool sleepState = JesterLibraries::restoreIndexStateAtBoot(sleepMask);
+    if (silentRestartBoot) {
+      library::setLibraryDirtyMask(silentMask);
+    } else if (sleepState) {
+      library::setLibraryDirtyMask(sleepMask);
+    }
+  }
   // Jester (feature 19): active library, exclusions and Index Limit for the Library builder.
   JesterLibraries::applyToBuilder();
   // Jester (feature 20): the legacy front long-press behaviour is replaced by

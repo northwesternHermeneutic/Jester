@@ -1938,6 +1938,10 @@ void invalidateLibraryIndex() { indexDirty.store(0xFFFFFFFFu, std::memory_order_
 
 bool libraryIndexNeedsRefresh() { return (indexDirty.load(std::memory_order_relaxed) & activeDirtyBit()) != 0; }
 
+uint32_t libraryDirtyMask() { return indexDirty.load(std::memory_order_relaxed); }
+
+void setLibraryDirtyMask(const uint32_t mask) { indexDirty.store(mask, std::memory_order_relaxed); }
+
 // Boot runs this before settings and the library registry are read, so the
 // clean state is applied to whichever library setActiveLibrary() selects first.
 bool gRestoredAfterSleep = false;
