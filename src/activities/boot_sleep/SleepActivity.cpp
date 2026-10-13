@@ -684,17 +684,17 @@ void SleepActivity::renderCustomSleepScreen() const {
 // firmware's only clean refresh in normal operation is the single-pass 0xD7
 // sequence, used once for the sleep image. It never runs the multi-flash GC
 // waveform (0xF7) that FULL_REFRESH selects (#2471's blinking complaint).
-void SleepActivity::renderDefaultSleepScreen() const {
+void SleepActivity::renderDefaultSleepScreen(const bool forceLight) const {
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
 
   renderer.clearScreen();
   renderer.drawImage(JesterLogo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
-  renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 70, tr(STR_JESTER), true, EpdFontFamily::BOLD);
-  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_SLEEPING));
+  // Jester: logo and "Sleeping" only; the name stays on the boot screen.
+  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 70, tr(STR_SLEEPING));
 
   // Make sleep screen dark unless light is selected in settings
-  const bool lightSleepScreen = SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::LIGHT;
+  const bool lightSleepScreen = forceLight || SETTINGS.sleepScreen == CrossPointSettings::SLEEP_SCREEN_MODE::LIGHT;
   if (!lightSleepScreen) {
     renderer.invertScreen();
   }
@@ -1218,6 +1218,10 @@ void SleepActivity::renderOverlaySleepScreen() const {
   if (!overlayDrawn && !pngOverlayFallbackMustUseDefault) {
     if (selectRandomSleepImage(SleepImageMode::Overlay, selection, false, false, contextFolder)) {
       trySelectedOverlay(selection);
+    } else if (!APP_STATE.lastSleepFromReader) {
+      // Jester placeholder: Home without /HomeSleep images shows the light Jester sleep screen.
+      renderer.setOrientation(savedOrientation);
+      return renderDefaultSleepScreen(/*forceLight=*/true);
     } else {
       contextFolder = nullptr;
       if (selectRandomSleepImage(SleepImageMode::Overlay, selection)) trySelectedOverlay(selection);

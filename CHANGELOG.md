@@ -17,10 +17,10 @@ Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected Cr
 - Clean Screen action: three black and white refreshes, then the page is redrawn.
 - File names, Library titles and Favorites titles wrap to two lines, breaking long words at hyphenation points.
 - Files uploaded over the hotspot carry the browser's date and time.
-- Boot and sleep screens show the Jester name and the ❍ (U+274D) logo; Settings > System shows the version as 0.5-build<N>.
+- Boot and sleep screens show the ❍ (U+274D) logo, the boot screen with the Jester name and the light and dark sleep screens with "Sleeping" only; Settings > System shows the version as 0.5-build<N>.
 - Quick Actions can open from a front Left or Right long press, and the Quick Actions screen names that shortcut.
 - Exempt from Global Orientation (in-book menu, after Reader Options): the book keeps its own orientation; rotating it does not change the global orientation, and global changes do not change it.
-- Page Overlay sleep screens use /HomeSleep outside a book, /PortraitSleep in a portrait book and /LandscapeSleep in a landscape book; a missing or empty folder falls back to the normal sleep folder.
+- Page Overlay sleep screens use /HomeSleep outside a book, /PortraitSleep in a portrait book and /LandscapeSleep in a landscape book; a missing or empty folder falls back to the normal sleep folder. Until /HomeSleep has images, sleeping from Home shows the light Jester sleep screen.
 
 ### Changed
 
