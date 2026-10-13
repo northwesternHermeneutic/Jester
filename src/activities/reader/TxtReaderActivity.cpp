@@ -33,8 +33,26 @@ constexpr uint32_t CACHE_MAGIC = 0x54585449;  // "TXTI"
 constexpr uint8_t CACHE_VERSION = 4;          // Increment when cache format changes
 constexpr uint32_t MAX_CACHE_PAGES = 65535;   // Sanity cap to prevent unbounded reserve()
 
+// Width of text[from, to) without allocating: the byte at `to` is swapped for a
+// terminator while the renderer measures.
+int measureRange(GfxRenderer& renderer, const int fontId, std::string& text, const size_t from, const size_t to) {
+  const char saved = text[to];
+  text[to] = '\0';
+  const int width = renderer.getTextWidth(fontId, text.c_str() + from);
+  text[to] = saved;
+  return width;
+}
+
 // Parses and word-wraps lines from a file chunk into outLines.
 // Returns the number of bytes consumed from the start of buffer.
+//
+// Jester: each screen line is found by scanning forward from its start and
+// measuring only prefixes up to the first one that no longer fits. The CrossInk
+// version measured the whole remaining paragraph and stepped back one word at a
+// time, copying a substring per step, which made long unbroken lines (a dog ear
+// record is one line per page) quadratic in the paragraph length. Breaks are the
+// same: the last space whose prefix fits, otherwise the last fitting codepoint
+// boundary, otherwise one codepoint.
 size_t parseAndWrapLines(const uint8_t* buffer, size_t chunkSize, size_t fileOffset, size_t fileSize, int linesPerPage,
                          GfxRenderer& renderer, int fontId, int vw, std::vector<std::string>& outLines) {
   size_t pos = 0;
@@ -47,46 +65,64 @@ size_t parseAndWrapLines(const uint8_t* buffer, size_t chunkSize, size_t fileOff
     size_t lineContentLen = lineEnd - pos;
     bool hasCR = (lineContentLen > 0 && buffer[pos + lineContentLen - 1] == '\r');
     size_t displayLen = hasCR ? lineContentLen - 1 : lineContentLen;
+    if (displayLen == 0) {
+      outLines.emplace_back();
+      pos = lineEnd + 1;
+      continue;
+    }
+    // measureRange() may write the terminator at line[displayLen], which
+    // std::string keeps as '\0'.
     std::string line(reinterpret_cast<const char*>(buffer + pos), displayLen);
-    size_t lineBytePos = 0;
+    size_t start = 0;  // bytes of this source line already emitted
 
-    do {
-      if (line.empty()) {
-        outLines.emplace_back();
+    while (start < displayLen && static_cast<int>(outLines.size()) < linesPerPage) {
+      size_t bestSpace = 0;  // break at line[start + bestSpace]; 0 = no fitting space
+      size_t firstSpace = 0;
+      bool fitsAll = false;
+      for (size_t search = start + 1;;) {
+        const size_t space = line.find(' ', search);
+        if (space == std::string::npos) {
+          fitsAll = measureRange(renderer, fontId, line, start, displayLen) <= vw;
+          break;
+        }
+        if (firstSpace == 0) firstSpace = space - start;
+        if (measureRange(renderer, fontId, line, start, space) > vw) break;
+        bestSpace = space - start;
+        search = space + 1;
+      }
+
+      if (fitsAll) {
+        outLines.push_back(line.substr(start));
+        start = displayLen;
         break;
       }
 
-      if (renderer.getTextWidth(fontId, line.c_str()) <= vw) {
-        outLines.push_back(line);
-        lineBytePos = displayLen;
-        line.clear();
-        break;
-      }
-      size_t breakPos = line.length();
-      while (breakPos > 0 && renderer.getTextWidth(fontId, line.substr(0, breakPos).c_str()) > vw) {
-        size_t spacePos = line.rfind(' ', breakPos - 1);
-        if (spacePos != std::string::npos && spacePos > 0) {
-          breakPos = spacePos;
-        } else {
-          breakPos--;
-          while (breakPos > 0 && (line[breakPos] & 0xC0) == 0x80) breakPos--;
+      size_t breakPos = bestSpace;
+      if (breakPos == 0) {
+        // No space fits: break inside the first word at the last codepoint
+        // boundary that fits, but always take at least one codepoint.
+        const size_t limit = firstSpace != 0 ? firstSpace : displayLen - start;
+        size_t next = 1;
+        while (next < limit && (line[start + next] & 0xC0) == 0x80) next++;
+        breakPos = next;
+        while (next < limit) {
+          size_t after = next + 1;
+          while (after < limit && (line[start + after] & 0xC0) == 0x80) after++;
+          if (measureRange(renderer, fontId, line, start, start + after) > vw) break;
+          breakPos = after;
+          next = after;
         }
       }
-      if (breakPos == 0) {
-        breakPos = 1;
-        while (breakPos < line.length() && (line[breakPos] & 0xC0) == 0x80) breakPos++;
-      }
-      outLines.push_back(line.substr(0, breakPos));
-      size_t skipChars = breakPos;
-      if (breakPos < line.length() && line[breakPos] == ' ') skipChars++;
-      lineBytePos += skipChars;
-      line = line.substr(skipChars);
-    } while (!line.empty() && static_cast<int>(outLines.size()) < linesPerPage);
 
-    if (line.empty()) {
+      outLines.push_back(line.substr(start, breakPos));
+      start += breakPos;
+      if (start < displayLen && line[start] == ' ') start++;
+    }
+
+    if (start >= displayLen) {
       pos = lineEnd + 1;
     } else {
-      pos = pos + lineBytePos;
+      pos = pos + start;
       break;
     }
   }
