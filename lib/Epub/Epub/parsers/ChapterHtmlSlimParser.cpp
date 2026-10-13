@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <iterator>
 #include <new>
 #include <string_view>
@@ -509,7 +510,7 @@ void ChapterHtmlSlimParser::flushPendingAnchor() {
   }
 
   // Record deferred anchor after previous block is flushed (and any TOC page break)
-  anchorData.push_back({std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount)});
+  recordAnchor(std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount));
   pendingAnchorId.clear();
   pendingAnchorFromInlineA = false;
 }
@@ -985,7 +986,7 @@ void ChapterHtmlSlimParser::emitHorizontalRule(const BlockStyle& blockStyle) {
   headingOpenerActive = false;
 
   if (!pendingAnchorId.empty()) {
-    anchorData.push_back({std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount)});
+    recordAnchor(std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount));
     pendingAnchorId.clear();
     pendingAnchorFromInlineA = false;
   }
@@ -1815,7 +1816,7 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
         const char* idValue = attrValue;
         const bool isTocAnchor =
             std::find(self->tocAnchors.begin(), self->tocAnchors.end(), idValue) != self->tocAnchors.end();
-        if (isTocAnchor || (!isNonNavigableInlineElement(name) && self->anchorData.size() < MAX_ANCHORS_PER_CHAPTER)) {
+        if (isTocAnchor || (!isNonNavigableInlineElement(name) && self->anchorCount() < MAX_ANCHORS_PER_CHAPTER)) {
           // Flush displaced block anchors before overwriting. Keep dense inline <a id>
           // runs coalesced so converter-generated anchors do not churn heap in link-heavy chapters.
           const bool previousAnchorShouldBeRecorded = !self->pendingAnchorFromInlineA;
@@ -3728,7 +3729,164 @@ void ChapterHtmlSlimParser::prewarmSectionAdvanceTable(FsFile& file) const {
           static_cast<unsigned>(cpCount), millis() - startMs, ESP.getFreeHeap(), ESP.getMaxAllocHeap());
 }
 
-ChapterHtmlSlimParser::~ChapterHtmlSlimParser() { abortParse(); }
+ChapterHtmlSlimParser::~ChapterHtmlSlimParser() {
+  abortParse();
+  closeAnchorSpill();
+}
+
+bool ChapterHtmlSlimParser::enableAnchorSpill(const std::string& path) {
+  closeAnchorSpill();
+  if (path.empty() || isPreviewBuild()) return false;
+  anchorSpillBuffer_ = makeUniqueNoThrow<uint8_t[]>(ANCHOR_SPILL_BUFFER_BYTES);
+  if (!anchorSpillBuffer_) {
+    LOG_ERR("EHP", "OOM: anchor spill buffer; anchors stay in RAM");
+    return false;
+  }
+  anchorSpill_ = Storage.open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC);
+  if (!anchorSpill_) {
+    LOG_ERR("EHP", "Cannot open anchor spill %s; anchors stay in RAM", path.c_str());
+    anchorSpillBuffer_.reset();
+    return false;
+  }
+  anchorSpillPath_ = path;
+  anchorSpillWritable_ = true;
+  return true;
+}
+
+void ChapterHtmlSlimParser::closeAnchorSpill() {
+  if (anchorSpill_) anchorSpill_.close();
+  if (!anchorSpillPath_.empty() && Storage.exists(anchorSpillPath_.c_str())) Storage.remove(anchorSpillPath_.c_str());
+  anchorSpillPath_.clear();
+  anchorSpillBuffer_.reset();
+  anchorSpillBuffered_ = 0;
+  anchorSpillBufferedRecords_ = 0;
+  anchorSpillFlushedBytes_ = 0;
+  anchorSpillFlushedRecords_ = 0;
+  anchorSpillWritable_ = false;
+  anchorLookupId_.clear();
+  anchorLookupOffset_ = 0;
+  anchorLookupResult_.reset();
+}
+
+void ChapterHtmlSlimParser::recordAnchor(std::string id, const uint16_t page) {
+  const uint32_t length = static_cast<uint32_t>(id.size());
+  const size_t recordBytes = sizeof(length) + length + sizeof(page);
+  if (anchorSpillWritable_ && recordBytes <= ANCHOR_SPILL_BUFFER_BYTES) {
+    if (anchorSpillBuffered_ + recordBytes > ANCHOR_SPILL_BUFFER_BYTES) flushAnchorSpill();
+    if (anchorSpillWritable_) {
+      uint8_t* out = anchorSpillBuffer_.get() + anchorSpillBuffered_;
+      memcpy(out, &length, sizeof(length));
+      memcpy(out + sizeof(length), id.data(), length);
+      memcpy(out + sizeof(length) + length, &page, sizeof(page));
+      anchorSpillBuffered_ += recordBytes;
+      anchorSpillBufferedRecords_++;
+      return;
+    }
+  }
+  // No spill, a failed spill, or an id too long for the buffer: keep it in RAM.
+  // Spilled records are always read first, so document order holds as long as
+  // nothing is spilled after this (a failed spill never reopens).
+  if (anchorSpillWritable_) {
+    flushAnchorSpill();
+    anchorSpillWritable_ = false;
+  }
+  anchorData.push_back({std::move(id), page});
+}
+
+bool ChapterHtmlSlimParser::flushAnchorSpill() {
+  if (anchorSpillBuffered_ == 0) return true;
+  if (!anchorSpillWritable_ || !anchorSpill_.seek(anchorSpillFlushedBytes_) ||
+      anchorSpill_.write(anchorSpillBuffer_.get(), anchorSpillBuffered_) != anchorSpillBuffered_) {
+    LOG_ERR("EHP", "Anchor spill write failed; keeping anchors in RAM");
+    anchorSpillWritable_ = false;
+    moveBufferedAnchorsToMemory();
+    return false;
+  }
+  anchorSpillFlushedBytes_ += static_cast<uint32_t>(anchorSpillBuffered_);
+  anchorSpillFlushedRecords_ += anchorSpillBufferedRecords_;
+  anchorSpillBuffered_ = 0;
+  anchorSpillBufferedRecords_ = 0;
+  return true;
+}
+
+void ChapterHtmlSlimParser::moveBufferedAnchorsToMemory() {
+  // Decode the unflushed records so a failed write loses nothing. They are the
+  // newest records, so appending them keeps document order.
+  size_t offset = 0;
+  while (offset < anchorSpillBuffered_) {
+    uint32_t length = 0;
+    uint16_t page = 0;
+    memcpy(&length, anchorSpillBuffer_.get() + offset, sizeof(length));
+    const char* text = reinterpret_cast<const char*>(anchorSpillBuffer_.get() + offset + sizeof(length));
+    memcpy(&page, anchorSpillBuffer_.get() + offset + sizeof(length) + length, sizeof(page));
+    anchorData.emplace_back(std::string(text, length), page);
+    offset += sizeof(length) + length + sizeof(page);
+  }
+  anchorSpillBuffered_ = 0;
+  anchorSpillBufferedRecords_ = 0;
+}
+
+bool ChapterHtmlSlimParser::readSpilledAnchor(std::string& id, uint16_t& page) {
+  uint32_t length = 0;
+  if (anchorSpill_.read(&length, sizeof(length)) != static_cast<int>(sizeof(length)) ||
+      length > ANCHOR_SPILL_BUFFER_BYTES) {
+    return false;
+  }
+  id.resize(length);
+  if (length > 0 && anchorSpill_.read(&id[0], length) != static_cast<int>(length)) return false;
+  return anchorSpill_.read(&page, sizeof(page)) == static_cast<int>(sizeof(page));
+}
+
+bool ChapterHtmlSlimParser::forEachAnchor(const AnchorVisitor visit, void* context) {
+  flushAnchorSpill();
+  if (anchorSpillFlushedRecords_ > 0) {
+    if (!anchorSpill_.seek(0)) {
+      LOG_ERR("EHP", "Cannot rewind anchor spill");
+      return false;
+    }
+    std::string id;
+    id.reserve(32);
+    uint16_t page = 0;
+    for (uint16_t i = 0; i < anchorSpillFlushedRecords_; ++i) {
+      if (!readSpilledAnchor(id, page)) {
+        LOG_ERR("EHP", "Anchor spill read failed at record %u", static_cast<unsigned>(i));
+        return false;
+      }
+      if (!visit(context, id, page)) return false;
+    }
+  }
+  for (const auto& [id, page] : anchorData) {
+    if (!visit(context, id, page)) return false;
+  }
+  return true;
+}
+
+std::optional<uint16_t> ChapterHtmlSlimParser::findAnchor(const std::string& id) {
+  flushAnchorSpill();
+  if (id != anchorLookupId_) {
+    anchorLookupId_ = id;
+    anchorLookupOffset_ = 0;
+    anchorLookupResult_.reset();
+  }
+  if (!anchorLookupResult_ && anchorLookupOffset_ < anchorSpillFlushedBytes_ &&
+      anchorSpill_.seek(anchorLookupOffset_)) {
+    std::string candidate;
+    candidate.reserve(32);
+    uint16_t page = 0;
+    while (anchorLookupOffset_ < anchorSpillFlushedBytes_ && readSpilledAnchor(candidate, page)) {
+      anchorLookupOffset_ += static_cast<uint32_t>(sizeof(uint32_t) + candidate.size() + sizeof(page));
+      if (candidate == id) {
+        anchorLookupResult_ = page;
+        break;
+      }
+    }
+  }
+  if (anchorLookupResult_) return anchorLookupResult_;
+  for (const auto& [key, page] : anchorData) {
+    if (key == id) return page;
+  }
+  return std::nullopt;
+}
 
 bool ChapterHtmlSlimParser::ensureInputFileOpen() {
   if (parseFile_) {
@@ -3957,7 +4115,7 @@ bool ChapterHtmlSlimParser::finishParse() {
       return false;
     }
     if (!pendingAnchorId.empty()) {
-      anchorData.push_back({std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount)});
+      recordAnchor(std::move(pendingAnchorId), static_cast<uint16_t>(completedPageCount));
       pendingAnchorId.clear();
       pendingAnchorFromInlineA = false;
     }

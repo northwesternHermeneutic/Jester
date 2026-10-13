@@ -109,6 +109,39 @@ bool promoteSectionCache(const std::string& tmpPath, const std::string& filePath
   }
   return false;
 }
+
+// Writes the section anchor map (uint16 count, then length-prefixed id and
+// uint16 page per anchor) from the parser, which may stream the anchors from
+// its SD spill file. Two passes, because the count comes first. Anchors on
+// pages >= pageLimit are left out (a partial holds fewer pages).
+bool writeAnchorMap(FsFile& output, ChapterHtmlSlimParser& parser, const uint16_t pageLimit) {
+  struct Counter {
+    uint16_t limit;
+    uint16_t count;
+  };
+  Counter counter{pageLimit, 0};
+  const bool counted = parser.forEachAnchor(
+      [](void* context, const std::string&, const uint16_t page) {
+        auto* c = static_cast<Counter*>(context);
+        if (page < c->limit) c->count++;
+        return true;
+      },
+      &counter);
+  if (!counted || !serialization::tryWritePod(output, counter.count)) return false;
+  struct Writer {
+    FsFile* out;
+    uint16_t limit;
+  };
+  Writer writer{&output, pageLimit};
+  return parser.forEachAnchor(
+      [](void* context, const std::string& id, const uint16_t page) {
+        auto* w = static_cast<Writer*>(context);
+        if (page >= w->limit) return true;
+        return serialization::tryWriteString(*w->out, id) && serialization::tryWritePod(*w->out, page);
+      },
+      &writer);
+}
+
 }  // namespace
 
 Section::Section(const std::shared_ptr<Epub>& epub, const int spineIndex, GfxRenderer& renderer,
@@ -635,6 +668,7 @@ bool Section::createSectionFile(const ReaderRenderSpec& spec, const std::functio
       embeddedStyle, contentBase, imageBasePath, imageRendering, std::move(tocAnchors), popupFn, cssParser, renderMode,
       buildOptions.isPreview() ? std::string(buildOptions.previewAnchor) : std::string{}, buildOptions.previewMaxPages,
       buildOptions.referenceUnitsAreCharacters);
+  if (!buildOptions.isPreview()) visitor.enableAnchorSpill(anchorSpillPath());
   Hyphenator::setPreferredLanguage(epub->getLanguage());
   bool cancelled = false;
   bool success = false;
@@ -709,17 +743,9 @@ bool Section::createSectionFile(const ReaderRenderSpec& spec, const std::functio
         buildOptions.referenceUnitOffset, buildOptions.referenceUnitCount, visitor.getVisibleTextLength(), pageIndex);
   }
 
-  const auto& anchors = visitor.getAnchors();
   SectionPageIndexOffsets pageIndexOffsets;
   const bool wrotePageIndex = writeSectionPageIndex(
-      file, pageIndex,
-      [&anchors](FsFile& output) {
-        if (!serialization::tryWritePod(output, static_cast<uint16_t>(anchors.size()))) return false;
-        for (const auto& [anchor, page] : anchors) {
-          if (!serialization::tryWriteString(output, anchor) || !serialization::tryWritePod(output, page)) return false;
-        }
-        return true;
-      },
+      file, pageIndex, [&visitor](FsFile& output) { return writeAnchorMap(output, visitor, UINT16_MAX); },
       pageIndexOffsets);
   if (!wrotePageIndex) {
     LOG_ERR("SCT", "Failed to write section page index");
@@ -960,6 +986,7 @@ bool Section::startBuild(const ReaderRenderSpec& spec, const SectionBuildOptions
       embeddedStyle, ctxPtr->contentBase, ctxPtr->imageBasePath, imageRendering, std::move(tocAnchors), popupFn,
       ctxPtr->cssParser, renderMode, buildOptions.isPreview() ? std::string(buildOptions.previewAnchor) : std::string{},
       buildOptions.previewMaxPages, false);
+  if (ctx->parser && !buildOptions.isPreview()) ctx->parser->enableAnchorSpill(anchorSpillPath());
   if (!ctx->parser) {
     LOG_ERR("SCT", "Failed to allocate section parser");
     lastLayoutAbortedForLowMemory_ = true;
@@ -1028,10 +1055,7 @@ bool Section::hasHtmlCache() const {
 
 std::optional<uint16_t> Section::findAnchorDuringBuild(const std::string& anchor) const {
   if (!build_ || !build_->parser) return std::nullopt;
-  for (const auto& [key, page] : build_->parser->getAnchors()) {
-    if (key == anchor) return page;
-  }
-  return std::nullopt;
+  return build_->parser->findAnchor(anchor);
 }
 
 std::optional<uint16_t> Section::findAnchor(const std::string& anchor) const {
@@ -1128,22 +1152,13 @@ bool Section::commitBuildFile(const uint8_t version, const uint32_t bytesConsume
     return failCommit();
   }
 
-  const auto& anchors = build_->parser->getAnchors();
   SectionPageIndexOffsets pageIndexOffsets;
+  // A partial keeps only anchors on pages it actually holds.
+  const uint16_t anchorPageLimit = asPartial ? static_cast<uint16_t>(builtPageCount_) : UINT16_MAX;
+  ChapterHtmlSlimParser& parser = *build_->parser;
   const bool wrotePageIndex = writeSectionPageIndex(
       file, build_->pageIndex,
-      [this, asPartial, &anchors](FsFile& output) {
-        uint16_t anchorCount = 0;
-        for (const auto& [anchor, page] : anchors) {
-          if (!asPartial || page < builtPageCount_) anchorCount++;
-        }
-        if (!serialization::tryWritePod(output, anchorCount)) return false;
-        for (const auto& [anchor, page] : anchors) {
-          if (asPartial && page >= builtPageCount_) continue;
-          if (!serialization::tryWriteString(output, anchor) || !serialization::tryWritePod(output, page)) return false;
-        }
-        return true;
-      },
+      [&parser, anchorPageLimit](FsFile& output) { return writeAnchorMap(output, parser, anchorPageLimit); },
       pageIndexOffsets);
   if (!wrotePageIndex) {
     LOG_ERR("SCT", "Failed to write section page index");

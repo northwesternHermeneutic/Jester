@@ -9,6 +9,7 @@
 #include <climits>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -228,6 +229,28 @@ class ChapterHtmlSlimParser {
   // Anchor-to-page mapping: tracks which page each HTML id attribute lands on
   int completedPageCount = 0;
   std::vector<std::pair<std::string, uint16_t>> anchorData;
+  // Jester (after witchhunt-reader d4547ae6, MIT): during a normal build the
+  // anchors stream to an SD file in the section anchor-map encoding (uint32
+  // length, id bytes, uint16 page) instead of growing anchorData, which needed
+  // one ~28 KB block mid-chapter. anchorData stays the fallback and holds
+  // footnote-preview anchors. Spilled records always precede resident ones.
+  static constexpr size_t ANCHOR_SPILL_BUFFER_BYTES = 256;
+  FsFile anchorSpill_;
+  std::string anchorSpillPath_;
+  std::unique_ptr<uint8_t[]> anchorSpillBuffer_;
+  size_t anchorSpillBuffered_ = 0;
+  uint16_t anchorSpillBufferedRecords_ = 0;
+  uint32_t anchorSpillFlushedBytes_ = 0;
+  uint16_t anchorSpillFlushedRecords_ = 0;
+  bool anchorSpillWritable_ = false;
+  std::string anchorLookupId_;
+  uint32_t anchorLookupOffset_ = 0;
+  std::optional<uint16_t> anchorLookupResult_;
+  void recordAnchor(std::string id, uint16_t page);
+  bool flushAnchorSpill();
+  void moveBufferedAnchorsToMemory();
+  bool readSpilledAnchor(std::string& id, uint16_t& page);
+  void closeAnchorSpill();
   std::string pendingAnchorId;  // deferred until after previous text block is flushed
   bool pendingAnchorFromInlineA = false;
   std::vector<std::string> tocAnchors;  // the list of anchors that are TOC chapter boundaries
@@ -362,7 +385,17 @@ class ChapterHtmlSlimParser {
   void releaseInputFile();
 
   void addLineToPage(std::shared_ptr<TextBlock> line, uint32_t visibleOffset, uint32_t referenceOffset);
-  const std::vector<std::pair<std::string, uint16_t>>& getAnchors() const { return anchorData; }
+  // Anchors (HTML ids) recorded so far, in document order. enableAnchorSpill()
+  // must be called before beginParse(); without it they stay in RAM.
+  bool enableAnchorSpill(const std::string& path);
+  uint16_t anchorCount() const {
+    return static_cast<uint16_t>(anchorSpillFlushedRecords_ + anchorSpillBufferedRecords_ + anchorData.size());
+  }
+  using AnchorVisitor = bool (*)(void* context, const std::string& id, uint16_t page);
+  // Calls visit for every anchor; stops and returns false when visit does or a read fails.
+  bool forEachAnchor(AnchorVisitor visit, void* context);
+  // First anchor with this id. Repeated calls for the same id only read new records.
+  std::optional<uint16_t> findAnchor(const std::string& id);
   bool wasLowMemoryFallbackTriggered() const { return lowMemoryImageFallback; }
   bool wasLowMemoryAbortTriggered() const { return lowMemoryAbort; }
 

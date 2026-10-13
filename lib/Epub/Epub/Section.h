@@ -90,6 +90,8 @@ class Section {
   // Builds write here and are swapped over filePath only on commit, so a prior
   // partial/finalized file stays readable while a rebuild is in progress.
   std::string binTmpPath() const { return filePath + ".part"; }
+  // Jester: build-time anchor spill file (see ChapterHtmlSlimParser::enableAnchorSpill).
+  std::string anchorSpillPath() const { return filePath + ".anchors"; }
   std::unique_ptr<Page> loadPageAt(int page) const;
   // Read a page already laid out by the in-progress build (page < build LUT size), from
   // the partially-written tmp .bin without disturbing the build's write cursor.
