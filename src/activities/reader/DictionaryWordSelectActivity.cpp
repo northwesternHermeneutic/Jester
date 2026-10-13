@@ -159,8 +159,7 @@ void DictionaryWordSelectActivity::onEnter() {
   const bool consumeInitialConfirm = mappedInput.isPressed(MappedInputManager::Button::Confirm);
   if (!buildWorkingSet(consumeInitialConfirm)) {
     if (workingSetMemoryError_) {
-      GUI.drawPopup(renderer, tr(STR_MEMORY_ERROR));
-      renderer.displayBuffer();
+      GUI.drawPopup(renderer, tr(STR_MEMORY_ERROR));  // drawPopup() refreshes the panel
       delay(1000);
     }
     ActivityResult result;

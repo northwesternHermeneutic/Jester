@@ -2629,8 +2629,7 @@ void EpubReaderActivity::openReaderMenu() {
 
 void EpubReaderActivity::showBuildPopup() {
   if (!buildPopupPending || !renderer.hasFrameBuffer()) return;
-  GUI.drawPopup(renderer, tr(STR_INDEXING));
-  renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+  GUI.drawPopup(renderer, tr(STR_INDEXING));  // drawPopup() refreshes the panel
   pagesUntilFullRefresh = 1;
   buildPopupPending = false;
 }
@@ -5914,8 +5913,7 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   };
 
   const auto showIndexingPopup = [this]() {
-    GUI.drawPopup(renderer, tr(STR_INDEXING));
-    renderer.displayBuffer(HalDisplay::FAST_REFRESH);
+    GUI.drawPopup(renderer, tr(STR_INDEXING));  // drawPopup() refreshes the panel
     pagesUntilFullRefresh = 1;
   };
 
@@ -6634,8 +6632,8 @@ void EpubReaderActivity::render(RenderLock&& lock) {
       currentPageFootnoteTouchTargets.fill({});
 #endif
       renderer.clearScreen(ReaderUtils::readerBackgroundColor());
+      // drawPopup() refreshes the panel.
       GUI.drawPopup(renderer, renderer.isSdCardFont(renderFontId) ? tr(STR_MEMORY_ERROR) : tr(STR_PAGE_LOAD_ERROR));
-      renderer.displayBuffer();
       automaticPageTurnActive = false;
       showPendingSyncSaveError();
       return;
