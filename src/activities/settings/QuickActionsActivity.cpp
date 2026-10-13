@@ -21,6 +21,8 @@ constexpr StrId triggerLabels[] = {
 std::string triggerLabel(const QuickActions::Trigger trigger) {
   const auto raw = static_cast<uint8_t>(trigger);
   if (raw < std::size(triggerLabels)) return I18N.get(triggerLabels[raw]);
+  if (trigger == QuickActions::Trigger::FrontLeftLong) return I18N.get(StrId::STR_LONG_PRESS_LEFT_FRONT);
+  if (trigger == QuickActions::Trigger::FrontRightLong) return I18N.get(StrId::STR_LONG_PRESS_RIGHT_FRONT);
   const bool up = trigger == QuickActions::Trigger::SideUpShort || trigger == QuickActions::Trigger::SideUpLong;
   const bool longPress = trigger == QuickActions::Trigger::SideUpLong || trigger == QuickActions::Trigger::SideDownLong;
   return std::string(up ? tr(STR_DIR_LEFT) : tr(STR_DIR_RIGHT)) + "/" + (up ? tr(STR_DIR_UP) : tr(STR_DIR_DOWN)) + " " +
@@ -39,6 +41,8 @@ std::vector<QuickActions::Trigger> availableTriggers() {
   triggers.push_back(QuickActions::Trigger::SideUpLong);
   triggers.push_back(QuickActions::Trigger::SideDownShort);
   triggers.push_back(QuickActions::Trigger::SideDownLong);
+  triggers.push_back(QuickActions::Trigger::FrontLeftLong);   // Jester (feature 20)
+  triggers.push_back(QuickActions::Trigger::FrontRightLong);  // Jester (feature 20)
   if (gpio.hasHomeKey()) {
     triggers.push_back(QuickActions::Trigger::TapHome);
     triggers.push_back(QuickActions::Trigger::LongPressHome);

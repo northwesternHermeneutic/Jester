@@ -842,7 +842,11 @@ bool CrossPointSettings::fromJson(JsonVariantConst doc, bool importingCrossPoint
   const bool unavailableHomeTrigger =
       !gpio.hasHomeKey() && persistedQuickActionsTrigger >= static_cast<uint8_t>(QuickActions::Trigger::TapHome) &&
       persistedQuickActionsTrigger <= static_cast<uint8_t>(QuickActions::Trigger::DoubleTapHome);
-  if (persistedQuickActionsTrigger <= static_cast<uint8_t>(QuickActions::Trigger::SideDownLong) &&
+  const bool jesterFrontTrigger =
+      persistedQuickActionsTrigger == static_cast<uint8_t>(QuickActions::Trigger::FrontLeftLong) ||
+      persistedQuickActionsTrigger == static_cast<uint8_t>(QuickActions::Trigger::FrontRightLong);
+  if ((persistedQuickActionsTrigger <= static_cast<uint8_t>(QuickActions::Trigger::SideDownLong) ||
+       jesterFrontTrigger) &&
       !unavailableHomeTrigger) {
     quickActionsTrigger = persistedQuickActionsTrigger;
   } else {

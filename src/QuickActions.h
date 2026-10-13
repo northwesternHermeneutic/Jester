@@ -32,6 +32,9 @@ enum class Trigger : uint8_t {
   SideUpLong,
   SideDownShort,
   SideDownLong,
+  // Jester block (persisted in quickActionsTrigger; never reuse a value).
+  FrontLeftLong = 192,   // feature 20
+  FrontRightLong = 193,  // feature 20
 };
 
 // CrossPointSettings::quickActionsTrigger defaults to this raw value; it cannot
@@ -178,6 +181,8 @@ inline void synchronize(CrossPointSettings& settings, Trigger preferred = Trigge
   const bool sideUpLong = settings.sideButtonUpLong == CrossPointSettings::QUICK_ACTIONS;
   const bool sideDownShort = settings.sideButtonDownShort == CrossPointSettings::QUICK_ACTIONS;
   const bool sideDownLong = settings.sideButtonDownLong == CrossPointSettings::QUICK_ACTIONS;
+  const bool frontLeftLong = settings.frontLeftLong == CrossPointSettings::QUICK_ACTIONS;
+  const bool frontRightLong = settings.frontRightLong == CrossPointSettings::QUICK_ACTIONS;
 
   Trigger owner = preferred;
   if (owner == Trigger::None) {
@@ -207,6 +212,10 @@ inline void synchronize(CrossPointSettings& settings, Trigger preferred = Trigge
       owner = Trigger::SideDownShort;
     else if (sideDownLong)
       owner = Trigger::SideDownLong;
+    else if (frontLeftLong)
+      owner = Trigger::FrontLeftLong;
+    else if (frontRightLong)
+      owner = Trigger::FrontRightLong;
   }
 
   if (owner != Trigger::ShortPower && shortPower) settings.shortPwrBtn = CrossPointSettings::IGNORE;
@@ -226,6 +235,8 @@ inline void synchronize(CrossPointSettings& settings, Trigger preferred = Trigge
   if (owner != Trigger::SideUpLong && sideUpLong) settings.sideButtonUpLong = CrossPointSettings::IGNORE;
   if (owner != Trigger::SideDownShort && sideDownShort) settings.sideButtonDownShort = CrossPointSettings::IGNORE;
   if (owner != Trigger::SideDownLong && sideDownLong) settings.sideButtonDownLong = CrossPointSettings::IGNORE;
+  if (owner != Trigger::FrontLeftLong && frontLeftLong) settings.frontLeftLong = CrossPointSettings::IGNORE;
+  if (owner != Trigger::FrontRightLong && frontRightLong) settings.frontRightLong = CrossPointSettings::IGNORE;
   settings.quickActionsTrigger = static_cast<uint8_t>(owner);
 }
 
@@ -261,6 +272,8 @@ inline void applyTrigger(CrossPointSettings& settings, const Trigger trigger) {
     settings.sideButtonDownShort = CrossPointSettings::IGNORE;
   if (settings.sideButtonDownLong == CrossPointSettings::QUICK_ACTIONS)
     settings.sideButtonDownLong = CrossPointSettings::IGNORE;
+  if (settings.frontLeftLong == CrossPointSettings::QUICK_ACTIONS) settings.frontLeftLong = CrossPointSettings::IGNORE;
+  if (settings.frontRightLong == CrossPointSettings::QUICK_ACTIONS) settings.frontRightLong = CrossPointSettings::IGNORE;
 
   if (trigger == Trigger::ShortPower) settings.shortPwrBtn = CrossPointSettings::QUICK_ACTIONS;
   if (trigger == Trigger::LongPower) settings.longPwrBtn = CrossPointSettings::QUICK_ACTIONS;
@@ -275,6 +288,8 @@ inline void applyTrigger(CrossPointSettings& settings, const Trigger trigger) {
   if (trigger == Trigger::SideUpLong) settings.sideButtonUpLong = CrossPointSettings::QUICK_ACTIONS;
   if (trigger == Trigger::SideDownShort) settings.sideButtonDownShort = CrossPointSettings::QUICK_ACTIONS;
   if (trigger == Trigger::SideDownLong) settings.sideButtonDownLong = CrossPointSettings::QUICK_ACTIONS;
+  if (trigger == Trigger::FrontLeftLong) settings.frontLeftLong = CrossPointSettings::QUICK_ACTIONS;
+  if (trigger == Trigger::FrontRightLong) settings.frontRightLong = CrossPointSettings::QUICK_ACTIONS;
   settings.quickActionsTrigger = static_cast<uint8_t>(trigger);
 }
 
@@ -292,6 +307,8 @@ inline Trigger triggerForSetting(uint8_t CrossPointSettings::* member) {
   if (member == &CrossPointSettings::sideButtonUpLong) return Trigger::SideUpLong;
   if (member == &CrossPointSettings::sideButtonDownShort) return Trigger::SideDownShort;
   if (member == &CrossPointSettings::sideButtonDownLong) return Trigger::SideDownLong;
+  if (member == &CrossPointSettings::frontLeftLong) return Trigger::FrontLeftLong;
+  if (member == &CrossPointSettings::frontRightLong) return Trigger::FrontRightLong;
   return Trigger::None;
 }
 
