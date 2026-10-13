@@ -36,6 +36,14 @@ class EpubReaderMenuActivity final : public Activity {
     // Jester (feature 6).
     menuItems[BOOKMARKS_TAB_INDEX].push_back({MenuAction::UNIFY_BOOKMARKS, StrId::STR_UNIFY_BOOKMARKS});
   }
+  // Jester: Exempt from Global Orientation, toggled in place after Reader Options.
+  using OrientationExemptCallback = void (*)(void* ctx, bool exempt);
+  void setOrientationExempt(const bool exempt, OrientationExemptCallback callback, void* ctx) {
+    orientationExempt = exempt;
+    orientationExemptCallback = callback;
+    orientationExemptContext = ctx;
+    menuItems[MAIN_TAB_INDEX].push_back({MenuAction::ORIENTATION_EXEMPT_TOGGLE, StrId::STR_ORIENTATION_EXEMPT});
+  }
   // Jester (feature 2): replaces the whole-number book percentage in the header.
   void setBookProgressLabel(std::string label) { bookProgressLabel = std::move(label); }
 
@@ -138,6 +146,9 @@ class EpubReaderMenuActivity final : public Activity {
   bool hasDictionaryFontOverride = false;
   ReaderOptionsActivity::DictionaryFontChangedCallback dictionaryFontChangedCallback = nullptr;
   void* dictionaryFontChangedContext = nullptr;
+  bool orientationExempt = false;
+  OrientationExemptCallback orientationExemptCallback = nullptr;
+  void* orientationExemptContext = nullptr;
   bool settingsChanged = false;
   ReaderSettingsChangeMask changeMask = ReaderSettingsChangeMask::None;
 

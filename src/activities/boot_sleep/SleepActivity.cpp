@@ -326,7 +326,9 @@ bool tryOpenSleepDirectory(FsFile& dir, std::string& sleepDir, const std::string
   return false;
 }
 
-bool resolvePreferredSleepDirectory(std::string& sleepDir) {
+// Jester: Page Overlay can use a folder per context. A missing or empty
+// context folder falls back to the normal sleep folder.
+bool resolvePreferredSleepDirectory(std::string& sleepDir, const char* contextFolder = nullptr) {
   sleepDir.clear();
 
   const auto folderExists = [&sleepDir](const std::string& candidate) {
@@ -334,6 +336,12 @@ bool resolvePreferredSleepDirectory(std::string& sleepDir) {
     sleepDir = candidate;
     return true;
   };
+
+  if (contextFolder) {
+    char contextDir[32];
+    return FsHelpers::resolveRootDirectoryIgnoreCase(contextFolder, contextDir, sizeof(contextDir)) &&
+           folderExists(contextDir);
+  }
 
   if (folderExists(APP_STATE.preferredSleepFolderPath)) return true;
 
@@ -350,8 +358,8 @@ bool resolvePreferredSleepDirectory(std::string& sleepDir) {
          folderExists(defaultSleepDir);
 }
 
-bool openPreferredSleepDirectory(FsFile& dir, std::string& sleepDir) {
-  if (!resolvePreferredSleepDirectory(sleepDir)) return false;
+bool openPreferredSleepDirectory(FsFile& dir, std::string& sleepDir, const char* contextFolder = nullptr) {
+  if (!resolvePreferredSleepDirectory(sleepDir, contextFolder)) return false;
 
   return tryOpenSleepDirectory(dir, sleepDir, sleepDir);
 }
@@ -389,10 +397,10 @@ bool selectPinnedSleepImage(SleepImageMode mode, SleepImageSelection& selection)
 }
 
 bool selectRandomSleepImage(SleepImageMode mode, SleepImageSelection& selection, bool validateBmpHeaders = false,
-                            bool bmpOnly = false) {
+                            bool bmpOnly = false, const char* contextFolder = nullptr) {
   FsFile dir;
   std::string sleepDir;
-  if (!resolvePreferredSleepDirectory(sleepDir)) return false;
+  if (!resolvePreferredSleepDirectory(sleepDir, contextFolder)) return false;
 
   const bool allowPng = mode == SleepImageMode::Overlay && !bmpOnly;
   ImageFolderIndex::Selection indexedSelection;
@@ -409,7 +417,7 @@ bool selectRandomSleepImage(SleepImageMode mode, SleepImageSelection& selection,
 
   // Cache creation is best-effort. Reopen the directory only for the legacy
   // reservoir fallback when the cache could not be loaded or written.
-  if (!openPreferredSleepDirectory(dir, sleepDir)) return false;
+  if (!openPreferredSleepDirectory(dir, sleepDir, contextFolder)) return false;
 
   // Keep one reservoir for every candidate and one that excludes recent images.
   // This avoids holding the whole directory in RAM or opening every BMP just to
@@ -1200,9 +1208,20 @@ void SleepActivity::renderOverlaySleepScreen() const {
   if (selectPinnedSleepImage(SleepImageMode::Overlay, selection)) {
     trySelectedOverlay(selection);
   }
-  if (!overlayDrawn && !pngOverlayFallbackMustUseDefault &&
-      selectRandomSleepImage(SleepImageMode::Overlay, selection)) {
-    trySelectedOverlay(selection);
+  // Jester: Home, portrait book and landscape book each have their own folder.
+  const char* contextFolder = "/HomeSleep";
+  if (APP_STATE.lastSleepFromReader) {
+    const bool landscape = sleepPopupOrientation == GfxRenderer::Orientation::LandscapeClockwise ||
+                           sleepPopupOrientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
+    contextFolder = landscape ? "/LandscapeSleep" : "/PortraitSleep";
+  }
+  if (!overlayDrawn && !pngOverlayFallbackMustUseDefault) {
+    if (selectRandomSleepImage(SleepImageMode::Overlay, selection, false, false, contextFolder)) {
+      trySelectedOverlay(selection);
+    } else {
+      contextFolder = nullptr;
+      if (selectRandomSleepImage(SleepImageMode::Overlay, selection)) trySelectedOverlay(selection);
+    }
   }
 
   // Page Overlay can mix PNGs and BMPs. PNG decoding needs a sizeable
@@ -1213,7 +1232,7 @@ void SleepActivity::renderOverlaySleepScreen() const {
   if (!overlayDrawn && !pngOverlayFallbackMustUseDefault && overlayCandidateFailed && !selection.path.empty() &&
       selectRandomSleepImage(SleepImageMode::Overlay, selection,
                              /*validateBmpHeaders=*/!selection.isPng,
-                             /*bmpOnly=*/selection.isPng)) {
+                             /*bmpOnly=*/selection.isPng, contextFolder)) {
     trySelectedOverlay(selection);
   }
 

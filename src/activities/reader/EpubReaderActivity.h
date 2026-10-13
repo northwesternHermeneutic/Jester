@@ -79,6 +79,10 @@ class EpubReaderActivity final : public Activity {
     char dictionarySdFontFamilyName[64] = "";
     // Zero follows the reader's current physical point size.
     uint8_t dictionaryFontPointSize = 0;
+    // Jester: the book keeps its own orientation, stored in readerSettings'
+    // orientation byte, and global orientation changes skip it.
+    bool orientationExempt = false;
+    uint8_t exemptOrientation = 0;
     ReaderSettingsSnapshot readerSettings;
   };
 
@@ -95,6 +99,7 @@ class EpubReaderActivity final : public Activity {
     bool hasSafeModeOverride = false;
     bool hasRenderModeOverride = false;
     uint8_t renderMode = 0;
+    bool orientationExempt = false;
     ReaderSettingsSnapshot readerSettings;
 
     ActiveBookReaderSettingsData() = default;
@@ -106,7 +111,10 @@ class EpubReaderActivity final : public Activity {
           hasSafeModeOverride(source.hasSafeModeOverride),
           hasRenderModeOverride(source.hasRenderModeOverride),
           renderMode(source.renderMode),
-          readerSettings(source.readerSettings) {}
+          orientationExempt(source.orientationExempt),
+          readerSettings(source.readerSettings) {
+      if (orientationExempt) readerSettings.orientation = source.exemptOrientation;
+    }
   };
 
   std::shared_ptr<Epub> epub;
@@ -413,6 +421,8 @@ class EpubReaderActivity final : public Activity {
   void loadBookReaderSettings();
   void saveCurrentBookReaderSettings();
   void saveDictionaryFontForBook(const char* familyName, uint8_t pointSize);
+  void saveOrientationExemption(bool exempt);
+  static void setOrientationExemptForBookReader(void* ctx, bool exempt);
   void persistReaderSdFontSettings();
   bool saveGlobalSettingsPreservingBookOverrides();
   bool beginGlobalSettingsEdit();

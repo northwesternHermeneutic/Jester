@@ -366,6 +366,21 @@ bool EpubReaderMenuActivity::activateSelectedItem() {
     return true;
   }
 
+  if (selectedAction == MenuAction::ORIENTATION_EXEMPT_TOGGLE) {
+    orientationExempt = !orientationExempt;
+    if (orientationExemptCallback) orientationExemptCallback(orientationExemptContext, orientationExempt);
+    // Turning the exemption off returns the book to the global orientation.
+    if (pendingOrientation != SETTINGS.orientation) {
+      pendingOrientation = SETTINGS.orientation;
+      ReaderUtils::applyOrientation(renderer, pendingOrientation);
+      app.setDevice(uiTarget.deviceContext());
+      requestUpdate(true);
+      return true;
+    }
+    requestUpdate();
+    return true;
+  }
+
   if (selectedAction == MenuAction::READER_OPTIONS) {
     const auto before = captureReaderLayoutSettings();
     startActivityForResult(
@@ -680,6 +695,8 @@ void EpubReaderMenuActivity::buildMenuScreen(UiApp::ScreenType& screen) {
     item.label = I18N.get(menuItem.labelId);
     if (menuItem.action == MenuAction::ROTATE_SCREEN) {
       item.value = I18N.get(orientationLabels[pendingOrientation]);
+    } else if (menuItem.action == MenuAction::ORIENTATION_EXEMPT_TOGGLE) {
+      item.value = I18N.get(orientationExempt ? StrId::STR_STATE_ON : StrId::STR_STATE_OFF);
     } else if (menuItem.action == MenuAction::AUTO_PAGE_TURN) {
       if (autoPageTurnActive) values[i] = std::to_string(autoPageTurnIntervalSeconds);
       item.value = values[i].empty() ? nullptr : values[i].c_str();

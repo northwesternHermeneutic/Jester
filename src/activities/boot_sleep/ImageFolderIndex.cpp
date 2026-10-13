@@ -83,10 +83,12 @@ bool pathHasPrefix(std::string_view path, std::string_view folder, const bool ig
   return path.size() == folder.size() || path[folder.size()] == '/';
 }
 
-bool pathsIntersect(std::string_view a, std::string_view b) { return pathHasPrefix(a, b) || pathHasPrefix(b, a); }
+bool pathsIntersect(std::string_view a, std::string_view b, const bool ignoreCase = false) {
+  return pathHasPrefix(a, b, ignoreCase) || pathHasPrefix(b, a, ignoreCase);
+}
 
 // Folders this module indexes: the configurable sleep-image folder plus the
-// two fixed-name folders (sleep and boot-screen). Boot-screen has no
+// fixed-name folders (sleep, boot-screen and Jester's Page Overlay folders). Boot-screen has no
 // configurable folder, unlike sleep's preferredSleepFolderPath.
 bool isTrackedImageFolderPath(std::string_view path) {
   if (path.empty()) return false;
@@ -95,7 +97,8 @@ bool isTrackedImageFolderPath(std::string_view path) {
          pathHasPrefix("/.sleep", path, true) || pathHasPrefix(path, "/sleep", true) ||
          pathHasPrefix("/sleep", path, true) || pathHasPrefix(path, "/.bootscreen", true) ||
          pathHasPrefix("/.bootscreen", path, true) || pathHasPrefix(path, "/bootscreen", true) ||
-         pathHasPrefix("/bootscreen", path, true);
+         pathHasPrefix("/bootscreen", path, true) || pathsIntersect(path, "/HomeSleep", true) ||
+         pathsIntersect(path, "/PortraitSleep", true) || pathsIntersect(path, "/LandscapeSleep", true);
 }
 
 bool makeCachePath(const std::string& directory, const bool includePng, char* output, const size_t outputSize) {

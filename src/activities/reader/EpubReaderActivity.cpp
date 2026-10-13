@@ -103,6 +103,8 @@ constexpr uint8_t READER_SETTINGS_FLAG_AUTO_PAGE_TURN = 1 << 1;
 constexpr uint8_t READER_SETTINGS_FLAG_RENDER_MODE = 1 << 2;
 constexpr uint8_t READER_SETTINGS_FLAG_DICTIONARY_FONT = 1 << 3;
 constexpr uint8_t READER_SETTINGS_FLAG_SAFE_MODE = 1 << 4;
+// Jester: the book keeps its own orientation (stored in the snapshot's orientation byte).
+constexpr uint8_t READER_SETTINGS_FLAG_ORIENTATION_EXEMPT = 1 << 5;
 constexpr char READER_SETTINGS_FILE_NAME[] = "/reader_settings.bin";
 constexpr char BALANCED_SECTION_CACHE_SUFFIX[] = "_balanced";
 constexpr char LIGHT_SECTION_CACHE_SUFFIX[] = "_light";
@@ -1285,6 +1287,10 @@ BookReaderSettingsData loadBookReaderSettingsFile(const std::string& cachePath) 
     applyReaderSettingsOverrides(data.readerSettings, snapshot, data.readerSettingsOverrideMask);
   }
   data.hasSafeModeOverride = (flags & READER_SETTINGS_FLAG_SAFE_MODE) != 0;
+  if ((flags & READER_SETTINGS_FLAG_ORIENTATION_EXEMPT) && snapshot.orientation < CrossPointSettings::ORIENTATION_COUNT) {
+    data.orientationExempt = true;
+    data.exemptOrientation = snapshot.orientation;
+  }
   if (flags & READER_SETTINGS_FLAG_RENDER_MODE) {
     data.hasRenderModeOverride = true;
     data.renderMode = normalizeRenderModeRaw(renderMode);
@@ -1314,12 +1320,14 @@ bool saveBookReaderSettingsFile(const std::string& cachePath, const BookReaderSe
   if (data.hasSafeModeOverride) flags |= READER_SETTINGS_FLAG_SAFE_MODE;
   if (data.hasAutoPageTurnInterval) flags |= READER_SETTINGS_FLAG_AUTO_PAGE_TURN;
   if (data.hasRenderModeOverride) flags |= READER_SETTINGS_FLAG_RENDER_MODE;
+  if (data.orientationExempt) flags |= READER_SETTINGS_FLAG_ORIENTATION_EXEMPT;
   if (data.hasDictionaryFontOverride && data.dictionarySdFontFamilyName[0] != '\0') {
     flags |= READER_SETTINGS_FLAG_DICTIONARY_FONT;
   }
   const uint16_t clampedSeconds = clampAutoPageTurnIntervalSeconds(data.autoPageTurnSeconds);
   EpubReaderActivity::ReaderSettingsSnapshot normalizedReaderSettings = data.readerSettings;
   normalizedReaderSettings.epubRenderMode = normalizeRenderModeRaw(data.renderMode);
+  if (data.orientationExempt) normalizedReaderSettings.orientation = data.exemptOrientation;
   const bool ok = writeU8(file, READER_SETTINGS_FILE_VERSION) && writeU8(file, flags) &&
                   writeU16(file, clampedSeconds) && writeU8(file, normalizeRenderModeRaw(data.renderMode)) &&
                   writeReaderSettingsSnapshot(file, normalizedReaderSettings) &&
@@ -1354,7 +1362,10 @@ bool saveSafeModeReaderSettingsForCache(const std::string& cachePath) {
 class ScopedReaderSettingsRestore {
  public:
   ScopedReaderSettingsRestore() { captureReaderSettings(snapshot); }
-  ~ScopedReaderSettingsRestore() { applyReaderSettings(snapshot); }
+  ~ScopedReaderSettingsRestore() {
+    applyReaderSettings(snapshot);
+    SETTINGS.orientation = snapshot.orientation;
+  }
 
  private:
   EpubReaderActivity::ReaderSettingsSnapshot snapshot;
@@ -1955,6 +1966,7 @@ void EpubReaderActivity::restoreGlobalReaderSettings() {
     bookReaderSettingsSuspendedForGlobalEdit = false;
   }
   applyReaderSettings(globalReaderSettingsBeforeBook);
+  if (initialBookReaderSettings.orientationExempt) SETTINGS.orientation = globalReaderSettingsBeforeBook.orientation;
   restoreGlobalReaderSettingsOnExit = false;
 }
 
@@ -1976,6 +1988,7 @@ void EpubReaderActivity::loadBookReaderSettings() {
   if (data.hasCustomReaderSettings) {
     applyReaderSettings(data.readerSettings);
   }
+  if (data.orientationExempt) SETTINGS.orientation = data.readerSettings.orientation;
   if (data.hasSafeModeOverride) {
     applySafeModeReaderSettings();
   }
@@ -2076,6 +2089,29 @@ void EpubReaderActivity::saveDictionaryFontForBook(const char* familyName, const
   saveBookReaderSettingsFile(epub->getCachePath(), data);
 }
 
+void EpubReaderActivity::saveOrientationExemption(const bool exempt) {
+  if (!epub) return;
+
+  if (section && section->isBuilding()) {
+    section->releaseBuildFile();
+  }
+
+  BookReaderSettingsData data = loadBookReaderSettingsFile(epub->getCachePath());
+  data.orientationExempt = exempt;
+  data.exemptOrientation = SETTINGS.orientation;
+  if (!saveBookReaderSettingsFile(epub->getCachePath(), data)) return;
+
+  initialBookReaderSettings.orientationExempt = exempt;
+  // Leaving the exemption returns this book to the global orientation.
+  if (!exempt) SETTINGS.orientation = globalReaderSettingsBeforeBook.orientation;
+  initialBookReaderSettings.readerSettings.orientation = SETTINGS.orientation;
+}
+
+void EpubReaderActivity::setOrientationExemptForBookReader(void* ctx, const bool exempt) {
+  if (!ctx) return;
+  static_cast<EpubReaderActivity*>(ctx)->saveOrientationExemption(exempt);
+}
+
 void EpubReaderActivity::persistReaderSdFontSettings() {
   const uint32_t mask = initialBookReaderSettings.readerSettingsOverrideMask;
   bool globalChanged = false;
@@ -2106,8 +2142,11 @@ bool EpubReaderActivity::saveGlobalSettingsPreservingBookOverrides() {
   ReaderSettingsSnapshot activeReaderSettings;
   captureReaderSettings(activeReaderSettings);
   applyReaderSettings(globalReaderSettingsBeforeBook);
+  // Jester: an exempt book's orientation never reaches the global settings file.
+  if (initialBookReaderSettings.orientationExempt) SETTINGS.orientation = globalReaderSettingsBeforeBook.orientation;
   const bool saved = SETTINGS.saveToFile();
   applyReaderSettings(activeReaderSettings);
+  SETTINGS.orientation = activeReaderSettings.orientation;
   return saved;
 }
 
@@ -2117,6 +2156,7 @@ bool EpubReaderActivity::beginGlobalSettingsEdit() {
   }
   captureReaderSettings(suspendedBookReaderSettings);
   applyReaderSettings(globalReaderSettingsBeforeBook);
+  if (initialBookReaderSettings.orientationExempt) SETTINGS.orientation = globalReaderSettingsBeforeBook.orientation;
   bookReaderSettingsSuspendedForGlobalEdit = true;
   return true;
 }
@@ -2141,6 +2181,7 @@ void EpubReaderActivity::endGlobalSettingsEdit() {
     applyReaderSettingsOverrides(effectiveSettings, suspendedBookReaderSettings,
                                  initialBookReaderSettings.readerSettingsOverrideMask);
     applyReaderSettings(effectiveSettings);
+    if (initialBookReaderSettings.orientationExempt) SETTINGS.orientation = suspendedBookReaderSettings.orientation;
     if (initialBookReaderSettings.hasSafeModeOverride) {
       applySafeModeReaderSettings();
     }
@@ -2530,6 +2571,8 @@ void EpubReaderActivity::openReaderMenu() {
                                      earPageCount);
       buttonMenu->setDogEarState(dogEared, !DOGEARS.getBookmarks().empty());
       buttonMenu->setFavorite(Favorites::contains(epub->getPath()));
+      buttonMenu->setOrientationExempt(initialBookReaderSettings.orientationExempt, setOrientationExemptForBookReader,
+                                       this);
       buttonMenu->setBookProgressLabel(
           BookPercentFormat::format(bookProgress, epub && BookPercentFormat::isShortBook(epub->getBookSize())));
     }
@@ -5639,11 +5682,16 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
     }
 
     if (settingsChanged) {
-      // Jester (feature 7): orientation is universal. Change the global value
-      // (also the snapshot restored on exit) and save it for every book.
       SETTINGS.orientation = orientation;
-      globalReaderSettingsBeforeBook.orientation = orientation;
-      if (!saveGlobalSettingsPreservingBookOverrides()) LOG_ERR("ERS", "Failed to save orientation");
+      if (initialBookReaderSettings.orientationExempt) {
+        // Jester: an exempt book saves the change for itself only.
+        saveOrientationExemption(true);
+      } else {
+        // Jester (feature 7): orientation is universal. Change the global value
+        // (also the snapshot restored on exit) and save it for every book.
+        globalReaderSettingsBeforeBook.orientation = orientation;
+        if (!saveGlobalSettingsPreservingBookOverrides()) LOG_ERR("ERS", "Failed to save orientation");
+      }
     }
 
     if (rendererChanged) {
@@ -8110,6 +8158,7 @@ bool EpubReaderActivity::drawCurrentPageToBuffer(const std::string& filePath, Gf
   if (readerSettings.hasCustomReaderSettings) {
     applyReaderSettings(readerSettings.readerSettings);
   }
+  if (readerSettings.orientationExempt) SETTINGS.orientation = readerSettings.exemptOrientation;
   if (readerSettings.hasSafeModeOverride) {
     applySafeModeReaderSettings();
   }

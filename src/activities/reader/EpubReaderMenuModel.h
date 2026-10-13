@@ -38,6 +38,7 @@ enum class EpubReaderMenuAction : uint8_t {
   DOG_EAR_TOGGLE,   // feature 4
   VIEW_DOG_EARS,    // feature 4
   UNIFY_BOOKMARKS,  // feature 6
+  ORIENTATION_EXEMPT_TOGGLE,
 };
 
 enum class ReaderDrawerTab : uint8_t { Font = 0, Layout = 1, More = 2, Location = 3, Settings = 4, Count };
