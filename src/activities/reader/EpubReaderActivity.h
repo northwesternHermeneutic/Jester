@@ -425,7 +425,7 @@ class EpubReaderActivity final : public Activity {
   void jumpToStablePage(uint32_t page);
   void reindexCurrentSection();
   void prepareCurrentSectionForRelayout();
-  bool recycleSectionBuildForLowMemory(const char* reason, bool keepNextPage = false);
+  bool recycleSectionBuildForLowMemory(const char* reason, bool keepNextPage = false, int minProgress = 1);
   void executeReaderQuickAction(CrossPointSettings::LONG_PRESS_MENU_ACTION action,
                                 bool dictionaryLookupFramebufferContainsPage = true,
                                 QuickLockTrigger quickLockTrigger = QuickLockTrigger::LongMenu);

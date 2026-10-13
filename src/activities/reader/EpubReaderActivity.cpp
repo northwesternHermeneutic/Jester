@@ -129,22 +129,7 @@ constexpr uint16_t FOOTNOTE_PREVIEW_MAX_PAGES = 24;
 #if CROSSINK_APP_CAP_TOUCH
 constexpr int TOUCH_FOOTNOTE_TARGET_SIZE = 48;
 #endif
-// Jester (feature 13): margin publisher page numbers removed; status bar item only.
-constexpr bool JESTER_MARGIN_PUBLISHER_PAGE_NUMBERS = false;
-constexpr uint8_t PUBLISHER_PAGE_NUMBER_LEFT_MARGIN_MIN = 15;
-constexpr int PUBLISHER_PAGE_NUMBER_X = 5;
 constexpr uint16_t CLIP_ADVANCE_CODEPOINT_CAPACITY = 256;
-
-int publisherPageNumberX(const GfxRenderer& renderer) {
-#if (defined(FREEINK_DEVICE_X4PRO) && FREEINK_DEVICE_X4PRO) || \
-    (defined(FREEINK_DEVICE_X4CLASSIC) && FREEINK_DEVICE_X4CLASSIC)
-  if (renderer.getOrientation() == GfxRenderer::Orientation::LandscapeCounterClockwise) {
-    return PUBLISHER_PAGE_NUMBER_X + 5;
-  }
-#endif
-
-  return PUBLISHER_PAGE_NUMBER_X;
-}
 
 struct ClipAdvanceCollector {
   static constexpr uint8_t STYLE_COUNT = 4;
@@ -883,80 +868,6 @@ void drawToast(const GfxRenderer& renderer, const char* msg) {
   renderer.displayBuffer();
 }
 
-void drawPublisherPageMarkers(const GfxRenderer& renderer, const Page& page, const int contentTop,
-                              const int contentBottom, const bool foregroundBlack = true) {
-  // Jester: printed page numbers show only in the status bar; the margin labels
-  // are removed and the stored publisherPageNumbers value is ignored.
-  if (!JESTER_MARGIN_PUBLISHER_PAGE_NUMBERS || page.publisherPageMarkers.empty()) {
-    return;
-  }
-
-  const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
-  const int lineStep = std::max(1, lineHeight - 2);
-  const int availableHeight = contentBottom - contentTop;
-  if (availableHeight <= lineHeight) {
-    return;
-  }
-
-  for (const auto& marker : page.publisherPageMarkers) {
-    const char* label = marker.label;
-    if (!label || label[0] == '\0') {
-      continue;
-    }
-
-    bool hasNonAscii = false;
-    int labelLen = 0;
-    int maxCharWidth = 0;
-    for (const unsigned char* p = reinterpret_cast<const unsigned char*>(label); *p != '\0'; p++) {
-      if (*p >= 0x80) {
-        hasNonAscii = true;
-        break;
-      }
-      if (*p <= ' ') {
-        continue;
-      }
-      const char ch[2] = {static_cast<char>(*p), '\0'};
-      maxCharWidth = std::max(maxCharWidth, renderer.getTextWidth(SMALL_FONT_ID, ch));
-      labelLen++;
-    }
-
-    if (labelLen == 0) {
-      continue;
-    }
-
-    const int x = publisherPageNumberX(renderer);
-    if (hasNonAscii) {
-      const int textWidth = renderer.getTextWidth(SMALL_FONT_ID, label);
-      const int maxY = contentBottom - lineHeight;
-      const int y = maxY < contentTop ? contentTop : std::min(std::max(contentTop + marker.yPos, contentTop), maxY);
-      renderer.drawTextRotated90CW(SMALL_FONT_ID, x, y + textWidth, label, foregroundBlack);
-      continue;
-    }
-
-    const int markerHeight = lineHeight + (labelLen - 1) * lineStep;
-    int y = contentTop + marker.yPos - lineHeight / 2;
-    const int maxY = contentBottom - markerHeight;
-    y = maxY < contentTop ? contentTop : std::min(std::max(y, contentTop), maxY);
-
-    int row = 0;
-    for (const char* p = label; *p != '\0'; p++) {
-      if (static_cast<unsigned char>(*p) <= ' ') {
-        continue;
-      }
-      const char ch[2] = {*p, '\0'};
-      const int charWidth = renderer.getTextWidth(SMALL_FONT_ID, ch);
-      renderer.drawText(SMALL_FONT_ID, x + (maxCharWidth - charWidth) / 2, y + row * lineStep, ch, foregroundBlack);
-      row++;
-    }
-  }
-}
-
-uint8_t effectiveReaderLeftMargin() {
-  return JESTER_MARGIN_PUBLISHER_PAGE_NUMBERS && SETTINGS.publisherPageNumbers
-             ? std::max<uint8_t>(SETTINGS.screenMarginHorizontal, PUBLISHER_PAGE_NUMBER_LEFT_MARGIN_MIN)
-             : SETTINGS.screenMarginHorizontal;
-}
-
 struct ReaderViewportLayout {
   int marginTop;
   int marginRight;
@@ -970,7 +881,9 @@ ReaderViewportLayout computeReaderViewportLayout(GfxRenderer& renderer, const bo
                                                  const bool showFootnoteHeader = false) {
   ReaderViewportLayout layout{};
   renderer.getOrientedViewableTRBL(&layout.marginTop, &layout.marginRight, &layout.marginBottom, &layout.marginLeft);
-  layout.marginLeft += effectiveReaderLeftMargin();
+  // Jester (feature 13): margin publisher page numbers are removed (status bar
+  // item only), so the left margin no longer widens for them.
+  layout.marginLeft += SETTINGS.screenMarginHorizontal;
   layout.marginRight += SETTINGS.screenMarginHorizontal;
 
   const int topStatusBarReservedHeight = ReaderUtils::getTopStatusBarReservedHeight(renderer);
@@ -2927,7 +2840,10 @@ void EpubReaderActivity::loop() {
       if (!backgroundSectionBuildHasHeap()) {
         // Jester: a build left short of heap only falls further behind and ends
         // in a blocking catch-up abort; restart it fresh instead.
-        if (section->activeBuildHasCaughtReadablePages() && recycleSectionBuildForLowMemory("background low heap")) {
+        // Each restart lays the chapter out again from its first page, so a
+        // mere pause waits for real progress; an abort recycles at any progress.
+        if (section->activeBuildHasCaughtReadablePages() &&
+            recycleSectionBuildForLowMemory("background low heap", false, BUILD_WINDOW_AHEAD * 2)) {
           return;
         }
       } else {
@@ -7220,10 +7136,11 @@ void EpubReaderActivity::cacheCurrentSectionPosition() {
 // laid-out pages persist as a partial section file, the parser, CSS rules and SD
 // font caches are freed, and the next render reloads the partial and restarts the
 // build with a defragmented heap. Pages are never kept in RAM; they are on the SD.
-bool EpubReaderActivity::recycleSectionBuildForLowMemory(const char* reason, const bool keepNextPage) {
+bool EpubReaderActivity::recycleSectionBuildForLowMemory(const char* reason, const bool keepNextPage,
+                                                         const int minProgress) {
   if (!section || activeFootnotePreview || section->pageCount == 0) return false;
   const int watermark = static_cast<int>(section->pageCount);
-  if (lowMemoryRecycleSpine == currentSpineIndex && watermark <= lowMemoryRecycleWatermark) return false;
+  if (lowMemoryRecycleSpine == currentSpineIndex && watermark < lowMemoryRecycleWatermark + minProgress) return false;
   lowMemoryRecycleSpine = currentSpineIndex;
   lowMemoryRecycleWatermark = watermark;
   const auto before = MemoryBudget::snapshot();
@@ -7337,7 +7254,6 @@ bool EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
   const bool foregroundBlack = ReaderUtils::readerForegroundBlack();
   bool needsImageGrayscale = pageHasImages;
   bool needsTextGrayscale = SETTINGS.textAntiAliasing && foregroundBlack;
-  const int contentBottom = renderer.getScreenHeight() - orientedMarginBottom;
 
   // The pending count excludes the page currently being rendered. Decide
   // before checking image caches or materializing image data, so an
@@ -7364,7 +7280,6 @@ bool EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
 
   const auto finalizeBufferComposition = [&]() {
     drawClippingHighlights(*page, fontId, orientedMarginTop, orientedMarginLeft);
-    drawPublisherPageMarkers(renderer, *page, orientedMarginTop, contentBottom, foregroundBlack);
 #if CROSSINK_APP_CAP_TOUCH
     if (activeFootnotePreview) {
       TouchHeaderBackButton::draw(renderer, TouchHeaderBackButton::headerRect(renderer, mappedInput), tr(STR_FOOTNOTES),
@@ -8352,8 +8267,6 @@ bool EpubReaderActivity::drawCurrentPageToBuffer(const std::string& filePath, Gf
   }
   renderer.clearScreen(ReaderUtils::readerBackgroundColor());
   page->render(renderer, renderFontId, layout.marginLeft, layout.marginTop, ReaderUtils::readerForegroundBlack());
-  drawPublisherPageMarkers(renderer, *page, layout.marginTop, renderer.getScreenHeight() - layout.marginBottom,
-                           ReaderUtils::readerForegroundBlack());
   // No displayBuffer call; caller (SleepActivity) handles that after compositing the overlay.
   return true;
 }
