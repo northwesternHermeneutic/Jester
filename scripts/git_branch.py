@@ -148,6 +148,12 @@ def get_hardware_version(project_dir, pioenv):
         if os.environ.get('CROSSINK_RELEASE_VERSION'):
             return get_production_version(project_dir)
         base_version = get_crossink_version(project_dir)
+        # Jester: "<version>-build<N>" from [crossink] jester_build instead of
+        # "-dev+<branch>", whose branch name (jester-v0.1) misread as a version.
+        config = _read_ini(project_dir)
+        if config.has_option('crossink', 'jester_build'):
+            build = sanitize_version_component(config.get('crossink', 'jester_build'))
+            return f'{base_version}-build{build}'
         branch = get_git_branch(project_dir)
         return f'{base_version}-dev+{branch}'
 
