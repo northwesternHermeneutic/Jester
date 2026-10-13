@@ -122,11 +122,20 @@ Jester runs on an ESP32-C3 with about 380 KB of RAM.
 
 ## Installation
 
-1. Copy `jester-x4-v<version>-build<N>.bin` to the SD card.
-2. On a device running CrossInk or Jester, open **Settings > SD Card Firmware Update** and choose the file.
-3. Delete `/.crosspoint/jester-settings.json` if you want the Jester defaults after an update that changes them.
+Download the latest `jester-x4-v<version>-build<N>.bin` first.
 
-A first install can also use the [CrossInk installation guide](https://github.com/uxjulia/CrossInk/blob/main/docs/installation.md) with the Jester `.bin`.
+### With the CrossPoint web flash tool (USB)
+
+1. Connect the X4 to your computer with a USB cable.
+2. Open the flash tool at [crosspointreader.com/#flash-tools](https://crosspointreader.com/#flash-tools).
+3. Select **XTEINK X4**, choose the custom `.bin` option, pick the Jester `.bin`, and flash.
+
+### From the SD card
+
+1. Copy the `.bin` to the SD card.
+2. On a device running CrossInk or Jester, open **Settings > SD Card Firmware Update** and choose the file.
+
+After an update that changes default settings, delete `/.crosspoint/jester-settings.json` if you want the new Jester defaults.
 
 ---
 
