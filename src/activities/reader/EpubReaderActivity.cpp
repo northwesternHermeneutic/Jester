@@ -5234,6 +5234,11 @@ bool writeDogEarText(void* context, FsFile& file) {
     }
     return true;
   };
+  // A word split by line-end hyphenation is written whole: its inserted hyphen is
+  // dropped and the rest of the word follows without a space. The hyphen is kept
+  // only when the word continues on the next page.
+  bool joinNext = false;
+  const char* pendingHyphen = nullptr;
   for (const auto& element : source->page->elements) {
     if (element->getTag() != TAG_PageLine) continue;
     const auto& line = static_cast<const PageLine&>(*element);
@@ -5242,11 +5247,19 @@ bool writeDogEarText(void* context, FsFile& file) {
     for (uint16_t i = 0; i < block.wordCount(); ++i) {
       const char* word = block.wordText(i);
       if (isSnippetWhitespace(word)) continue;
-      if (!first && !put(" ", 1)) return false;
-      if (!put(word, std::strlen(word))) return false;
+      pendingHyphen = nullptr;
+      if (!first && !joinNext && !put(" ", 1)) return false;
+      size_t len = std::strlen(word);
+      joinNext = block.wordEndsWithInsertedHyphen(i) && len > 0 && word[len - 1] == '-';
+      if (joinNext) {
+        len--;
+        pendingHyphen = "-";
+      }
+      if (!put(word, len)) return false;
       first = false;
     }
   }
+  if (pendingHyphen && !put(pendingHyphen, 1)) return false;
   return flush();
 }
 }  // namespace
@@ -5293,11 +5306,36 @@ void EpubReaderActivity::toggleDogEar() {
   // The record always gives the location to a tenth of a percent.
   char percent[16];
   snprintf(percent, sizeof(percent), "%.1f%%", std::clamp(getCurrentBookProgressPercent(), 0.0f, 100.0f));
+  // Page label: the publisher page when the book has page markers, otherwise the
+  // stable page number when the book has one, otherwise none.
   if (page) updatePublisherLabel(*page, true);
+  if (publisherLabel[0] == '\0' && !section->isBuilding()) {
+    // After a jump the label is empty until a marker is reached; a dog ear is a
+    // one-off user action, so look back a few pages here (never during a build).
+    constexpr int MAX_LOOKBACK_PAGES = 10;
+    for (int index = section->currentPage - 1; index >= 0 && index >= section->currentPage - MAX_LOOKBACK_PAGES;
+         --index) {
+      const auto earlier = section->loadPage(index);
+      if (!earlier || earlier->publisherPageMarkers.empty()) continue;
+      std::strncpy(publisherLabel, earlier->publisherPageMarkers.back().label, sizeof(publisherLabel) - 1);
+      publisherLabel[sizeof(publisherLabel) - 1] = '\0';
+      break;
+    }
+  }
+  char pageLabel[40] = {};
+  if (publisherLabel[0] != '\0') {
+    snprintf(pageLabel, sizeof(pageLabel), "Publisher Page %s", publisherLabel);
+  } else if (epub->getReferencePageCount() > 0) {
+    uint32_t stablePage = 0;
+    uint32_t stablePageCount = 0;
+    const float sectionProgress = static_cast<float>(section->currentPage) / static_cast<float>(pageCount);
+    if (epub->resolveReferencePage(currentSpineIndex, sectionProgress, stablePage, stablePageCount) && stablePage > 0) {
+      snprintf(pageLabel, sizeof(pageLabel), "Page %lu", static_cast<unsigned long>(stablePage));
+    }
+  }
   DogEarTextSource source{page.get()};
-  const bool textSaved =
-      ClippingsManager::saveDogEar(fileName, epub->getTitle(), epub->getAuthor(), chapterTitle,
-                                   section->currentPage + 1, percent, publisherLabel, &writeDogEarText, &source);
+  const bool textSaved = ClippingsManager::saveDogEar(fileName, epub->getTitle(), epub->getAuthor(), chapterTitle,
+                                                      percent, pageLabel, &writeDogEarText, &source);
   drawToast(renderer, textSaved ? tr(STR_DOG_EAR_ADDED) : tr(STR_DOG_EAR_TEXT_FAILED));
   requestUpdate();
 }

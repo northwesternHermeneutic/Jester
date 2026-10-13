@@ -16,7 +16,7 @@ class ClippingsManager {
   // `writeText` streams the page text into the open file (no whole-page buffer).
   using TextWriter = bool (*)(void* context, FsFile& file);
   static bool saveDogEar(const std::string& bookFileName, const std::string& bookTitle, const std::string& author,
-                         const std::string& chapterTitle, int pageNumber, const std::string& percentLabel,
-                         const char* publisherPage, TextWriter writeText, void* context);
+                         const std::string& chapterTitle, const std::string& percentLabel, const char* pageLabel,
+                         TextWriter writeText, void* context);
   static constexpr const char* DOGEARS_TEXT_DIR = "/DogEars";
 };

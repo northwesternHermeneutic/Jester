@@ -160,8 +160,8 @@ bool ClippingsManager::saveClipping(const std::string& bookTitle, const std::str
 }
 
 bool ClippingsManager::saveDogEar(const std::string& bookFileName, const std::string& bookTitle,
-                                  const std::string& author, const std::string& chapterTitle, const int pageNumber,
-                                  const std::string& percentLabel, const char* publisherPage,
+                                  const std::string& author, const std::string& chapterTitle,
+                                  const std::string& percentLabel, const char* pageLabel,
                                   const TextWriter writeText, void* context) {
   Storage.mkdir(DOGEARS_TEXT_DIR);
   const std::string path = std::string(DOGEARS_TEXT_DIR) + "/dogears-" + bookFileName + ".txt";
@@ -171,11 +171,12 @@ bool ClippingsManager::saveDogEar(const std::string& bookFileName, const std::st
     return false;
   }
 
-  std::string header = bookTitle + " (" + author + ")\n- Your Dog Ear on Page " + std::to_string(pageNumber) + " | " +
-                       percentLabel;
-  if (publisherPage && publisherPage[0] != '\0') {
-    header += " | Publisher Page ";
-    header += publisherPage;
+  // Location: book percentage, then the publisher or stable page label when the
+  // caller has one. The chapter-relative page number is not recorded.
+  std::string header = bookTitle + " (" + author + ")\n- Your Dog Ear | " + percentLabel;
+  if (pageLabel && pageLabel[0] != '\0') {
+    header += " | ";
+    header += pageLabel;
   }
   if (!chapterTitle.empty()) header += " | " + chapterTitle;
   char addedOn[80];
