@@ -1,4 +1,4 @@
-## [Jester v0.1]
+## [Jester v0.5]
 
 Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected CrossInk v1.6.1 changes (Library, top and bottom status bars, side-button actions, inline images, fixes).
 
@@ -6,18 +6,19 @@ Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected Cr
 
 - Belacqua, the default UI: a Lyra-based Home whose hero tile shows the current book's title, author and progress without a cover, followed by Favorites, Files, Library, Bookmarks & Clippings, File Transfer and Settings.
 - Favorites: add or remove a book from its long-press menu or the in-book menu; Home > Favorites lists up to 36 books by title, sorted by recently added, title or author (hold Back to change).
-- Dog Ears: a Dog Ear action (default: hold Select) marks the page like a bookmark, shows a folded-corner symbol, and appends the page text to /DogEars/dogears-<book>.txt; Add/Remove Dog Ear and View Dog Ears lead the in-book bookmarks page and Bookmarks & Clippings.
+- Dog Ears: a Dog Ear action (default: hold Select) marks the page like a bookmark, shows a folded-corner symbol, and appends the page text to /DogEars/dogears-<book>.txt with the book percentage to a tenth, the publisher page (or stable page) and the chapter; words split by line-end hyphenation are written whole. Add/Remove Dog Ear and View Dog Ears lead the in-book bookmarks page and Bookmarks & Clippings.
 - Unify Bookmarks re-attaches bookmarks, dog ears, clippings, favorites and reading progress to a book moved or renamed on a computer (exact title and author match), from Settings > System or the in-book menu.
 - Library (from CrossInk v1.6.1) with Jester navigation: all four buttons move through the header controls and books, Back moves to the controls, hold Back goes Home.
 - Library Index Limit (Settings > System), folder exclusions and user-made libraries (File Browser folder long-press), and a Switch Library control.
 - Landscape Flip action (default Power+Up): switches between landscape orientations; from portrait it goes to landscape counter-clockwise. Orientation now applies to every book.
 - Front Left and Right long-press actions, alongside the v1.6.1 side-button actions.
 - Go to %: steps start at 5% and 10% and switch to 0.1% and 1% with the power press that is not Sleep.
-- Publisher Page Number status bar item.
-- Sleep Screen settings in the in-book menu.
+- Publisher Page Number status bar item (default: center of the bottom bar, between Battery and the book percentage).
 - Clean Screen action: three black and white refreshes, then the page is redrawn.
 - File names, Library titles and Favorites titles wrap to two lines, breaking long words at hyphenation points.
 - Files uploaded over the hotspot carry the browser's date and time.
+- Boot and sleep screens show the Jester name and the ❍ (U+274D) logo; Settings > System shows the version as 0.5-build<N>.
+- Quick Actions can open from a front Left or Right long press, and the Quick Actions screen names that shortcut.
 
 ### Changed
 
@@ -27,17 +28,25 @@ Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected Cr
 - Settings are stored in /.crosspoint/jester-settings.json; settings from other firmware are not imported.
 - Jester defaults for reader options and controls (landscape counter-clockwise, Belacqua, Quick Actions on side Up hold, Look Up Word on side Down hold, Footnotes on Back hold).
 - File Transfer offers Create Hotspot only (plus USB Drive where available).
+- Default margins: 30 top and bottom, 35 left and right.
+- Create Clipping uses the Look Up Word buttons and labels in every orientation, and its button hints are always shown.
+- After the reset button, the device starts on Home instead of reopening the last book.
+- Long footnotes can be read past three pages (the preview now runs to 24 pages).
+- With Embedded Style on, large publisher stylesheets are looked up from the SD cache instead of being held in memory, and a chapter build that runs short of memory restarts itself instead of stopping with "Chapter needs too much memory".
 
 ### Removed
 
 - Reading statistics and time left, focus (bionic) reading, guide dots and auto page turn.
 - WiFi networks, KOReader Sync, OPDS, Check for Updates, Calibre Wireless and Nearby transfers. SD card and USB firmware updates remain.
 - Sleep screens other than None, Dark, Light, Custom, Page Overlay and Quick Resume; UI themes other than Classic, Lyra and Belacqua.
+- Publisher page numbers in the page margin; they are shown only as a status bar item.
 
 ### Fixed
 
 - Back, previous-page and next-page button labels use single guillemets (‹ ›) instead of double guillemets.
 - UI text in the small and medium faces renders Latin-1 characters (accented file names, titles and authors, the degree sign) instead of missing-glyph boxes.
+- Opening .txt files with long lines (such as the dog ears file) no longer takes long enough to look frozen.
+- Library Index Limit no longer drops books whose files have no creation date.
 - In landscape counter-clockwise, menus and lists opened from a book (in-book menu, Look Up Word and the other reader screens) treat the upper front button as Up and label it so, including the Quick Actions popup; page turns on the book page and the Go to % Left/Right steps are unchanged.
 
 ## [v1.6.0] - 2026-09-21
