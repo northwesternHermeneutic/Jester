@@ -1746,10 +1746,13 @@ static uint32_t creationCutoffFor(const char* rootPath, const uint16_t limit) {
   uint16_t seen = 0;
   collectNewestCreationTimes(rootPath, 0, heap.get(), count, limit, seen);
   // Fewer books than the limit: keep them all. Otherwise heap[0] is the oldest
-  // creation time still among the newest `limit`; ties at it are all kept.
+  // creation time still among the newest `limit`; ties at it are all kept. A
+  // zero there (files without a creation time) means every book ties, and 0 is
+  // also "no cutoff", so all are kept. (It returned 1 before, which dropped
+  // every book without a creation time.)
   if (seen <= limit || count == 0) return 0;
   LOG_DBG("LIBIDX", "index limit %u of %u books", static_cast<unsigned>(limit), static_cast<unsigned>(seen));
-  return heap[0] == 0 ? 1 : heap[0];
+  return heap[0];
 }
 
 static bool rebuildLibraryIndex(const char* rootPath, BuildStats& stats, const bool readMetadata) {

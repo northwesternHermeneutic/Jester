@@ -83,6 +83,17 @@ Library cardLibrary() {
   return library;
 }
 
+// Deletes a slot's index and its backup. A leftover backup would otherwise be
+// restored by the builder's interrupted-install recovery into the next library
+// that reuses the slot.
+void removeSlotIndex(const uint8_t slot) {
+  char path[40];
+  for (const char* ext : {"idx", "bak"}) {
+    snprintf(path, sizeof(path), "/.crosspoint/library%u.%s", static_cast<unsigned>(slot), ext);
+    if (Storage.exists(path)) Storage.remove(path);
+  }
+}
+
 std::string folderName(const std::string& root) {
   const size_t slash = root.find_last_of('/');
   const std::string name = slash == std::string::npos ? root : root.substr(slash + 1);
@@ -142,9 +153,7 @@ bool makeLibrary(const std::string& root, uint8_t& slotOut) {
       continue;
     }
     // A stale index from an earlier library in this slot must not be reused.
-    char path[40];
-    snprintf(path, sizeof(path), "/.crosspoint/library%u.idx", static_cast<unsigned>(slot));
-    if (Storage.exists(path)) Storage.remove(path);
+    removeSlotIndex(slot);
     state.libraries.push_back({slot, folderName(root), root});
     slotOut = slot;
     return writeState(state);
@@ -162,9 +171,7 @@ bool removeLibrary(const uint8_t slot) {
                         state.libraries.end());
   if (state.libraries.size() == before) return true;
   if (state.active == slot) state.active = 0;
-  char path[40];
-  snprintf(path, sizeof(path), "/.crosspoint/library%u.idx", static_cast<unsigned>(slot));
-  if (Storage.exists(path)) Storage.remove(path);
+  removeSlotIndex(slot);
   return writeState(state);
 }
 
