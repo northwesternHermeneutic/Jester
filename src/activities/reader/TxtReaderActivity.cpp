@@ -36,6 +36,7 @@ constexpr uint32_t MAX_CACHE_PAGES = 65535;   // Sanity cap to prevent unbounded
 // Width of text[from, to) without allocating: the byte at `to` is swapped for a
 // terminator while the renderer measures.
 int measureRange(GfxRenderer& renderer, const int fontId, std::string& text, const size_t from, const size_t to) {
+  if (to >= text.size()) return renderer.getTextWidth(fontId, text.c_str() + from);
   const char saved = text[to];
   text[to] = '\0';
   const int width = renderer.getTextWidth(fontId, text.c_str() + from);
@@ -70,8 +71,6 @@ size_t parseAndWrapLines(const uint8_t* buffer, size_t chunkSize, size_t fileOff
       pos = lineEnd + 1;
       continue;
     }
-    // measureRange() may write the terminator at line[displayLen], which
-    // std::string keeps as '\0'.
     std::string line(reinterpret_cast<const char*>(buffer + pos), displayLen);
     size_t start = 0;  // bytes of this source line already emitted
 
