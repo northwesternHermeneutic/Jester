@@ -3,6 +3,7 @@ _language_code: "EN"
 _order: "0"
 
 STR_CROSSINK: "CrossInk"
+STR_JESTER: "Jester"
 STR_BOOTING: "BOOTING"
 STR_AM: "AM"
 STR_PM: "PM"
