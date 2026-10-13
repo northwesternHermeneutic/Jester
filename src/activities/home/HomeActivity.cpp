@@ -647,7 +647,16 @@ void HomeActivity::loadAllBookStats() {
   LOG_DBG("HOME", "carousel: cached stats/progress for %d book(s) in %lums", count, millis() - start);
 }
 
+// Jester (feature 5): Belacqua's hero tile shows no cover, so Home generates no
+// thumbnails for it (each one opens the EPUB and decodes its cover image).
+static bool homeThemeShowsCovers() { return SETTINGS.uiTheme != CrossPointSettings::UI_THEME::BELACQUA; }
+
 void HomeActivity::loadRecentCovers(int coverHeight) {
+  if (!homeThemeShowsCovers()) {
+    recentsLoaded = true;
+    recentsLoading = false;
+    return;
+  }
   // Thumbnail generation may need a 32 KB contiguous inflate buffer. The Home
   // cover snapshot is only a redraw cache, so release it before ZIP work.
   if (coverBuffer) {
@@ -2291,6 +2300,12 @@ void HomeActivity::render(RenderLock&&) {
 
   if (!firstRenderDone) {
     firstRenderDone = true;
+    // The second pass only exists to start thumbnail work after the first
+    // paint; without covers it would repaint an identical frame.
+    if (!homeThemeShowsCovers()) {
+      recentsLoaded = true;
+      return;
+    }
     requestUpdate();
     return;
   }
