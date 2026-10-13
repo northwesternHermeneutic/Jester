@@ -13,7 +13,12 @@ from pathlib import Path
 
 SIZE = 120
 SCALE = 8  # supersampling factor for smooth edges
-CENTER = 56.0  # disc centre; leaves room for the shadow inside 120 px
+# drawImage() copies bytes in panel order without rotating them, and the panel
+# is landscape: on the portrait boot/sleep screens the stored image appears
+# turned 90 degrees clockwise. The shadow is therefore stored toward the upper
+# right (+x, -y) so that it shows toward the lower right, as in the glyph.
+CENTER_X = 56.0  # disc centre; leaves room for the shadow inside 120 px
+CENTER_Y = 64.0
 RADIUS = 48.0
 OUTLINE = 5.0
 SHADOW_OFFSET = 7.0
@@ -22,11 +27,11 @@ OUT = Path(__file__).resolve().parent.parent / "src" / "images" / "JesterLogo120
 
 
 def is_black(x: float, y: float) -> bool:
-    dx, dy = x - CENTER, y - CENTER
+    dx, dy = x - CENTER_X, y - CENTER_Y
     d = (dx * dx + dy * dy) ** 0.5
     if d <= RADIUS:
         return d >= RADIUS - OUTLINE  # outline ring; inside stays white
-    sx, sy = x - CENTER - SHADOW_OFFSET, y - CENTER - SHADOW_OFFSET
+    sx, sy = x - CENTER_X - SHADOW_OFFSET, y - CENTER_Y + SHADOW_OFFSET
     return (sx * sx + sy * sy) ** 0.5 <= RADIUS  # shadow crescent
 
 
