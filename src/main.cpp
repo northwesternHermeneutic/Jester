@@ -1597,8 +1597,18 @@ void setup() {
     const auto path = APP_STATE.openEpubPath;
     APP_STATE.openEpubPath = "";
     APP_STATE.readerActivityLoadCount++;
+    // Jester: lastSleepFromReader is consumed here and set again only by a real
+    // sleep (enterDeepSleep). After the reset button there was no sleep, so the
+    // next boot opens Home rather than the book that may have been stuck loading.
+    APP_STATE.lastSleepFromReader = false;
     APP_STATE.saveToFile();
     activityManager.goToReader(path, false, allowFastInitialReaderRefresh);
+  }
+  if (resume != BootResume::Silent && resume != BootResume::Network && APP_STATE.lastSleepFromReader) {
+    // Booted to Home with the flag still set (Back held, or a crashed reader):
+    // consume it too, so a reset later in this session also lands on Home.
+    APP_STATE.lastSleepFromReader = false;
+    APP_STATE.saveToFile();
   }
 
   if (resume == BootResume::Silent || resume == BootResume::Network) {

@@ -616,8 +616,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t hyphenationEnabled = 1;  // Jester default (feature 9)
 
   // Reader screen margins. Legacy single-axis settings initialize both values.
-  uint8_t screenMarginVertical = 20;  // Jester default (feature 9)
-  uint8_t screenMarginHorizontal = 48;  // Jester default (feature 9)
+  uint8_t screenMarginVertical = 30;  // Jester default (feature 9; 30 since build 26)
+  uint8_t screenMarginHorizontal = 35;  // Jester default (feature 9; 35 since build 26)
   // Show EPUB publisher pagebreak labels in the reader margin when present.
   uint8_t publisherPageNumbers = 0;
   // OPDS browser settings
