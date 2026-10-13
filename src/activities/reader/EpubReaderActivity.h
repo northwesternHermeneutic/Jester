@@ -283,6 +283,11 @@ class EpubReaderActivity final : public Activity {
   // One-shot guard for the silent restart used before EPUB layout fallback modes. The restart token
   // restores this guard after boot so the resumed attempt can fall through to those modes.
   bool lowMemoryPartialRestartAttempted = false;
+  // Jester: a long-lived incremental build that runs short of heap is torn down
+  // (its pages persist as a partial) and restarted fresh. One recycle per
+  // watermark, so a chapter that cannot progress still reaches the old error path.
+  int lowMemoryRecycleSpine = -1;
+  int lowMemoryRecycleWatermark = -1;
   bool backgroundBuildPausedForLowMemory = false;
   // Input should win the next RenderLock race. Keep the incremental parser alive,
   // but do not start another background chunk until the requested render begins.
@@ -420,6 +425,7 @@ class EpubReaderActivity final : public Activity {
   void jumpToStablePage(uint32_t page);
   void reindexCurrentSection();
   void prepareCurrentSectionForRelayout();
+  bool recycleSectionBuildForLowMemory(const char* reason, bool keepNextPage = false);
   void executeReaderQuickAction(CrossPointSettings::LONG_PRESS_MENU_ACTION action,
                                 bool dictionaryLookupFramebufferContainsPage = true,
                                 QuickLockTrigger quickLockTrigger = QuickLockTrigger::LongMenu);

@@ -122,7 +122,10 @@ constexpr uint8_t STORED_PACE_SLOWER_RECOVERY_PERCENT = 110;
 constexpr uint16_t MIN_STORED_PACE_FASTER_RECOVERY_SESSION_SAMPLES = 15;
 constexpr uint8_t STORED_PACE_FASTER_RECOVERY_PERCENT = 90;
 constexpr uint8_t BOOK_PROGRESS_ESTIMATE_FLOOR_PERCENT = 90;
-constexpr uint16_t FOOTNOTE_PREVIEW_MAX_PAGES = 3;
+// Jester: long notes run past CrossInk's 3-page preview, which then could not be
+// read to the end. The preview builds incrementally, so a higher cap only costs
+// layout when the reader actually pages on.
+constexpr uint16_t FOOTNOTE_PREVIEW_MAX_PAGES = 24;
 #if CROSSINK_APP_CAP_TOUCH
 constexpr int TOUCH_FOOTNOTE_TARGET_SIZE = 48;
 #endif
@@ -2921,9 +2924,19 @@ void EpubReaderActivity::loop() {
     if (lock.ownsLock() && !backgroundBuildYieldForInput.load(std::memory_order_relaxed) && sectionBuildWantsTick() &&
         (section->isPartial() || section->activeBuildHasCaughtReadablePages())) {
       releaseGrayscaleStripScratch();
-      if (backgroundSectionBuildHasHeap()) {
+      if (!backgroundSectionBuildHasHeap()) {
+        // Jester: a build left short of heap only falls further behind and ends
+        // in a blocking catch-up abort; restart it fresh instead.
+        if (section->activeBuildHasCaughtReadablePages() && recycleSectionBuildForLowMemory("background low heap")) {
+          return;
+        }
+      } else {
         if (!section->buildSomeMore(BACKGROUND_BUILD_PAGES_PER_TICK)) {
           LOG_ERR("ERS", "Background section build failed");
+          if (section->lastBuildLayoutAbortedForLowMemory() && section->pageCount > 0 &&
+              recycleSectionBuildForLowMemory("background layout abort")) {
+            return;
+          }
           if (section->lastBuildLayoutAbortedForLowMemory() && section->pageCount > 0) {
             partialRebuildAbortedForLowMemory = true;
             LOG_ERR("ERS", "Background section build suspended for low heap; not retrying for this section");
@@ -6310,6 +6323,9 @@ void EpubReaderActivity::render(RenderLock&& lock) {
           pendingClippingIndex == UINT16_MAX && pendingParagraphIndex == UINT16_MAX && !pendingRelayoutReposition) {
         LOG_ERR("ERS", "Incremental build stopped for low heap; retaining readable partial cache (%u pages)",
                 section->pageCount);
+        if (recycleSectionBuildForLowMemory("incremental build abort", true)) {
+          return;
+        }
         fallbackBuildSucceeded = true;
         usedReadablePartialFallback = true;
         partialRebuildAbortedForLowMemory = true;
@@ -6562,6 +6578,9 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   }
   if (catchUpFailed) {
     if (section->lastBuildLayoutAbortedForLowMemory() && section->pageCount > 0) {
+      if (recycleSectionBuildForLowMemory("blocking catch-up abort")) {
+        return;
+      }
       partialRebuildAbortedForLowMemory = true;
       const int partialWatermark = static_cast<int>(section->pageCount);
       if (requestedPageBeforeCatchUp == partialWatermark &&
@@ -7156,6 +7175,32 @@ void EpubReaderActivity::cacheCurrentSectionPosition() {
       cachedPageParagraphSpan = std::max<uint16_t>(1, paragraphEndPage - paragraphStartPage);
     }
   }
+}
+
+// Caller holds the RenderLock. Mirrors what toggling a reader setting did on the
+// device (section reset plus cache release), which cleared the memory error: the
+// laid-out pages persist as a partial section file, the parser, CSS rules and SD
+// font caches are freed, and the next render reloads the partial and restarts the
+// build with a defragmented heap. Pages are never kept in RAM; they are on the SD.
+bool EpubReaderActivity::recycleSectionBuildForLowMemory(const char* reason, const bool keepNextPage) {
+  if (!section || activeFootnotePreview || section->pageCount == 0) return false;
+  const int watermark = static_cast<int>(section->pageCount);
+  if (lowMemoryRecycleSpine == currentSpineIndex && watermark <= lowMemoryRecycleWatermark) return false;
+  lowMemoryRecycleSpine = currentSpineIndex;
+  lowMemoryRecycleWatermark = watermark;
+  const auto before = MemoryBudget::snapshot();
+  if (!keepNextPage) nextPageNumber = section->currentPage;
+  section.reset();  // ~Section() suspends the build into a partial file
+  releaseGrayscaleStripScratch(true);
+  releaseReaderSdFontCachesForLowMemory(renderer, "ERS", reason);
+  partialRebuildAbortedForLowMemory = false;
+  partialRebuildStartFailed = false;
+  backgroundBuildPausedForLowMemory = false;
+  const auto after = MemoryBudget::snapshot();
+  LOG_ERR("ERS", "Recycled section build (%s) at %d pages: free=%u->%u maxAlloc=%u->%u", reason, watermark,
+          before.freeHeap, after.freeHeap, before.maxAllocHeap, after.maxAllocHeap);
+  requestUpdate();
+  return true;
 }
 
 void EpubReaderActivity::prepareCurrentSectionForRelayout() {
@@ -8002,8 +8047,9 @@ bool EpubReaderActivity::shouldUseFootnotePreview(const int targetSpineIndex, co
 std::string EpubReaderActivity::footnotePreviewCacheSuffix(const EpubRenderMode renderMode,
                                                            const std::string& anchor) const {
   const uint64_t anchorHash = hashFootnotePreviewAnchor(anchor);
+  // "fn24": previews cached under the old 3-page cap are not reused.
   char previewSuffix[32];
-  snprintf(previewSuffix, sizeof(previewSuffix), "_fn_%08lx%08lx", static_cast<unsigned long>(anchorHash >> 32),
+  snprintf(previewSuffix, sizeof(previewSuffix), "_fn24_%08lx%08lx", static_cast<unsigned long>(anchorHash >> 32),
            static_cast<unsigned long>(anchorHash & 0xffffffffULL));
   return std::string(sectionCacheSuffixForRenderMode(renderMode)) + previewSuffix;
 }
