@@ -276,8 +276,10 @@ std::string RecentBookProgress::formatPercent(const float progress, const std::s
   if (!hasPercent(progress)) {
     return "";
   }
-  const bool shortBook = FsHelpers::hasEpubExtension(bookPath) &&
-                         BookPercentFormat::loadIsShortBook(Epub(bookPath, "/.crosspoint").getCachePath());
+  // Resolve the cache path without constructing an Epub object.
+  const bool shortBook =
+      FsHelpers::hasEpubExtension(bookPath) &&
+      BookPercentFormat::loadIsShortBook(Epub::resolveCachePathForFilePath(bookPath, "/.crosspoint"));
   return BookPercentFormat::format(clampProgressPercent(progress), shortBook);
 }
 

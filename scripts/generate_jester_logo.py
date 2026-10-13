@@ -2,8 +2,8 @@
 """Generate src/images/JesterLogo120.h, Jester's boot and sleep logo.
 
 The logo is U+274D SHADOWED WHITE CIRCLE drawn as geometry: a white disc with a
-black outline and a black crescent shadow toward the lower right. Output format
-matches src/images/Logo120.h: 120x120, 1 bit per pixel, rows of 15 bytes,
+black outline and a black crescent shadow straight to the right. Output format
+matches the CrossInk Logo120.h it replaced: 120x120, 1 bit per pixel, rows of 15 bytes,
 most significant bit first, 1 = white, 0 = black.
 
 Usage: python3 scripts/generate_jester_logo.py
