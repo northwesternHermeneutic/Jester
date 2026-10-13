@@ -47,6 +47,11 @@ Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected Cr
 - UI text in the small and medium faces renders Latin-1 characters (accented file names, titles and authors, the degree sign) instead of missing-glyph boxes.
 - Opening .txt files with long lines (such as the dog ears file) no longer takes long enough to look frozen.
 - Library Index Limit no longer drops books whose files have no creation date.
+- The Library no longer rescans after every wake or after the reader restarts itself to free memory; after adding books with a computer while the device sleeps, use Library > Refresh.
+- Page-turn shortcuts no longer crash at the end of an EPUB or while a chapter is loading (from CrossInk).
+- Long paragraphs keep their publisher spacing during incremental layout, and long text runs are checked after each fragment to limit layout memory (from CrossInk).
+- Chapter link targets are kept on the SD card while a chapter is indexed instead of in memory, removing a large memory request in long chapters.
+- Less ghosting after cover sleep screens (lower VCOM in the X4 factory grayscale waveform).
 - In landscape counter-clockwise, menus and lists opened from a book (in-book menu, Look Up Word and the other reader screens) treat the upper front button as Up and label it so, including the Quick Actions popup; page turns on the book page and the Go to % Left/Right steps are unchanged.
 
 ## [v1.6.0] - 2026-09-21
