@@ -486,6 +486,14 @@ Binary layout:
 
 ## `section.bin`
 
+### Version 85 (Jester)
+
+From CrossInk 5e2a2650. Long paragraphs apply initial CSS margin/padding on
+their first emitted line, including incremental flushes, and text fragment
+bounds are checked on each append. The payload is unchanged; complete files
+use `85` and suspended partials use `0xC6`, so older caches rebuild. Jester
+skips 82-84 (CrossInk changes not ported).
+
 ### Version 83
 
 Nested paragraphs and other blocks retain inherited CSS bold and italic styles,
