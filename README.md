@@ -12,11 +12,28 @@ Code for the other CrossInk devices (X3, X4 Pro, X4 Classic, Sticky) is still in
 
 ## Why Jester
 
-Jester is a reading-first firmware: fewer features, but the ones that matter for reading books (and keeping track of passages in them) work well on a 380 KB device. It removes the network services, statistics and reading modes that Jester does not use, adds tools for marking and finding places in books, and keeps the in-book menu and button behaviour of CrossInk v1.6.0.
+Jester is a reading-first firmware: fewer features, but the ones that matter for reading books (and keeping track of passages in them) work well on a 380 KB device. Improved embedded page number support, they are now an option to add in the status bar for books with them. Reverts the CrossInk v1.6.1 in-book menu and button behaviour to v1.6.0.
 
 ---
 
 ## Features
+
+### Introducing: Dog Ears! 
+#### A quicker, more natural way to save the best bits for later. 
+
+Has this ever happened to you? 
+
+You come across a riveting passage in a book, one that you could read over and over, possibly life changing, that shows the kind of mastery of language that you aspire to. You find yourself faced with three options: 
+Bookmark, Clipping, or Screenshot. 
+
+Bookmark? Sounds nice, but fleeting, temporary, stuck to the device without any obvious way to export it. Clipping? Better, now you've at least got the text into a file you can
+easily get onto your phone or computer, or just go back to on your X4 without losing your place in the book. But man is it tedious to make, having to add line by line, covering things 
+in highlights, never sure how much you can or can't get in a single clipping. How about a Screenshot? Well, that's quick at least, but now what are you supposed to do with all these .bmp
+files? Transcribe them? Put them through OCR? No thank you. 
+
+What you need is ***Dog Ears***: With one press of your chosen shortcut button (default: long press menu) all of the text on screen is captured, much like a clipping, to the Dog Ear text file for that book, and the page is marked similarly to a bookmark. The entry in the text file includes the chapter title, book percentage to the tenths place, and, when available, the embedded page number or stable page number. 
+  
+Capture the whole text of a page like a screenshot, in a text file like a clipping, marking the page for easy return like a bookmark, all with one quick action, that can be mapped to your button of choice like any other quick action. 
 
 ### Reading
 
