@@ -167,8 +167,6 @@ pio run -e default
 
 The firmware is written to `.pio/build/default/jester-x4-v<version>.bin`; the image must stay under 6,553,600 bytes. The version is `version` and the build number `jester_build` in the `[crossink]` section of `platformio.ini`.
 
-Jester's `freeink-sdk` submodule uses a relative URL (`../freeink-sdk.git`): it is the Jester fork of [freeink-sdk](https://github.com/Free-Ink/freeink-sdk) under the same GitHub account, branch `jester`, which adds one commit (a lower VCOM in the X4's sleep-cover waveform) on top of upstream `b784446`.
-
 See [Getting Started](./docs/development/getting-started.md) and [Testing and Debugging](./docs/development/testing-debugging.md) for the shared CrossInk development guides.
 
 ---
@@ -179,7 +177,7 @@ Jester builds on the work of these projects. All are MIT-licensed unless noted.
 
 - **[CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)** by Dave Allie and contributors: the original firmware this lineage comes from.
 - **[CrossInk](https://github.com/uxjulia/CrossInk)** by Julia Nguyen: the base of Jester (v1.6.0, with selected v1.6.1 and later changes).
-- **[FreeInk SDK](https://github.com/Free-Ink/freeink-sdk)**: display, input, storage and power drivers. The X4 sleep-cover VCOM change follows a tuning by Justin Mitchell (freeink-sdk `e91e34e`).
+- **[FreeInk SDK](https://github.com/Free-Ink/freeink-sdk)**: display, input, storage and power drivers.
 - **[witchhunt-reader](https://github.com/jpirnay/witchhunt-reader)** by Jens Pirnay: streaming chapter anchors to the SD card (`d4547ae6`), and the ideas behind Unify Bookmarks (its global bookmark catalogue) and the Publisher Page Number item (printed-page labels).
 - **[inx](https://github.com/obijuankenobiii/inx)**: the on-demand, versioned book-state file that Favorites is modelled on.
 - **[casper](https://github.com/tweakerinc/casper)**: lessons on capturing a page's text safely (dog ears) and on avoiding wasted Home work.
