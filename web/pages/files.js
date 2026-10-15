@@ -107,10 +107,16 @@ async function hydrate() {
   // Fetch the firmware version (Jester_v<version>)
   fetchVersion();
 
-  // Close modals when clicking overlay - call proper cleanup functions
+  // Dismiss only clicks that also began on the backdrop (CrossPoint #3931).
   document.querySelectorAll(".modal-overlay").forEach(function (overlay) {
+    let clickTarget = null;
+    overlay.addEventListener("mousedown", function (e) {
+      clickTarget = e.target;
+    });
     overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) {
+      const clickedBackdrop = clickTarget === overlay && e.target === overlay;
+      clickTarget = null;
+      if (clickedBackdrop) {
         const closeFn = MODAL_OUTSIDE_CLICK_FNS[overlay.id];
         if (closeFn) return closeFn();
         overlay.classList.remove("open");

@@ -37,6 +37,7 @@ class Element {
     const event = { target, preventDefault() {}, ...extra };
     for (const callback of this.listeners.get(type) || []) callback(event);
   }
+  removeAttribute(name) { delete this[name]; }
   focus() {}
   select() {}
   setSelectionRange() {}
@@ -208,5 +209,76 @@ test('missing or failed metadata keeps the original name and still normalizes it
     page.context.getMetadataFilenameForEpub = async () => { if (fail) throw Error('bad EPUB'); return ''; };
     await finishUpload(page);
     assert.equal(page.uploads[0].name, 'Résumé.epub');
+  }
+});
+
+test('dialog drags and inside interactions stay open; actual backdrop clicks clean up', async () => {
+  const page = portal();
+  await page.context.hydrate();
+  for (const overlay of page.overlays) {
+    overlay.classList.add('open');
+    const inside = new Element('dialog text');
+    overlay.emit('mousedown', inside);
+    overlay.emit('click', overlay);
+    assert.ok(overlay.classList.contains('open'), `${overlay.id}: selection drag closed dialog`);
+    overlay.emit('mousedown', inside);
+    overlay.emit('click', inside);
+    assert.ok(overlay.classList.contains('open'), `${overlay.id}: inside click closed dialog`);
+    overlay.emit('mousedown');
+    overlay.emit('click', inside);
+    assert.ok(overlay.classList.contains('open'), `${overlay.id}: backdrop-to-inside drag closed dialog`);
+    overlay.emit('mousedown');
+    overlay.emit('click');
+    assert.equal(overlay.classList.contains('open'), false, `${overlay.id}: backdrop click failed`);
+    overlay.classList.add('open');
+    // A prior close must not leave a stale mousedown target when reopened.
+    overlay.emit('click');
+    assert.ok(overlay.classList.contains('open'), `${overlay.id}: stale target dismissed reopened dialog`);
+    overlay.classList.remove('open');
+  }
+});
+
+test('backdrop and close icon cannot interrupt uploads; Cancel and Escape still cancel', async () => {
+  const page = portal();
+  await page.context.hydrate();
+  const overlay = page.element('uploadModal');
+  overlay.classList.add('open');
+  page.run('isUploadInProgress = true');
+  let aborts = 0;
+  page.context.activeXhr = { abort() { aborts++; } };
+  page.run('currentUploadXhr = activeXhr');
+  overlay.emit('mousedown');
+  overlay.emit('click');
+  assert.ok(overlay.classList.contains('open'));
+  assert.equal(page.run('operationCancelled'), false);
+  assert.equal(aborts, 0);
+  page.context.closeUploadModal();
+  assert.ok(overlay.classList.contains('open'));
+  assert.equal(aborts, 0);
+  page.context.handleCancelUploadModal();
+  assert.equal(page.run('operationCancelled'), true);
+  assert.equal(aborts, 1);
+  assert.ok(overlay.classList.contains('open'));
+  page.run('operationCancelled = false; currentUploadXhr = activeXhr');
+  page.document.emit('keydown', page.document, { key: 'Escape' });
+  assert.equal(page.run('operationCancelled'), true);
+  assert.equal(aborts, 2);
+  page.run('isUploadInProgress = false');
+  page.context.closeUploadModal();
+  assert.equal(overlay.classList.contains('open'), false);
+});
+
+test('normal close, Cancel and Escape still close idle dialogs', async () => {
+  const page = portal();
+  await page.context.hydrate();
+  for (const name of ['closeUploadModal', 'handleCancelUploadModal']) {
+    page.element('uploadModal').classList.add('open');
+    page.context[name]();
+    assert.equal(page.element('uploadModal').classList.contains('open'), false);
+  }
+  for (const overlay of page.overlays) {
+    overlay.classList.add('open');
+    page.document.emit('keydown', page.document, { key: 'Escape' });
+    assert.equal(overlay.classList.contains('open'), false, overlay.id);
   }
 });
