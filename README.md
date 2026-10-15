@@ -167,7 +167,7 @@ pio run -e default
 
 The firmware is written to `.pio/build/default/jester-x4-v<version>.bin`; the image must stay under 6,553,600 bytes. The version is `version` and the build number `jester_build` in the `[crossink]` section of `platformio.ini`.
 
-Jester's `freeink-sdk` gitlink points at a local commit (a lower VCOM in the X4's sleep-cover waveform) that is not upstream; keep it when cloning or bundling the repository.
+Jester's `freeink-sdk` submodule uses a relative URL (`../freeink-sdk.git`): it is the Jester fork of [freeink-sdk](https://github.com/Free-Ink/freeink-sdk) under the same GitHub account, branch `jester`, which adds one commit (a lower VCOM in the X4's sleep-cover waveform) on top of upstream `b784446`.
 
 See [Getting Started](./docs/development/getting-started.md) and [Testing and Debugging](./docs/development/testing-debugging.md) for the shared CrossInk development guides.
 
