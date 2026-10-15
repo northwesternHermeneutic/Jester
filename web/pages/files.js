@@ -2365,7 +2365,13 @@ async function maybeRenameEbookFile(file) {
 }
 
 function reserveAvailableUploadFilename(fileName, usedFileNames) {
-  const normalize = (name) => name.toLowerCase();
+  // Use NFC filenames for cross-platform SD card compatibility (CrossPoint #3961).
+  const normalizedName = fileName.normalize("NFC");
+  if (normalizedName !== fileName) {
+    console.log(`[Upload] Normalized filename to NFC: ${fileName} -> ${normalizedName}`);
+    fileName = normalizedName;
+  }
+  const normalize = (name) => name.normalize("NFC").toLowerCase();
   if (!usedFileNames.has(normalize(fileName))) {
     usedFileNames.add(normalize(fileName));
     return fileName;
@@ -2383,6 +2389,7 @@ function reserveAvailableUploadFilename(fileName, usedFileNames) {
   } while (usedFileNames.has(normalize(candidateName)));
 
   usedFileNames.add(normalize(candidateName));
+  console.log(`[Upload] Renamed to avoid collision: ${fileName} -> ${candidateName}`);
   return candidateName;
 }
 
@@ -2390,7 +2397,7 @@ async function fetchExistingUploadNames() {
   const response = await fetch(`/api/files?path=${encodeURIComponent(currentPath)}&_=${Date.now()}`);
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   const entries = await response.json();
-  return new Set(entries.map((entry) => entry.name.toLowerCase()));
+  return new Set(entries.map((entry) => entry.name.normalize("NFC").toLowerCase()));
 }
 
 /**
@@ -5440,7 +5447,6 @@ async function uploadFile() {
 
     const availableName = reserveAvailableUploadFilename(file.name, usedFileNames);
     if (availableName !== file.name) {
-      console.log(`[Upload] Renamed to avoid collision: ${file.name} -> ${availableName}`);
       file = new File([file], availableName, {
         type: file.type,
         lastModified: file.lastModified,
