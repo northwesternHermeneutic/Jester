@@ -54,6 +54,8 @@ Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected Cr
 - Long paragraphs keep their publisher spacing during incremental layout, and long text runs are checked after each fragment to limit layout memory (from CrossInk).
 - Chapter link targets are kept on the SD card while a chapter is indexed instead of in memory, removing a large memory request in long chapters.
 - In landscape counter-clockwise, menus and lists opened from a book (in-book menu, Look Up Word and the other reader screens) treat the upper front button as Up and label it so, including the Quick Actions popup; page turns on the book page and the Go to % Left/Right steps are unchanged.
+- Status Bars settings: the Top and Bottom previews sit where the reader draws the bars (in landscape the bottom preview was about 50 px too high) and stay clear of the landscape button hints (from CrossInk v1.6.1 code).
+- An orientation chosen in Book Options is kept after sleep, and the page is laid out again for it.
 
 ## [v1.6.0] - 2026-09-21
 

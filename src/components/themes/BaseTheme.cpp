@@ -891,6 +891,8 @@ void BaseTheme::drawReaderStatusBar(GfxRenderer& renderer, const ReaderStatusBar
 
   int marginTop, marginRight, marginBottom, marginLeft;
   renderer.getOrientedViewableTRBL(&marginTop, &marginRight, &marginBottom, &marginLeft);
+  marginLeft += content.previewInsetLeft;
+  marginRight += content.previewInsetRight;
   const int screenWidth = renderer.getScreenWidth();
   const int edgeY = content.previewOriginY >= 0
                         ? content.previewOriginY

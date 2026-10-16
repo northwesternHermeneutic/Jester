@@ -58,6 +58,8 @@ class StatusBarSettingsActivity final : public Activity {
   void refreshItemCount();
   int previewHeight() const;
   int topPreviewOriginY() const;
+  int bottomPreviewOriginY() const;
+  bool landscape() const;
   Rect settingsHeaderRect() const;
   static void settingsScreen(UiApp::ScreenType& screen, void* user);
   static void onRowEvent(const freeink::ui::ActionEvent& event, void* user);

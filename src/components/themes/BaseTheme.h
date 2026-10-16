@@ -49,6 +49,10 @@ struct ReaderStatusBarContent {
   bool darkMode = false;
   int edgePadding = 0;
   int previewOriginY = -1;
+  // Jester: extra side margins for the settings preview, clear of the
+  // landscape button-hint column.
+  int previewInsetLeft = 0;
+  int previewInsetRight = 0;
 };
 
 enum class ThemeTabBarAppearance : uint8_t {

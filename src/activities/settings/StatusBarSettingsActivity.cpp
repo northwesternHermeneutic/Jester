@@ -163,13 +163,26 @@ int StatusBarSettingsActivity::previewHeight() const {
          metrics.verticalSpacing;
 }
 
-int StatusBarSettingsActivity::topPreviewOriginY() const {
-  int marginTop, marginRight, marginBottom, marginLeft;
-  renderer.getOrientedViewableTRBL(&marginTop, &marginRight, &marginBottom, &marginLeft);
-  (void)marginRight;
-  (void)marginBottom;
-  (void)marginLeft;
-  return marginTop + UITheme::getInstance().getMetrics().topPadding + UITheme::getTopStatusBarInset(renderer);
+// Jester: the preview bars sit where the reader draws them
+// (BaseTheme::drawReaderStatusBar), except that in portrait the bottom bar
+// stays above the button hints.
+int StatusBarSettingsActivity::topPreviewOriginY() const { return UITheme::getTopStatusBarY(renderer); }
+
+int StatusBarSettingsActivity::bottomPreviewOriginY() const {
+  const int barHeight = UITheme::getReaderStatusBarHeight(selectedPosition());
+  if (landscape()) {
+    int marginTop, marginRight, marginBottom, marginLeft;
+    renderer.getOrientedViewableTRBL(&marginTop, &marginRight, &marginBottom, &marginLeft);
+    return renderer.getScreenHeight() - marginBottom - barHeight;
+  }
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  return renderer.getScreenHeight() - metrics.buttonHintsHeight - metrics.verticalSpacing - barHeight;
+}
+
+bool StatusBarSettingsActivity::landscape() const {
+  const auto orientation = renderer.getOrientation();
+  return orientation == GfxRenderer::Orientation::LandscapeClockwise ||
+         orientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
 }
 
 Rect StatusBarSettingsActivity::settingsHeaderRect() const {
@@ -341,9 +354,13 @@ void StatusBarSettingsActivity::buildSettingsScreen(UiApp::ScreenType& screen) {
   const int contentWidth = pageWidth - hintGutterWidth;
   const Rect header = settingsHeaderRect();
   const int contentTop = header.y + header.height + metrics.verticalSpacing;
-  const int bottomPreviewHeight = view == View::Bottom ? previewHeight() : 0;
-  const int contentHeight =
-      pageHeight - contentTop - metrics.buttonHintsHeight - bottomPreviewHeight - metrics.verticalSpacing * 2;
+  // The list stops above the bottom preview's label, or above the portrait
+  // button hints (landscape hints are a side column).
+  const int contentBottom =
+      view == View::Bottom
+          ? bottomPreviewOriginY() - renderer.getLineHeight(UI_10_FONT_ID) - 18 - metrics.verticalSpacing * 2
+          : pageHeight - (landscape ? 0 : metrics.buttonHintsHeight) - metrics.verticalSpacing * 2;
+  const int contentHeight = contentBottom - contentTop;
   screen.setContentMargin(
       fui::Insets{static_cast<int16_t>(contentTop), static_cast<int16_t>(pageWidth - (contentX + contentWidth)),
                   static_cast<int16_t>(pageHeight - (contentTop + contentHeight)), static_cast<int16_t>(contentX)});
@@ -507,7 +524,6 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
   renderer.clearScreen();
   const auto& metrics = UITheme::getInstance().getMetrics();
   const int pageWidth = renderer.getScreenWidth();
-  const int pageHeight = renderer.getScreenHeight();
   const auto orientation = renderer.getOrientation();
   const bool landscape = orientation == GfxRenderer::Orientation::LandscapeClockwise ||
                          orientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
@@ -534,9 +550,7 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
   if (view != View::Root) {
     const auto position = selectedPosition();
     const int barHeight = UITheme::getReaderStatusBarHeight(position);
-    const int previewOriginY = view == View::Top
-                                   ? topPreviewOriginY()
-                                   : pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing - barHeight;
+    const int previewOriginY = view == View::Top ? topPreviewOriginY() : bottomPreviewOriginY();
     const int labelY = view == View::Top ? previewOriginY + barHeight + 9
                                          : previewOriginY - renderer.getLineHeight(UI_10_FONT_ID) - 18;
     renderer.drawText(UI_10_FONT_ID, contentX + metrics.contentSidePadding, labelY, tr(STR_PREVIEW));
@@ -553,6 +567,8 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
     content.timeLeftChapter = "1h 20m";
     content.previewClock = "12:34";
     content.previewOriginY = previewOriginY;
+    content.previewInsetLeft = contentX;
+    content.previewInsetRight = pageWidth - (contentX + contentWidth);
     GUI.drawReaderStatusBar(renderer, position, content);
   }
   renderer.displayBuffer();
