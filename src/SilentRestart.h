@@ -46,5 +46,9 @@ void silentRestartToManageFonts();
 
 void armSilentRestartReaderPageBuild(const std::string& bookPath, uint16_t spineIndex, uint16_t targetPage,
                                      bool autoPageTurnActive);
+// Jester: targetPage value for a low-memory retry of a jump. The jump itself is
+// carried by CrossPointState's pending bookmark fields; the token only marks
+// that the one silent restart was used.
+inline constexpr uint16_t SILENT_RESTART_JUMP_TARGET = 0xFFFF;
 bool consumeSilentRestartReaderPageBuild(const std::string& bookPath, uint16_t& spineIndex, uint16_t& targetPage,
                                          bool& autoPageTurnActive);

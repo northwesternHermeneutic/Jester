@@ -2361,7 +2361,12 @@ void EpubReaderActivity::onEnter() {
     }
   }
 
-  if (resumePageBuildAfterRestart) {
+  if (resumePageBuildAfterRestart && restartPageBuildTarget == SILENT_RESTART_JUMP_TARGET) {
+    // Jester: a jump retried after a low-memory silent restart. Its target came
+    // back through APP_STATE's pending bookmark fields above.
+    lowMemoryPartialRestartAttempted = true;
+    LOG_INF("ERS", "Retrying low-memory jump after silent restart: spine=%d", currentSpineIndex);
+  } else if (resumePageBuildAfterRestart) {
     if (static_cast<int>(restartPageBuildSpine) < epub->getSpineItemsCount()) {
       currentSpineIndex = restartPageBuildSpine;
       nextPageNumber = restartPageBuildTarget;
@@ -6054,6 +6059,36 @@ void EpubReaderActivity::render(RenderLock&& lock) {
     return true;
   };
 
+  // Jester: bookmark, dog-ear and Go to % jumps get the same single silent
+  // restart. Their target is saved in APP_STATE's pending bookmark fields,
+  // which onEnter() consumes like a bookmark picked on the Home screen.
+  // Anchor (TOC, footnote), clipping and stable-page jumps are not covered.
+  const auto restartForLowMemoryJump = [this](const char* stage) {
+    if (lowMemoryPartialRestartAttempted || !pendingPercentJump || !pendingAnchor.empty() ||
+        !pendingFootnotePreviewAnchor.empty() || pendingClippingIndex != UINT16_MAX ||
+        pendingReferenceUnitOffset.has_value() || currentSpineIndex < 0 ||
+        currentSpineIndex >= static_cast<int>(SILENT_RESTART_JUMP_TARGET)) {
+      return false;
+    }
+    LOG_ERR("ERS", "Low heap during %s; silent restarting to retry the jump (spine=%d)", stage, currentSpineIndex);
+    APP_STATE.pendingBookmarkSpine = static_cast<uint16_t>(currentSpineIndex);
+    APP_STATE.pendingBookmarkProgress = std::clamp(pendingSpineProgress, 0.0f, 1.0f);
+    APP_STATE.pendingBookmarkParagraphIndex = pendingParagraphIndex;
+    APP_STATE.pendingClippingIndex = UINT16_MAX;
+    if (!APP_STATE.saveToFile()) {
+      LOG_ERR("ERS", "Skipping silent restart because the jump could not be saved");
+      APP_STATE.pendingBookmarkSpine = UINT16_MAX;
+      APP_STATE.pendingBookmarkProgress = -1.0f;
+      APP_STATE.pendingBookmarkParagraphIndex = UINT16_MAX;
+      return false;
+    }
+    armSilentRestartReaderPageBuild(epub->getPath(), static_cast<uint16_t>(currentSpineIndex),
+                                    SILENT_RESTART_JUMP_TARGET, false);
+    lowMemoryPartialRestartAttempted = true;
+    silentRestartToReader();
+    return true;
+  };
+
   // edge case handling for sub-zero spine index
   if (currentSpineIndex < 0) {
     currentSpineIndex = 0;
@@ -6343,6 +6378,9 @@ void EpubReaderActivity::render(RenderLock&& lock) {
         if (restartForLowMemoryLayout(target, savedPage, estimatedPages, "initial EPUB layout")) {
           return;
         }
+      } else if (!initialAttempt.succeeded && initialAttempt.lowMemory && !buildingFootnotePreview &&
+                 restartForLowMemoryJump("initial EPUB layout")) {
+        return;
       }
       const SectionFallbackResult fallbackResult = runSectionBuildFallbacks(
           selectedRenderMode, shouldAttemptSafeModeFallback(), buildWithFallback, beforeFallbackRetry, &initialAttempt);
@@ -6733,6 +6771,18 @@ void EpubReaderActivity::render(RenderLock&& lock) {
 #if CROSSINK_APP_CAP_TOUCH
       currentPageFootnoteTouchTargets.fill({});
 #endif
+      // Jester: the page could not be drawn for lack of memory (SD-font glyph
+      // cache). Free the running section build first (its pages stay on the
+      // SD card), then try the one silent restart, before showing the error.
+      if (!activeFootnotePreview && section && section->isBuilding() &&
+          recycleSectionBuildForLowMemory("page render")) {
+        return;
+      }
+      if (!activeFootnotePreview && section && section->pageCount > 0 &&
+          restartForLowMemoryLayout(section->currentPage, section->currentPage, section->estimatedTotalPages(),
+                                    "page render")) {
+        return;
+      }
       renderer.clearScreen(ReaderUtils::readerBackgroundColor());
       // drawPopup() refreshes the panel.
       GUI.drawPopup(renderer, renderer.isSdCardFont(renderFontId) ? tr(STR_MEMORY_ERROR) : tr(STR_PAGE_LOAD_ERROR));
@@ -6741,6 +6791,11 @@ void EpubReaderActivity::render(RenderLock&& lock) {
       return;
     }
     lastRenderCompleteMs = millis();
+    // Jester: once the chapter that needed the low-memory silent restart is
+    // fully built and shown, a later chapter may use one again.
+    if (lowMemoryPartialRestartAttempted && !activeFootnotePreview && !section->isBuilding()) {
+      lowMemoryPartialRestartAttempted = false;
+    }
     const uint8_t heapShapeRedrawStages = pendingHeapShapeReaderRedrawStages.exchange(0, std::memory_order_relaxed);
     if (heapShapeRedrawStages & HEAP_SHAPE_REDRAW_CLIP) {
       MemoryBudget::logHeapShape("clip.reader_redrawn");
