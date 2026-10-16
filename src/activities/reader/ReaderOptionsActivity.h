@@ -20,6 +20,7 @@ class ReaderOptionsActivity final : public Activity {
   using SaveGlobalSettingsCallback = void (*)(void* ctx);
   using GlobalSettingsEditCallback = void (*)(void* ctx);
   using DictionaryFontChangedCallback = void (*)(void* ctx, const char* familyName, uint8_t pointSize);
+  using OrientationExemptCallback = void (*)(void* ctx, bool exempt);
 
  private:
   ButtonNavigator buttonNavigator;
@@ -47,6 +48,9 @@ class ReaderOptionsActivity final : public Activity {
   DictionaryFontChangedCallback dictionaryFontChangedCallback = nullptr;
   void* dictionaryFontChangedContext = nullptr;
   bool settingsDirty = false;
+  bool orientationExempt = false;
+  OrientationExemptCallback orientationExemptCallback = nullptr;
+  void* orientationExemptContext = nullptr;
   bool stablePageNumbersAvailable = false;
 
   using UiApp = freeink::ui::FreeInkApp<20, 4>;
@@ -110,6 +114,12 @@ class ReaderOptionsActivity final : public Activity {
       std::strncpy(this->dictionaryFontFamilyName, dictionaryFontFamilyName,
                    sizeof(this->dictionaryFontFamilyName) - 1);
     }
+  }
+  // Jester: Exempt from Global Orientation, the last row of Book Options.
+  void setOrientationExempt(const bool exempt, OrientationExemptCallback callback, void* ctx) {
+    orientationExempt = exempt;
+    orientationExemptCallback = callback;
+    orientationExemptContext = ctx;
   }
   void onEnter() override;
   void onExit() override;

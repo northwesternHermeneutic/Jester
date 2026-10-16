@@ -366,36 +366,30 @@ bool EpubReaderMenuActivity::activateSelectedItem() {
     return true;
   }
 
-  if (selectedAction == MenuAction::ORIENTATION_EXEMPT_TOGGLE) {
-    orientationExempt = !orientationExempt;
-    if (orientationExemptCallback) orientationExemptCallback(orientationExemptContext, orientationExempt);
-    // Turning the exemption off returns the book to the global orientation.
-    if (pendingOrientation != SETTINGS.orientation) {
-      pendingOrientation = SETTINGS.orientation;
-      ReaderUtils::applyOrientation(renderer, pendingOrientation);
-      app.setDevice(uiTarget.deviceContext());
-      requestUpdate(true);
-      return true;
-    }
-    requestUpdate();
-    return true;
-  }
-
   if (selectedAction == MenuAction::READER_OPTIONS) {
     const auto before = captureReaderLayoutSettings();
+    auto options = std::make_unique<ReaderOptionsActivity>(
+        renderer, mappedInput, saveReaderSettingsCallback, saveReaderSettingsContext, saveGlobalSettingsCallback,
+        saveGlobalSettingsContext, beginGlobalSettingsEditCallback, beginGlobalSettingsEditContext,
+        endGlobalSettingsEditCallback, endGlobalSettingsEditContext, stablePageCount > 0, dictionaryFontFamilyName,
+        dictionaryFontPointSize, hasDictionaryFontOverride, dictionaryFontChangedForMenu, this);
+    if (orientationExemptCallback) {
+      options->setOrientationExempt(orientationExempt, orientationExemptChangedForMenu, this);
+    }
     startActivityForResult(
-        std::make_unique<ReaderOptionsActivity>(
-            renderer, mappedInput, saveReaderSettingsCallback, saveReaderSettingsContext, saveGlobalSettingsCallback,
-            saveGlobalSettingsContext, beginGlobalSettingsEditCallback, beginGlobalSettingsEditContext,
-            endGlobalSettingsEditCallback, endGlobalSettingsEditContext, stablePageCount > 0, dictionaryFontFamilyName,
-            dictionaryFontPointSize, hasDictionaryFontOverride, dictionaryFontChangedForMenu, this),
+        std::move(options),
         [this, before](const ActivityResult& result) {
           const ReaderSettingsChangeMask changed = classifyReaderSettingsChange(before, captureReaderLayoutSettings());
           if (changed != ReaderSettingsChangeMask::None) {
             settingsChanged = true;
             changeMask = changeMask | changed;
           }
-          pendingOrientation = SETTINGS.orientation;  // sync in case orientation changed
+          if (pendingOrientation != SETTINGS.orientation) {
+            // Sync in case orientation changed (Jester: leaving the orientation exemption).
+            pendingOrientation = SETTINGS.orientation;
+            ReaderUtils::applyOrientation(renderer, pendingOrientation);
+            app.setDevice(uiTarget.deviceContext());
+          }
           if (result.isCancelled) {
             finishCancelled();
             return;
@@ -467,6 +461,13 @@ bool EpubReaderMenuActivity::activateSelectedItem() {
   setResult(makeMenuResult(static_cast<int>(selectedAction)));
   finish();
   return true;
+}
+
+void EpubReaderMenuActivity::orientationExemptChangedForMenu(void* ctx, const bool exempt) {
+  auto* self = static_cast<EpubReaderMenuActivity*>(ctx);
+  if (!self) return;
+  self->orientationExempt = exempt;
+  if (self->orientationExemptCallback) self->orientationExemptCallback(self->orientationExemptContext, exempt);
 }
 
 bool EpubReaderMenuActivity::handleTouchInput() {
@@ -695,8 +696,6 @@ void EpubReaderMenuActivity::buildMenuScreen(UiApp::ScreenType& screen) {
     item.label = I18N.get(menuItem.labelId);
     if (menuItem.action == MenuAction::ROTATE_SCREEN) {
       item.value = I18N.get(orientationLabels[pendingOrientation]);
-    } else if (menuItem.action == MenuAction::ORIENTATION_EXEMPT_TOGGLE) {
-      item.value = I18N.get(orientationExempt ? StrId::STR_STATE_ON : StrId::STR_STATE_OFF);
     } else if (menuItem.action == MenuAction::AUTO_PAGE_TURN) {
       if (autoPageTurnActive) values[i] = std::to_string(autoPageTurnIntervalSeconds);
       item.value = values[i].empty() ? nullptr : values[i].c_str();

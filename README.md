@@ -44,7 +44,7 @@ Capture the whole text of a page like a screenshot, in a text file like a clippi
 - **One percentage format** everywhere (status bars, bookmarks, dog ears, menus, Home), one decimal by default; short books show whole numbers.
 - **Go to %** steps of 5% and 10%; a short press of the power button switches to 0.1% and 1%.
 - **Landscape Flip** (default: Power + Up) switches between the two landscape orientations; orientation applies to every book.
-- **Exempt from Global Orientation** (in-book menu, after Reader Options): the book keeps its own orientation. Turning it does not change the other books, and changing the orientation elsewhere does not change it. Turn it off to return the book to the global orientation. EPUB books only.
+- **Exempt from Global Orientation** (in-book menu > Book Options, last row): the book keeps its own orientation. Turning it does not change the other books, and changing the orientation elsewhere does not change it. Turn it off to return the book to the global orientation. EPUB books only.
 - **Clean Screen** action: three black-and-white refreshes to clear ghosting, then the page is redrawn.
 - Default margins 30 (top and bottom) and 35 (left and right); default orientation landscape counter-clockwise.
 

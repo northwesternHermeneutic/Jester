@@ -9,6 +9,7 @@
 
 #include "CrossPointSettings.h"
 #include "MappedInputManager.h"
+#include "ReaderUtils.h"
 #include "SdCardFontSystem.h"
 #include "SettingsList.h"
 #include "SilentRestart.h"
@@ -92,6 +93,14 @@ void ReaderOptionsActivity::rebuildSettingsList() {
     settings.push_back(buildReaderRenderModeSetting());
   } else {
     settings.insert(indexingMethod, buildReaderRenderModeSetting());
+  }
+  if (orientationExemptCallback) {
+    SettingInfo exempt;
+    exempt.nameId = StrId::STR_ORIENTATION_EXEMPT;
+    exempt.type = SettingType::TOGGLE;
+    exempt.key = "orientationExempt";
+    exempt.category = StrId::STR_CAT_READER;
+    settings.push_back(std::move(exempt));
   }
   fontSettings = buildReaderFontSettingsList(allSettings);
   pageLayoutSettings = buildReaderPageLayoutSettingsList(allSettings);
@@ -447,6 +456,16 @@ void ReaderOptionsActivity::toggleCurrentSetting() {
   if (selectedIndex < 0 || selectedIndex >= settingsCount) return;
   const auto& setting = (*currentSettings)[selectedIndex];
 
+  if (setting.nameId == StrId::STR_ORIENTATION_EXEMPT) {
+    orientationExempt = !orientationExempt;
+    if (orientationExemptCallback) orientationExemptCallback(orientationExemptContext, orientationExempt);
+    // Turning the exemption off returns the book to the global orientation.
+    ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
+    app.setDevice(uiTarget.deviceContext());
+    requestUpdate(true);
+    return;
+  }
+
   if (setting.nameId == StrId::STR_FONT_FAMILY && setting.type == SettingType::ENUM) {
     startActivityForResult(std::make_unique<FontSelectionActivity>(renderer, mappedInput, &sdFontSystem.registry()),
                            [this](const ActivityResult& result) {
@@ -744,7 +763,9 @@ void ReaderOptionsActivity::buildOptionsScreen(UiApp::ScreenType& screen) {
     item.isHeader = isSectionHeader;
     item.toggle = !isSectionHeader && setting.type == SettingType::TOGGLE;
     if (item.toggle) {
-      item.toggleChecked = setting.valuePtr != nullptr && SETTINGS.*(setting.valuePtr) != 0;
+      item.toggleChecked = setting.valuePtr != nullptr
+                               ? SETTINGS.*(setting.valuePtr) != 0
+                               : setting.nameId == StrId::STR_ORIENTATION_EXEMPT && orientationExempt;
       item.value = nullptr;
     }
     item.actionValue = static_cast<int16_t>(i);
