@@ -457,11 +457,17 @@ void ReaderOptionsActivity::toggleCurrentSetting() {
   const auto& setting = (*currentSettings)[selectedIndex];
 
   if (setting.nameId == StrId::STR_ORIENTATION_EXEMPT) {
+    // The row changes only once the book's settings file has been written.
+    if (!orientationExemptCallback || !orientationExemptCallback(orientationExemptContext, !orientationExempt)) {
+      return;
+    }
     orientationExempt = !orientationExempt;
-    if (orientationExemptCallback) orientationExemptCallback(orientationExemptContext, orientationExempt);
     // Turning the exemption off returns the book to the global orientation.
-    ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
-    app.setDevice(uiTarget.deviceContext());
+    if (renderer.getOrientation() != ReaderUtils::toRendererOrientation(SETTINGS.orientation)) {
+      RenderLock lock(*this);
+      ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
+      app.setDevice(uiTarget.deviceContext());
+    }
     requestUpdate(true);
     return;
   }

@@ -368,25 +368,33 @@ bool EpubReaderMenuActivity::activateSelectedItem() {
 
   if (selectedAction == MenuAction::READER_OPTIONS) {
     const auto before = captureReaderLayoutSettings();
-    auto options = std::make_unique<ReaderOptionsActivity>(
+    auto options = makeUniqueNoThrow<ReaderOptionsActivity>(
         renderer, mappedInput, saveReaderSettingsCallback, saveReaderSettingsContext, saveGlobalSettingsCallback,
         saveGlobalSettingsContext, beginGlobalSettingsEditCallback, beginGlobalSettingsEditContext,
         endGlobalSettingsEditCallback, endGlobalSettingsEditContext, stablePageCount > 0, dictionaryFontFamilyName,
         dictionaryFontPointSize, hasDictionaryFontOverride, dictionaryFontChangedForMenu, this);
+    if (!options) {
+      LOG_ERR("ERM", "Could not allocate Book Options");
+      requestUpdate();
+      return true;
+    }
     if (orientationExemptCallback) {
       options->setOrientationExempt(orientationExempt, orientationExemptChangedForMenu, this);
     }
+    const uint8_t orientationBeforeOptions = SETTINGS.orientation;
     startActivityForResult(
         std::move(options),
-        [this, before](const ActivityResult& result) {
+        [this, before, orientationBeforeOptions](const ActivityResult& result) {
           const ReaderSettingsChangeMask changed = classifyReaderSettingsChange(before, captureReaderLayoutSettings());
           if (changed != ReaderSettingsChangeMask::None) {
             settingsChanged = true;
             changeMask = changeMask | changed;
           }
-          if (pendingOrientation != SETTINGS.orientation) {
-            // Sync in case orientation changed (Jester: leaving the orientation exemption).
+          // Sync only when Book Options changed the orientation (its Orientation
+          // row, or Jester's exemption turned off); keep any other pending turn.
+          if (SETTINGS.orientation != orientationBeforeOptions) {
             pendingOrientation = SETTINGS.orientation;
+            RenderLock lock(*this);
             ReaderUtils::applyOrientation(renderer, pendingOrientation);
             app.setDevice(uiTarget.deviceContext());
           }
@@ -463,11 +471,12 @@ bool EpubReaderMenuActivity::activateSelectedItem() {
   return true;
 }
 
-void EpubReaderMenuActivity::orientationExemptChangedForMenu(void* ctx, const bool exempt) {
+bool EpubReaderMenuActivity::orientationExemptChangedForMenu(void* ctx, const bool exempt) {
   auto* self = static_cast<EpubReaderMenuActivity*>(ctx);
-  if (!self) return;
+  if (!self || !self->orientationExemptCallback) return false;
+  if (!self->orientationExemptCallback(self->orientationExemptContext, exempt)) return false;
   self->orientationExempt = exempt;
-  if (self->orientationExemptCallback) self->orientationExemptCallback(self->orientationExemptContext, exempt);
+  return true;
 }
 
 bool EpubReaderMenuActivity::handleTouchInput() {

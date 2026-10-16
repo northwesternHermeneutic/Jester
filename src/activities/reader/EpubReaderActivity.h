@@ -421,8 +421,11 @@ class EpubReaderActivity final : public Activity {
   void loadBookReaderSettings();
   void saveCurrentBookReaderSettings();
   void saveDictionaryFontForBook(const char* familyName, uint8_t pointSize);
-  void saveOrientationExemption(bool exempt);
-  static void setOrientationExemptForBookReader(void* ctx, bool exempt);
+  bool saveOrientationExemption(bool exempt);
+  static bool setOrientationExemptForBookReader(void* ctx, bool exempt);
+  void captureEditedGlobalReaderSettings();
+  bool sectionViewportStale();
+  void discardRelayoutReposition();
   void persistReaderSdFontSettings();
   bool saveGlobalSettingsPreservingBookOverrides();
   bool beginGlobalSettingsEdit();

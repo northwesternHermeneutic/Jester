@@ -104,7 +104,8 @@ constexpr uint8_t READER_SETTINGS_FLAG_RENDER_MODE = 1 << 2;
 constexpr uint8_t READER_SETTINGS_FLAG_DICTIONARY_FONT = 1 << 3;
 constexpr uint8_t READER_SETTINGS_FLAG_SAFE_MODE = 1 << 4;
 // Jester: the book keeps its own orientation (stored in the snapshot's orientation byte).
-constexpr uint8_t READER_SETTINGS_FLAG_ORIENTATION_EXEMPT = 1 << 5;
+// Jester flags count down from the top bit, clear of upstream's next flags.
+constexpr uint8_t READER_SETTINGS_FLAG_ORIENTATION_EXEMPT = 1 << 7;
 constexpr char READER_SETTINGS_FILE_NAME[] = "/reader_settings.bin";
 constexpr char BALANCED_SECTION_CACHE_SUFFIX[] = "_balanced";
 constexpr char LIGHT_SECTION_CACHE_SUFFIX[] = "_light";
@@ -1119,6 +1120,8 @@ constexpr uint32_t READER_FONT_OVERRIDES = (1U << 0) | (1U << 1) | SD_FONT_FAMIL
 constexpr uint32_t READER_LAYOUT_SETTING_OVERRIDES = ALL_READER_SETTING_OVERRIDES & ~(1U << 11);
 constexpr uint32_t SAFE_MODE_SETTING_OVERRIDES = (1U << 9) | (1U << 15) | (1U << 16);
 constexpr uint32_t ORIENTATION_SETTING_OVERRIDE = 1U << 4;
+static_assert(READER_SETTING_FIELDS[4] == &ReaderSettingsSnapshot::orientation,
+              "ORIENTATION_SETTING_OVERRIDE must match the orientation field");
 
 uint32_t changedReaderSettingsMask(const ReaderSettingsSnapshot& current, const ReaderSettingsSnapshot& global) {
   uint32_t mask = 0;
@@ -1957,13 +1960,14 @@ void EpubReaderActivity::captureGlobalReaderSettings() {
 }
 
 void EpubReaderActivity::restoreGlobalReaderSettings() {
+  SETTINGS.savedOrientationOverride = CrossPointSettings::ORIENTATION_COUNT;
   if (!restoreGlobalReaderSettingsOnExit) {
     return;
   }
   // Home/sleep can discard the stack without the Settings result callback.
   // SETTINGS already contains the edited globals while the book is suspended.
   if (bookReaderSettingsSuspendedForGlobalEdit) {
-    captureReaderSettings(globalReaderSettingsBeforeBook);
+    captureEditedGlobalReaderSettings();
     bookReaderSettingsSuspendedForGlobalEdit = false;
   }
   applyReaderSettings(globalReaderSettingsBeforeBook);
@@ -1989,7 +1993,10 @@ void EpubReaderActivity::loadBookReaderSettings() {
   if (data.hasCustomReaderSettings) {
     applyReaderSettings(data.readerSettings);
   }
-  if (data.orientationExempt) SETTINGS.orientation = data.readerSettings.orientation;
+  if (data.orientationExempt) {
+    SETTINGS.orientation = data.readerSettings.orientation;
+    SETTINGS.savedOrientationOverride = globalReaderSettingsBeforeBook.orientation;
+  }
   if (data.hasSafeModeOverride) {
     applySafeModeReaderSettings();
   }
@@ -2098,8 +2105,8 @@ void EpubReaderActivity::saveDictionaryFontForBook(const char* familyName, const
   saveBookReaderSettingsFile(epub->getCachePath(), data);
 }
 
-void EpubReaderActivity::saveOrientationExemption(const bool exempt) {
-  if (!epub) return;
+bool EpubReaderActivity::saveOrientationExemption(const bool exempt) {
+  if (!epub) return false;
 
   if (section && section->isBuilding()) {
     section->releaseBuildFile();
@@ -2108,17 +2115,20 @@ void EpubReaderActivity::saveOrientationExemption(const bool exempt) {
   BookReaderSettingsData data = loadBookReaderSettingsFile(epub->getCachePath());
   data.orientationExempt = exempt;
   data.exemptOrientation = SETTINGS.orientation;
-  if (!saveBookReaderSettingsFile(epub->getCachePath(), data)) return;
+  if (!saveBookReaderSettingsFile(epub->getCachePath(), data)) return false;
 
   initialBookReaderSettings.orientationExempt = exempt;
+  SETTINGS.savedOrientationOverride =
+      exempt ? globalReaderSettingsBeforeBook.orientation : CrossPointSettings::ORIENTATION_COUNT;
   // Leaving the exemption returns this book to the global orientation.
   if (!exempt) SETTINGS.orientation = globalReaderSettingsBeforeBook.orientation;
   initialBookReaderSettings.readerSettings.orientation = SETTINGS.orientation;
+  return true;
 }
 
-void EpubReaderActivity::setOrientationExemptForBookReader(void* ctx, const bool exempt) {
-  if (!ctx) return;
-  static_cast<EpubReaderActivity*>(ctx)->saveOrientationExemption(exempt);
+bool EpubReaderActivity::setOrientationExemptForBookReader(void* ctx, const bool exempt) {
+  if (!ctx) return false;
+  return static_cast<EpubReaderActivity*>(ctx)->saveOrientationExemption(exempt);
 }
 
 void EpubReaderActivity::persistReaderSdFontSettings() {
@@ -2143,19 +2153,28 @@ void EpubReaderActivity::persistReaderSdFontSettings() {
   }
 }
 
+// Jester: while global settings are edited from an exempt book, SETTINGS keeps
+// the book's orientation (it is on screen and drives the button mapping); the
+// global orientation stays in the snapshot, and saves write it through
+// SETTINGS.savedOrientationOverride.
+void EpubReaderActivity::captureEditedGlobalReaderSettings() {
+  const uint8_t globalOrientation = globalReaderSettingsBeforeBook.orientation;
+  captureReaderSettings(globalReaderSettingsBeforeBook);
+  if (initialBookReaderSettings.orientationExempt) globalReaderSettingsBeforeBook.orientation = globalOrientation;
+}
+
 bool EpubReaderActivity::saveGlobalSettingsPreservingBookOverrides() {
   if (!restoreGlobalReaderSettingsOnExit || bookReaderSettingsSuspendedForGlobalEdit) {
     return SETTINGS.saveToFile();
   }
 
+  // Orientation is not part of this swap: SETTINGS.orientation is global, or an
+  // exempt book's, which SETTINGS.savedOrientationOverride keeps out of the file.
   ReaderSettingsSnapshot activeReaderSettings;
   captureReaderSettings(activeReaderSettings);
   applyReaderSettings(globalReaderSettingsBeforeBook);
-  // Jester: an exempt book's orientation never reaches the global settings file.
-  if (initialBookReaderSettings.orientationExempt) SETTINGS.orientation = globalReaderSettingsBeforeBook.orientation;
   const bool saved = SETTINGS.saveToFile();
   applyReaderSettings(activeReaderSettings);
-  SETTINGS.orientation = activeReaderSettings.orientation;
   return saved;
 }
 
@@ -2165,7 +2184,6 @@ bool EpubReaderActivity::beginGlobalSettingsEdit() {
   }
   captureReaderSettings(suspendedBookReaderSettings);
   applyReaderSettings(globalReaderSettingsBeforeBook);
-  if (initialBookReaderSettings.orientationExempt) SETTINGS.orientation = globalReaderSettingsBeforeBook.orientation;
   bookReaderSettingsSuspendedForGlobalEdit = true;
   return true;
 }
@@ -2178,7 +2196,7 @@ void EpubReaderActivity::endGlobalSettingsEdit() {
     // are suspended. Retain every edited reader default before restoring this
     // book, otherwise the stale snapshot is written back on a later save or
     // when the reader exits.
-    captureReaderSettings(globalReaderSettingsBeforeBook);
+    captureEditedGlobalReaderSettings();
     // Only fields this book actually owns need the pre-edit snapshot restored,
     // so its own look survives an unrelated global edit. A book that just
     // inherits the global font has nothing of its own to protect there, and
@@ -2190,7 +2208,6 @@ void EpubReaderActivity::endGlobalSettingsEdit() {
     applyReaderSettingsOverrides(effectiveSettings, suspendedBookReaderSettings,
                                  initialBookReaderSettings.readerSettingsOverrideMask);
     applyReaderSettings(effectiveSettings);
-    if (initialBookReaderSettings.orientationExempt) SETTINGS.orientation = suspendedBookReaderSettings.orientation;
     if (initialBookReaderSettings.hasSafeModeOverride) {
       applySafeModeReaderSettings();
     }
@@ -2207,12 +2224,9 @@ void EpubReaderActivity::endGlobalSettingsEdit() {
   // its override kept the effective font setting unchanged.
   if (restoreBookFont) ensureReaderSdFontLoaded(renderer);
   ReaderUtils::applyOrientation(renderer, SETTINGS.orientation);
-  const ReaderViewportLayout layout = computeReaderViewportLayout(
-      renderer, automaticPageTurnActive, activeFootnotePreview || !pendingFootnotePreviewAnchor.empty());
   // Reflow only when this book's effective layout changed. Its per-book fields
   // stay protected, while inherited global fields and status-bar space update.
-  if (section && ((effectiveChanges & READER_LAYOUT_SETTING_OVERRIDES) || layout.viewportWidth != buildViewportWidth ||
-                  layout.viewportHeight != buildViewportHeight)) {
+  if (section && ((effectiveChanges & READER_LAYOUT_SETTING_OVERRIDES) || sectionViewportStale())) {
     prepareCurrentSectionForRelayout();
     section.reset();
   }
@@ -2608,6 +2622,7 @@ void EpubReaderActivity::openReaderMenu() {
       {
         RenderLock lock(*this);
         clearFootnotePreviewState();
+        discardRelayoutReposition();  // the jump target replaces the saved position
         currentSpineIndex = chapter->spineIndex;
         pendingAnchor = chapter->anchor;
         nextPageNumber = 0;
@@ -3561,6 +3576,7 @@ void EpubReaderActivity::handleClippingJump(const ClippingJumpResult& clipping) 
   clearPendingManualPageTurns();
   RenderLock lock(*this);
   clearFootnotePreviewState();
+  discardRelayoutReposition();  // the jump target replaces the saved position
   currentSpineIndex = clipping.spineIndex;
   pendingPageJump = clipping.page;
   pendingParagraphIndex = clipping.paragraphIndex;
@@ -5682,15 +5698,9 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
 
   RenderLock lock(*this);
   // Jester: the reader menu and Book Options may already have turned the
-  // renderer, so also re-lay out when the page size differs from the one the
+  // renderer, so also re-lay out when the viewport differs from the one the
   // current section was laid out for.
-  bool layoutStale = false;
-  if (!rendererChanged && section) {
-    const ReaderViewportLayout layout = computeReaderViewportLayout(
-        renderer, automaticPageTurnActive, activeFootnotePreview || !pendingFootnotePreviewAnchor.empty());
-    layoutStale = layout.viewportWidth != buildViewportWidth || layout.viewportHeight != buildViewportHeight;
-  }
-  const bool relayout = rendererChanged || layoutStale;
+  const bool relayout = rendererChanged || (section && sectionViewportStale());
 
   // No-op only when the persisted setting, the live renderer and the layout already match.
   if (!settingsChanged && !relayout) {
@@ -5699,32 +5709,31 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
 
   clearPendingManualPageTurns();
 
-  {
-    // Preserve current reading position only when we need a live re-layout.
-    if (relayout && section) {
-      prepareCurrentSectionForRelayout();
-    }
+  // Preserve current reading position only when we need a live re-layout.
+  if (relayout && section) {
+    prepareCurrentSectionForRelayout();
+  }
 
-    if (settingsChanged) {
-      SETTINGS.orientation = orientation;
-      if (initialBookReaderSettings.orientationExempt) {
-        // Jester: an exempt book saves the change for itself only.
-        saveOrientationExemption(true);
-      } else {
-        // Jester (feature 7): orientation is universal. Change the global value
-        // (also the snapshot restored on exit) and save it for every book.
-        globalReaderSettingsBeforeBook.orientation = orientation;
-        if (!saveGlobalSettingsPreservingBookOverrides()) LOG_ERR("ERS", "Failed to save orientation");
-      }
+  if (settingsChanged) {
+    SETTINGS.orientation = orientation;
+    if (initialBookReaderSettings.orientationExempt) {
+      // Jester: an exempt book saves the change for itself only.
+      if (!saveOrientationExemption(true)) LOG_ERR("ERS", "Failed to save book orientation");
+    } else {
+      // Jester (feature 7): orientation is universal. Change the global value
+      // (also the snapshot restored on exit) and save it for every book.
+      globalReaderSettingsBeforeBook.orientation = orientation;
+      initialBookReaderSettings.readerSettings.orientation = orientation;
+      if (!saveGlobalSettingsPreservingBookOverrides()) LOG_ERR("ERS", "Failed to save orientation");
     }
+  }
 
-    if (relayout) {
-      // Update renderer orientation to match the new logical coordinate system.
-      renderer.setOrientation(targetOrientation);
+  if (relayout) {
+    // Update renderer orientation to match the new logical coordinate system.
+    renderer.setOrientation(targetOrientation);
 
-      // Reset section to force re-layout in the new orientation.
-      section.reset();
-    }
+    // Reset section to force re-layout in the new orientation.
+    section.reset();
   }
 }
 
@@ -6057,10 +6066,11 @@ void EpubReaderActivity::render(RenderLock&& lock) {
       renderer, automaticPageTurnActive, activeFootnotePreview || !pendingFootnotePreviewAnchor.empty());
   const uint16_t viewportWidth = layout.viewportWidth;
   const uint16_t viewportHeight = layout.viewportHeight;
-  buildViewportWidth = viewportWidth;
-  buildViewportHeight = viewportHeight;
 
   if (!section) {
+    // The viewport the new section is laid out for; kept until the next section.
+    buildViewportWidth = viewportWidth;
+    buildViewportHeight = viewportHeight;
     preparedNextSpineIndex = -1;
     // Section loading/indexing can need a large contiguous block. Return the
     // render-only strip before starting that work.
@@ -7231,6 +7241,27 @@ bool EpubReaderActivity::recycleSectionBuildForLowMemory(const char* reason, con
 void EpubReaderActivity::prepareCurrentSectionForRelayout() {
   if (!section) return;
   cacheCurrentSectionPosition();
+}
+
+// Jester: a chapter or clipping jump after a re-layout must not be overridden
+// by the position saved for that re-layout (applyDeferredReposition).
+void EpubReaderActivity::discardRelayoutReposition() {
+  cachedChapterPageNumber = 0;
+  cachedChapterTotalPageCount = 0;
+  cachedChapterPageWatermark = 0;
+  cachedVisibleTextOffset.reset();
+  pendingRelayoutReposition = false;
+  cachedPageParagraphIndex = UINT16_MAX;
+  cachedPageParagraphOffset = 0;
+  cachedPageParagraphSpan = 0;
+}
+
+// True when the current viewport differs from the one the current section was
+// laid out for (buildViewportWidth/Height, set when the section is created).
+bool EpubReaderActivity::sectionViewportStale() {
+  const ReaderViewportLayout layout = computeReaderViewportLayout(
+      renderer, automaticPageTurnActive, activeFootnotePreview || !pendingFootnotePreviewAnchor.empty());
+  return layout.viewportWidth != buildViewportWidth || layout.viewportHeight != buildViewportHeight;
 }
 
 bool EpubReaderActivity::publisherLabelShown() const {

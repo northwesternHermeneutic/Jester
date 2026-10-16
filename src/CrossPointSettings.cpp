@@ -438,6 +438,9 @@ void CrossPointSettings::toJson(JsonDocument& doc) const {
     } else {
       uint8_t value = this->*(info.valuePtr);
       if (isSleepScreenSetting(info)) value = sleepScreenModeToStorage(value);
+      if (info.valuePtr == &CrossPointSettings::orientation && savedOrientationOverride < ORIENTATION_COUNT) {
+        value = savedOrientationOverride;
+      }
       doc[info.key] = value;
     }
   }

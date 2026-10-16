@@ -37,7 +37,7 @@ class EpubReaderMenuActivity final : public Activity {
     menuItems[BOOKMARKS_TAB_INDEX].push_back({MenuAction::UNIFY_BOOKMARKS, StrId::STR_UNIFY_BOOKMARKS});
   }
   // Jester: Exempt from Global Orientation, passed on to Book Options.
-  using OrientationExemptCallback = void (*)(void* ctx, bool exempt);
+  using OrientationExemptCallback = bool (*)(void* ctx, bool exempt);  // false: not saved
   void setOrientationExempt(const bool exempt, OrientationExemptCallback callback, void* ctx) {
     orientationExempt = exempt;
     orientationExemptCallback = callback;
@@ -102,7 +102,7 @@ class EpubReaderMenuActivity final : public Activity {
   bool handleTouchInput();
   void drawIconTabBar(Rect rect, bool drawBottomBorder);
   static void dictionaryFontChangedForMenu(void* ctx, const char* familyName, uint8_t pointSize);
-  static void orientationExemptChangedForMenu(void* ctx, bool exempt);
+  static bool orientationExemptChangedForMenu(void* ctx, bool exempt);
 
   // FreeInkApp hosts the menu list (themed rows, touch routing); the header
   // stays on GUI.drawHeader for the battery indicator, and OptionPopup keeps

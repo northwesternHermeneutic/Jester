@@ -566,6 +566,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // EPUB reading orientation settings
   // 0 = portrait (default), 1 = landscape clockwise, 2 = inverted, 3 = landscape counter-clockwise
   uint8_t orientation = LANDSCAPE_CCW;  // Jester default (feature 9)
+  // Jester, not persisted: while a book exempt from the global orientation is
+  // open, saves write this global orientation instead of `orientation`.
+  uint8_t savedOrientationOverride = ORIENTATION_COUNT;
   // Legacy layouts are retained for migration only.
   uint8_t frontButtonLayout = BACK_CONFIRM_LEFT_RIGHT;
   uint8_t sideButtonLayout = PREV_NEXT;

@@ -20,7 +20,7 @@ class ReaderOptionsActivity final : public Activity {
   using SaveGlobalSettingsCallback = void (*)(void* ctx);
   using GlobalSettingsEditCallback = void (*)(void* ctx);
   using DictionaryFontChangedCallback = void (*)(void* ctx, const char* familyName, uint8_t pointSize);
-  using OrientationExemptCallback = void (*)(void* ctx, bool exempt);
+  using OrientationExemptCallback = bool (*)(void* ctx, bool exempt);  // false: not saved
 
  private:
   ButtonNavigator buttonNavigator;
