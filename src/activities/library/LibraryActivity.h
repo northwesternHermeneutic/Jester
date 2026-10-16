@@ -155,6 +155,7 @@ class LibraryActivity final : public Activity {
   void openSettings();
   void openLibrarySwitcher();  // Jester (feature 19)
   std::string libraryName;     // Jester (feature 19): header title
+  std::string libraryRoot = "/";  // Jester (feature 19): folder the active library scans
   // Jester (feature 18): pre-broken two-line row title and its measuring state.
   std::string rowTitleScratch;
   int rowLabelWidth = 0;

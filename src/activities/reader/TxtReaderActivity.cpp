@@ -537,6 +537,8 @@ bool TxtReaderActivity::supportsQuickAction(const CrossPointSettings::SHORT_PWRB
     case CrossPointSettings::SHORT_PWRBTN::LIBRARY:
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_FRONTLIGHT:
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_TOUCHSCREEN:
+    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:  // Jester (feature 7)
+    case CrossPointSettings::SHORT_PWRBTN::CLEAN_SCREEN:    // Jester (feature 15)
       return true;
     default:
       return false;

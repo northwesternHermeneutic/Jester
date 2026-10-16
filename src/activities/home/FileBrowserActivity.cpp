@@ -531,13 +531,12 @@ void FileBrowserActivity::showDirectoryActionMenu(const std::string& entry, bool
   items.push_back({useDefaultFolders ? FileBrowserAction::ClearSleepFolder : FileBrowserAction::SetSleepFolder,
                    useDefaultFolders ? StrId::STR_USE_DEFAULT_SLEEP_FOLDERS : StrId::STR_SET_AS_SLEEP_FOLDER});
   // Jester (feature 19): Library exclusions and user-made libraries.
-  items.push_back({JesterLibraries::isLibraryRoot(fullPath) ? FileBrowserAction::RemoveLibrary
-                                                            : FileBrowserAction::MakeLibrary,
-                   JesterLibraries::isLibraryRoot(fullPath) ? StrId::STR_REMOVE_LIBRARY : StrId::STR_MAKE_LIBRARY});
-  items.push_back({JesterLibraries::isExcluded(fullPath) ? FileBrowserAction::IncludeInLibrary
-                                                         : FileBrowserAction::ExcludeFromLibrary,
-                   JesterLibraries::isExcluded(fullPath) ? StrId::STR_INCLUDE_IN_LIBRARY
-                                                         : StrId::STR_EXCLUDE_FROM_LIBRARY});
+  const bool libraryRoot = JesterLibraries::isLibraryRoot(fullPath);
+  const bool excluded = JesterLibraries::isExcluded(fullPath);
+  items.push_back({libraryRoot ? FileBrowserAction::RemoveLibrary : FileBrowserAction::MakeLibrary,
+                   libraryRoot ? StrId::STR_REMOVE_LIBRARY : StrId::STR_MAKE_LIBRARY});
+  items.push_back({excluded ? FileBrowserAction::IncludeInLibrary : FileBrowserAction::ExcludeFromLibrary,
+                   excluded ? StrId::STR_INCLUDE_IN_LIBRARY : StrId::STR_EXCLUDE_FROM_LIBRARY});
   items.push_back({FileBrowserAction::Delete, StrId::STR_DELETE});
 
   startActivityForResult(std::make_unique<FileBrowserActionActivity>(renderer, mappedInput, getFileName(entry),

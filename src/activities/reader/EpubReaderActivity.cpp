@@ -2519,6 +2519,7 @@ void EpubReaderActivity::openReaderMenu() {
   uint32_t stablePageCount = 0;
   bool isBookCompleted;
   bool previewActive = false;
+  bool dogEared = false;
   {
     // Serialize EPUB metadata/file access with the render task.
     RenderLock lock(*this);
@@ -2538,6 +2539,8 @@ void EpubReaderActivity::openReaderMenu() {
     }
     isBookCompleted = stats.isCompleted;
     bookProgress = getCurrentBookProgressPercent();
+    dogEared = !previewActive && section && totalPages > 0 &&
+               DOGEARS.hasBookmarkForPage(bmSpine, bmProgress, bookmarkPageCount);
   }
   const int bookProgressPercent = clampPercent(static_cast<int>(bookProgress + 0.5f));
 
@@ -2586,12 +2589,6 @@ void EpubReaderActivity::openReaderMenu() {
         bookSettings.dictionarySdFontFamilyName, bookSettings.dictionaryFontPointSize,
         bookSettings.hasDictionaryFontOverride, saveDictionaryFontForBookReader, this);
     if (buttonMenu) {
-      const int earPageCount = section ? section->estimatedTotalPages() : 0;
-      const bool dogEared =
-          !previewActive && section && earPageCount > 0 &&
-          DOGEARS.hasBookmarkForPage(static_cast<uint16_t>(currentSpineIndex),
-                                     static_cast<float>(section->currentPage) / static_cast<float>(earPageCount),
-                                     earPageCount);
       buttonMenu->setDogEarState(dogEared, !DOGEARS.getBookmarks().empty());
       buttonMenu->setFavorite(Favorites::contains(epub->getPath()));
       buttonMenu->setOrientationExempt(initialBookReaderSettings.orientationExempt, setOrientationExemptForBookReader,
@@ -3485,6 +3482,7 @@ void EpubReaderActivity::jumpToPercent(float percent) {
   float locationSpineProgress = 0.0f;
   if (epub->resolveLocationPercentToSpineProgress(percent, locationSpineIndex, locationSpineProgress)) {
     clearFootnotePreviewState();
+    discardRelayoutReposition();  // the jump target replaces the saved position
     currentSpineIndex = locationSpineIndex;
     pendingSpineProgress = locationSpineProgress;
     nextPageNumber = 0;
@@ -3534,6 +3532,7 @@ void EpubReaderActivity::jumpToPercent(float percent) {
 
   // Reset state so render() reloads and repositions on the target spine.
   clearFootnotePreviewState();
+  discardRelayoutReposition();  // the jump target replaces the saved position
   currentSpineIndex = targetSpineIndex;
   nextPageNumber = 0;
   pendingPercentJump = true;
@@ -3560,6 +3559,7 @@ void EpubReaderActivity::jumpToStablePage(const uint32_t page) {
   }
 
   clearFootnotePreviewState();
+  discardRelayoutReposition();  // the jump target replaces the saved position
   currentSpineIndex = targetSpineIndex;
   pendingSpineProgress = targetSpineProgress;
   pendingReferenceUnitOffset = targetSpineUnitOffset;
@@ -4149,9 +4149,15 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
     case EpubReaderMenuActivity::MenuAction::VIEW_DOG_EARS:
       openDogEarList();
       break;
-    case EpubReaderMenuActivity::MenuAction::UNIFY_BOOKMARKS:
+    case EpubReaderMenuActivity::MenuAction::UNIFY_BOOKMARKS: {
+      auto unify = makeUniqueNoThrow<UnifyBookmarksActivity>(renderer, mappedInput);
+      if (!unify) {
+        LOG_ERR("ERS", "Could not allocate Unify Bookmarks");
+        requestUpdate();
+        break;
+      }
       pauseReadingPaceTimer("unify_bookmarks");
-      startActivityForResult(std::make_unique<UnifyBookmarksActivity>(renderer, mappedInput),
+      startActivityForResult(std::move(unify),
                              [this](const ActivityResult&) {
                                // Merges may have targeted this book: reload its saved items.
                                if (epub) {
@@ -4163,6 +4169,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                                requestUpdate();
                              });
       break;
+    }
     case EpubReaderMenuActivity::MenuAction::FAVORITE_TOGGLE:
       if (epub) BookActions::toggleFavorite(renderer, epub->getPath(), epub->getTitle(), epub->getAuthor());
       requestUpdate();
@@ -5145,6 +5152,7 @@ void EpubReaderActivity::openQuickActionsPopup() {
 void EpubReaderActivity::jumpToSavedLocation(const BookmarkResult& bm) {
   RenderLock lock(*this);
   clearFootnotePreviewState();
+  discardRelayoutReposition();  // the jump target replaces the saved position
   if (section && currentSpineIndex == bm.spineIndex) {
     bool resolved = false;
     const uint16_t fallbackPage =
@@ -5231,6 +5239,15 @@ bool writeDogEarText(void* context, FsFile& file) {
 }  // namespace
 
 void EpubReaderActivity::toggleDogEar() {
+  // Shortcuts run from loop() while the render task may be drawing; the
+  // feedback is drawn by render(), like the bookmark toggle's.
+  RenderLock lock(*this);
+  const auto showFeedback = [this](const BookmarkFeedbackType type) {
+    bookmarkFeedbackType = type;
+    pendingBookmarkFeedback = true;
+    bookmarkFeedbackShowTime = millis();
+    requestUpdate();
+  };
   const int pageCount = section ? section->estimatedTotalPages() : 0;
   if (!epub || activeFootnotePreview || !section || pageCount == 0 || section->pageCount == 0) return;
   const uint16_t spine = static_cast<uint16_t>(currentSpineIndex);
@@ -5239,8 +5256,7 @@ void EpubReaderActivity::toggleDogEar() {
   if (DOGEARS.hasBookmarkForPage(spine, progress, pageCount)) {
     // The text record stays in /DogEars; only the location is removed.
     DOGEARS.removeBookmarkForPage(spine, progress, pageCount);
-    drawToast(renderer, tr(STR_DOG_EAR_REMOVED));
-    requestUpdate();
+    showFeedback(BookmarkFeedbackType::DogEarRemoved);
     return;
   }
 
@@ -5257,8 +5273,7 @@ void EpubReaderActivity::toggleDogEar() {
 
   if (DOGEARS.addBookmark(spine, progress, pageCount, chapterTitle.empty() ? nullptr : chapterTitle.c_str(),
                           paragraphIndex, snippet) != BookmarkStore::AddResult::Added) {
-    drawToast(renderer, tr(STR_DOG_EAR_LIMIT));
-    requestUpdate();
+    showFeedback(BookmarkFeedbackType::DogEarLimit);
     return;
   }
 
@@ -5302,16 +5317,21 @@ void EpubReaderActivity::toggleDogEar() {
   DogEarTextSource source{page.get()};
   const bool textSaved = ClippingsManager::saveDogEar(fileName, epub->getTitle(), epub->getAuthor(), chapterTitle,
                                                       percent, pageLabel, &writeDogEarText, &source);
-  drawToast(renderer, textSaved ? tr(STR_DOG_EAR_ADDED) : tr(STR_DOG_EAR_TEXT_FAILED));
-  requestUpdate();
+  showFeedback(textSaved ? BookmarkFeedbackType::DogEarAdded : BookmarkFeedbackType::DogEarTextFailed);
 }
 
 void EpubReaderActivity::openDogEarList() {
+  auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(
+      renderer, mappedInput, DOGEARS.getBookmarks(), epub && BookPercentFormat::isShortBook(epub->getBookSize()),
+      &DOGEARS, StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS);
+  if (!list) {
+    LOG_ERR("ERS", "Could not allocate dog ear list");
+    requestUpdate();
+    return;
+  }
   pauseReadingPaceTimer("dog_ear_list");
   startActivityForResult(
-      std::make_unique<EpubReaderBookmarkListActivity>(
-          renderer, mappedInput, DOGEARS.getBookmarks(), epub && BookPercentFormat::isShortBook(epub->getBookSize()),
-          &DOGEARS, StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS),
+      std::move(list),
       [this](const ActivityResult& result) {
         if (!result.isCancelled) {
           jumpToSavedLocation(std::get<BookmarkResult>(result.data));
@@ -7436,6 +7456,18 @@ bool EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int fo
         break;
       case BookmarkFeedbackType::LimitReached:
         msg = tr(STR_BOOKMARK_LIMIT_REACHED);
+        break;
+      case BookmarkFeedbackType::DogEarAdded:
+        msg = tr(STR_DOG_EAR_ADDED);
+        break;
+      case BookmarkFeedbackType::DogEarRemoved:
+        msg = tr(STR_DOG_EAR_REMOVED);
+        break;
+      case BookmarkFeedbackType::DogEarLimit:
+        msg = tr(STR_DOG_EAR_LIMIT);
+        break;
+      case BookmarkFeedbackType::DogEarTextFailed:
+        msg = tr(STR_DOG_EAR_TEXT_FAILED);
         break;
     }
     drawToastBuffer(renderer, msg);

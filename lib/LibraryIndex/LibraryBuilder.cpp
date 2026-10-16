@@ -1680,24 +1680,24 @@ const char* libraryIndexPath() { return activeIndexPath(); }
 
 // Jester (feature 19): creation times of the newest `limit` books under
 // `path`, kept in a fixed min-heap so RAM stays bounded (limit <= 500 -> 2 KB).
+// `name` is the build's NAME_BUF_SIZE buffer: recursion copies the name out
+// before descending, so one buffer serves every folder level.
 static void collectNewestCreationTimes(const std::string& path, const int depth, uint32_t* heap, uint16_t& count,
-                                       const uint16_t limit, uint16_t& seen) {
+                                       const uint16_t limit, uint16_t& seen, char* name, uint32_t& workUnits) {
   if (depth > LIBRARY_MAX_DEPTH) return;
   HalFile dir = Storage.open(path.c_str());
   if (!dir || !dir.isDirectory()) {
     if (dir) dir.close();
     return;
   }
-  // Static: recursion copies the name out before descending, and builds are
-  // single-threaded, so one buffer avoids 512 B of stack per folder level.
-  static char name[NAME_BUF_SIZE];
   for (HalFile entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+    serviceBuilder(workUnits);  // yield, Back to cancel
     if (buildCancelled()) {
       entry.close();
       break;
     }
     name[0] = '\0';
-    entry.getName(name, sizeof(name));
+    entry.getName(name, NAME_BUF_SIZE);
     const bool isDir = entry.isDirectory();
     const uint32_t size = isDir ? 0 : static_cast<uint32_t>(entry.fileSize());
     const uint32_t creationTime = isDir ? 0 : entry.creationTime();
@@ -1712,7 +1712,7 @@ static void collectNewestCreationTimes(const std::string& path, const int depth,
       }
       const size_t resumePosition = dir.position();
       dir.close();
-      collectNewestCreationTimes(childPath, depth + 1, heap, count, limit, seen);
+      collectNewestCreationTimes(childPath, depth + 1, heap, count, limit, seen, name, workUnits);
       dir = Storage.open(path.c_str());
       if (!dir || !dir.isDirectory() || !dir.seekSet(resumePosition)) {
         if (dir) dir.close();
@@ -1735,7 +1735,7 @@ static void collectNewestCreationTimes(const std::string& path, const int depth,
   if (dir) dir.close();
 }
 
-static uint32_t creationCutoffFor(const char* rootPath, const uint16_t limit) {
+static uint32_t creationCutoffFor(const char* rootPath, const uint16_t limit, char* nameBuf) {
   if (limit == 0) return 0;
   auto heap = makeUniqueNoThrow<uint32_t[]>(limit);
   if (!heap) {
@@ -1744,7 +1744,8 @@ static uint32_t creationCutoffFor(const char* rootPath, const uint16_t limit) {
   }
   uint16_t count = 0;
   uint16_t seen = 0;
-  collectNewestCreationTimes(rootPath, 0, heap.get(), count, limit, seen);
+  uint32_t workUnits = 0;
+  collectNewestCreationTimes(rootPath, 0, heap.get(), count, limit, seen, nameBuf, workUnits);
   // Fewer books than the limit: keep them all. Otherwise heap[0] is the oldest
   // creation time still among the newest `limit`; ties at it are all kept. A
   // zero there (files without a creation time) means every book ties, and 0 is
@@ -1839,7 +1840,7 @@ static bool rebuildLibraryIndex(const char* rootPath, BuildStats& stats, const b
   {
     serialization::BufferedFileWriter stageOut(st.stage, LIBRARY_IO_BUFFER_SIZE);
     st.stageOut = &stageOut;
-    gCreationCutoff = creationCutoffFor(rootPath, gIndexLimit);
+    gCreationCutoff = creationCutoffFor(rootPath, gIndexLimit, nameBuf.get());
     walk(st, rootPath, 0);
     gCreationCutoff = 0;
     st.stageOut = nullptr;
@@ -1985,7 +1986,10 @@ bool buildLibraryIndex(const char* rootPath, BuildStats& stats, const bool readM
   // Retry only what another scan could change. Unreadable files and a capped
   // duplicate tracker come from the card's contents, so re-dirtying for them
   // would rescan on every Library visit until the files themselves change.
-  if (!ok || stats.ranksDegraded || stats.dedupAllocFailed || stats.arrivalDegraded) invalidateLibraryIndex();
+  // Jester (feature 19): only the library that was scanned is retried.
+  if (!ok || stats.ranksDegraded || stats.dedupAllocFailed || stats.arrivalDegraded) {
+    indexDirty.fetch_or(activeDirtyBit(), std::memory_order_relaxed);
+  }
   return ok;
 }
 

@@ -91,8 +91,11 @@ LibraryActivity::LibraryActivity(GfxRenderer& renderer, MappedInputManager& mapp
 
 void LibraryActivity::onEnter() {
   // Jester (feature 19): active library, exclusions and Index Limit.
-  JesterLibraries::applyToBuilder();
-  libraryName = JesterLibraries::active().name;
+  {
+    const auto active = JesterLibraries::applyToBuilder();
+    libraryName = active.name;
+    libraryRoot = active.root;
+  }
   pendingInput.clear();
   inputOverflow = false;
   touchTracking = false;
@@ -194,7 +197,6 @@ bool LibraryActivity::rebuildIndex(const bool showScanning) {
   callbacks.progress = &LibraryActivity::onScanProgress;
   scanCancelledThisVisit = false;
   scanBackHeldAtStart = mappedInput.isPressed(MappedInputManager::Button::Back);
-  const std::string libraryRoot = JesterLibraries::active().root;
   scanFailed = !library::buildLibraryIndex(libraryRoot.c_str(), stats, SETTINGS.libraryUseMetadata != 0, &callbacks);
   scanFailureText = stats.failure == library::BuildFailure::Cancelled      ? StrId::STR_LIBRARY_SCAN_CANCELLED
                     : stats.failure == library::BuildFailure::TooManyBooks ? StrId::STR_LIBRARY_TOO_MANY_BOOKS
@@ -663,7 +665,7 @@ void LibraryActivity::openLibrarySwitcher() {
   std::vector<std::string> names;
   names.reserve(libraries.size());
   int current = 0;
-  const uint8_t activeSlot = JesterLibraries::active().slot;
+  const uint8_t activeSlot = library::activeLibrary();
   for (size_t i = 0; i < libraries.size(); ++i) {
     names.push_back(libraries[i].name);
     if (libraries[i].slot == activeSlot) current = static_cast<int>(i);
@@ -678,8 +680,9 @@ void LibraryActivity::openLibrarySwitcher() {
       LOG_ERR("LIB", "Cannot switch library");
       return;
     }
-    JesterLibraries::applyToBuilder();
-    libraryName = JesterLibraries::active().name;
+    const auto active = JesterLibraries::applyToBuilder();
+    libraryName = active.name;
+    libraryRoot = active.root;
     index.close();
     query.clear();
     refreshIndexIfNeeded(true);

@@ -405,9 +405,14 @@ void SavedItemsHomeActivity::openBookmarkList(const SavedBookEntry& entry) {
 
 void SavedItemsHomeActivity::openDogEarList(const SavedBookEntry& entry) {
   DOGEARS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
-  startActivityForResult(std::make_unique<EpubReaderBookmarkListActivity>(renderer, mappedInput, DOGEARS.getBookmarks(),
-                                                                          false, &DOGEARS, StrId::STR_DOG_EARS,
-                                                                          StrId::STR_NO_DOG_EARS),
+  auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(renderer, mappedInput, DOGEARS.getBookmarks(), false,
+                                                                &DOGEARS, StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS);
+  if (!list) {
+    LOG_ERR("SVA", "Could not allocate dog ear list");
+    requestUpdate();
+    return;
+  }
+  startActivityForResult(std::move(list),
                          [this, entry](const ActivityResult& result) {
                            const auto* mark = result.isCancelled ? nullptr : std::get_if<BookmarkResult>(&result.data);
                            if (mark) {

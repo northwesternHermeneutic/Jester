@@ -224,6 +224,10 @@ class EpubReaderActivity final : public Activity {
     Added,
     Removed,
     LimitReached,
+    DogEarAdded,  // Jester (feature 4)
+    DogEarRemoved,
+    DogEarLimit,
+    DogEarTextFailed,
   };
   bool pendingBookmarkFeedback = false;
   BookmarkFeedbackType bookmarkFeedbackType = BookmarkFeedbackType::Added;

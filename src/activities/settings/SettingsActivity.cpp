@@ -5,6 +5,7 @@
 #include <HalGPIO.h>
 #include <I18n.h>
 #include <Logging.h>
+#include <Memory.h>
 #include <WiFi.h>
 
 #include <algorithm>
@@ -1111,7 +1112,11 @@ void SettingsActivity::toggleCurrentSetting() {
             });
         break;
       case SettingAction::UnifyBookmarks:
-        startActivityForResult(std::make_unique<UnifyBookmarksActivity>(renderer, mappedInput), resultHandler);
+        if (auto unify = makeUniqueNoThrow<UnifyBookmarksActivity>(renderer, mappedInput)) {
+          startActivityForResult(std::move(unify), resultHandler);
+        } else {
+          LOG_ERR("SET", "Could not allocate Unify Bookmarks");
+        }
         break;
       case SettingAction::ClearCache:
         startActivityForResult(std::make_unique<ClearCacheActivity>(renderer, mappedInput), resultHandler);

@@ -282,7 +282,6 @@ RenameMigrationResult migrateRenamedBookState(const std::string& oldPath, const 
     return recover();
   }
   recentMoved = true;
-  Favorites::renamePath(oldPath, newPath);  // Jester (feature 1), best effort
 
   if (shouldMoveOpenPath) {
     APP_STATE.openEpubPath = newPath;
@@ -293,6 +292,8 @@ RenameMigrationResult migrateRenamedBookState(const std::string& oldPath, const 
     }
   }
 
+  // Jester (feature 1), best effort: after the last step that can roll back.
+  Favorites::renamePath(oldPath, newPath);
   commitMetadata();
 
   return RenameMigrationResult::Success;

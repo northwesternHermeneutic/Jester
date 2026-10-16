@@ -104,11 +104,14 @@ void UnifyBookmarksActivity::findCandidates() {
     authorKeys.push_back(matchKey(candidate.author));
   }
   std::string title;
+  std::string displayAuthor;
   std::string author;
   std::string path;
   for (uint16_t ordinal = 0; ordinal < index.bookCount(); ++ordinal) {
     library::ClixRecord record{};
-    if (!index.readRecord(ordinal, record) || !index.readTitle(record, title)) continue;
+    // Display text falls back to the file name when the book has no metadata
+    // title (TXT, XTC, EPUBs without dc:title, or metadata turned off).
+    if (!index.readRecord(ordinal, record) || !index.readDisplayText(record, title, displayAuthor)) continue;
     const std::string titleKey = matchKey(title);
     for (size_t i = 0; i < missing.size(); ++i) {
       if (!missing[i].newPath.empty() || titleKeys[i] != titleKey) continue;

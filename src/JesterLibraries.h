@@ -38,8 +38,9 @@ bool isExcluded(const std::string& folder);
 bool setExcluded(const std::string& folder, bool excluded);
 
 // Pushes the active slot, exclusions and the Index Limit setting into the
-// Library builder; marks indexes dirty when the limit changed.
-void applyToBuilder();
+// Library builder; marks indexes dirty when the limit changed. Libraries whose
+// root folder no longer exists are removed first. Returns the active library.
+Library applyToBuilder();
 
 // Library index state across the X4's sleep. On battery the X4's sleep is a
 // power-off (GPIO13 low cuts the battery), so RAM and RTC memory are lost and

@@ -191,13 +191,11 @@ void FavoritesActivity::buildListScreen(UiApp::ScreenType& screen) {
   labelStyle.maxLines = 2;
   TwoLineName::UiMeasure measure{&uiTarget, labelStyle};
   const int labelWidth = TwoLineName::listLabelWidth(screen.body().width, -1, 0, 10, 0, 0);
-  std::vector<std::string> titles(books.size());
   std::vector<fui::ListItem> items;
   items.reserve(books.size());
   for (size_t i = 0; i < books.size(); ++i) {
-    titles[i] = TwoLineName::prebreak(books[i].title, labelWidth, &TwoLineName::measureUiText, &measure);
     fui::ListItem item;
-    item.label = titles[i].c_str();
+    item.label = books[i].title.c_str();
     if (!books[i].author.empty()) item.subtitle = books[i].author.c_str();
     item.actionValue = static_cast<int16_t>(i);
     items.push_back(item);
@@ -215,6 +213,14 @@ void FavoritesActivity::buildListScreen(UiApp::ScreenType& screen) {
   const auto rows = configureUiList(props, screen.theme(), bounds, UiListRowType::WithSubtitle);
   visibleRows = rows > 0 ? rows : 1;
   topIndex = scrollListBy(topIndex, 0, visibleRows, static_cast<int>(books.size()));
+  // Only the visible rows are drawn, so only they need the two-line break.
+  const size_t firstRow = static_cast<size_t>(topIndex);
+  const size_t endRow = std::min(books.size(), firstRow + static_cast<size_t>(visibleRows));
+  std::vector<std::string> titles(endRow > firstRow ? endRow - firstRow : 0);
+  for (size_t i = firstRow; i < endRow; ++i) {
+    titles[i - firstRow] = TwoLineName::prebreak(books[i].title, labelWidth, &TwoLineName::measureUiText, &measure);
+    items[i].label = titles[i - firstRow].c_str();
+  }
   props.topIndex = static_cast<uint16_t>(topIndex);
   screen.list(props);
 }

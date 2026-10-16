@@ -244,9 +244,29 @@ bool restoreIndexStateAtBoot(uint32_t& maskOut) {
   return true;
 }
 
-void applyToBuilder() {
+Library applyToBuilder() {
   State state;
   readState(state);
+  // A library whose folder was deleted or renamed (on the device or a
+  // computer) would fail every scan and could not be removed from its folder's
+  // menu. Only prune when the card itself is readable.
+  if (!state.libraries.empty() && Storage.exists("/.crosspoint")) {
+    const auto before = state.libraries.size();
+    state.libraries.erase(std::remove_if(state.libraries.begin(), state.libraries.end(),
+                                         [&state](const Library& l) {
+                                           if (Storage.exists(l.root.c_str())) return false;
+                                           LOG_INF("JLIB", "Library folder missing, removed: %s", l.root.c_str());
+                                           if (state.active == l.slot) state.active = 0;
+                                           removeSlotIndex(l.slot);
+                                           return true;
+                                         }),
+                          state.libraries.end());
+    if (state.libraries.size() != before) writeState(state);
+  }
+  Library activeLibrary = cardLibrary();
+  for (const auto& l : state.libraries) {
+    if (l.slot == state.active) activeLibrary = l;
+  }
   library::setActiveLibrary(state.active);
   library::setExcludedDirectories(std::move(state.excluded));
   const uint8_t choice = SETTINGS.libraryIndexLimit < INDEX_LIMIT_COUNT ? SETTINGS.libraryIndexLimit
@@ -256,6 +276,7 @@ void applyToBuilder() {
   if (lastLimit >= 0 && lastLimit != limit) library::invalidateLibraryIndex();
   lastLimit = limit;
   library::setIndexLimit(limit);
+  return activeLibrary;
 }
 
 }  // namespace JesterLibraries

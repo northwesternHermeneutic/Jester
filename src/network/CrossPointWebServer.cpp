@@ -1545,6 +1545,9 @@ void CrossPointWebServer::handlePostStatusBars() {
     server->send(400, "text/plain", "Invalid status bar configuration");
     return;
   }
+  // Jester (feature 13): removed items and the progress bar stay off.
+  applyJesterStatusBarRules(bars.top);
+  applyJesterStatusBarRules(bars.bottom);
   {
     std::lock_guard<std::mutex> lock(SETTINGS.getMutex());
     const auto& previousTop = SETTINGS.topReaderStatusBar;
