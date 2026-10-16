@@ -117,7 +117,7 @@ Removed features are hidden and switched off; their saved values are kept reserv
 
 - Reading statistics, time left, focus (bionic) reading, guide dots and auto page turn.
 - Wi-Fi networks, KOReader Sync, OPDS, Check for Updates, Calibre Wireless and Nearby transfers.
-- Publisher page numbers in the page margin (they appear only as a status bar item).
+- Publisher page numbers in the page margin (they appear as a status bar item instead).
 - UI themes other than Classic, Lyra and Belacqua; sleep screens other than None, Dark, Light, Custom, Page Overlay and Quick Resume.
 - CrossInk's reader fonts (Lexend Deca, Bitter) and non-English UI languages.
 
