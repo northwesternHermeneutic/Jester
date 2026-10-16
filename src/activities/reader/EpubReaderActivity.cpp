@@ -1118,6 +1118,7 @@ constexpr uint32_t READER_FONT_OVERRIDES = (1U << 0) | (1U << 1) | SD_FONT_FAMIL
 // Anti-aliasing changes the page drawing, but not its saved line/page layout.
 constexpr uint32_t READER_LAYOUT_SETTING_OVERRIDES = ALL_READER_SETTING_OVERRIDES & ~(1U << 11);
 constexpr uint32_t SAFE_MODE_SETTING_OVERRIDES = (1U << 9) | (1U << 15) | (1U << 16);
+constexpr uint32_t ORIENTATION_SETTING_OVERRIDE = 1U << 4;
 
 uint32_t changedReaderSettingsMask(const ReaderSettingsSnapshot& current, const ReaderSettingsSnapshot& global) {
   uint32_t mask = 0;
@@ -2022,6 +2023,14 @@ void EpubReaderActivity::saveCurrentBookReaderSettings() {
   }
 
   BookReaderSettingsData data = loadBookReaderSettingsFile(epub->getCachePath());
+  // Jester: an exempt book's orientation changed in Book Options is its own;
+  // any other book's is the global orientation (feature 7), saved now.
+  if (data.orientationExempt) {
+    data.exemptOrientation = currentSettings.orientation;
+  } else if (editedMask & ORIENTATION_SETTING_OVERRIDE) {
+    globalReaderSettingsBeforeBook.orientation = currentSettings.orientation;
+    if (!saveGlobalSettingsPreservingBookOverrides()) LOG_ERR("ERS", "Failed to save orientation");
+  }
   const bool keepSafeMode = initialBookReaderSettings.hasSafeModeOverride &&
                             (editedMask & SAFE_MODE_SETTING_OVERRIDES) == 0 && !renderModeEdited;
   const uint32_t priorMask = data.readerSettingsOverrideMask;
@@ -5663,7 +5672,12 @@ bool EpubReaderActivity::restoreRenderModeToastRegion() {
 
 void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
   const auto targetOrientation = ReaderUtils::toRendererOrientation(orientation);
-  const bool settingsChanged = SETTINGS.orientation != orientation;
+  // Jester: Book Options sets SETTINGS.orientation itself before the menu
+  // returns, so compare with the saved value (global, or the exempt book's).
+  const uint8_t savedOrientation = initialBookReaderSettings.orientationExempt
+                                       ? initialBookReaderSettings.readerSettings.orientation
+                                       : globalReaderSettingsBeforeBook.orientation;
+  const bool settingsChanged = SETTINGS.orientation != orientation || savedOrientation != orientation;
   const bool rendererChanged = renderer.getOrientation() != targetOrientation;
 
   // No-op only when both the persisted setting and the live renderer already match.
