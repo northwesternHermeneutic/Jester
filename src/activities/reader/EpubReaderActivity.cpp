@@ -5680,18 +5680,28 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
   const bool settingsChanged = SETTINGS.orientation != orientation || savedOrientation != orientation;
   const bool rendererChanged = renderer.getOrientation() != targetOrientation;
 
-  // No-op only when both the persisted setting and the live renderer already match.
-  if (!settingsChanged && !rendererChanged) {
+  RenderLock lock(*this);
+  // Jester: the reader menu and Book Options may already have turned the
+  // renderer, so also re-lay out when the page size differs from the one the
+  // current section was laid out for.
+  bool layoutStale = false;
+  if (!rendererChanged && section) {
+    const ReaderViewportLayout layout = computeReaderViewportLayout(
+        renderer, automaticPageTurnActive, activeFootnotePreview || !pendingFootnotePreviewAnchor.empty());
+    layoutStale = layout.viewportWidth != buildViewportWidth || layout.viewportHeight != buildViewportHeight;
+  }
+  const bool relayout = rendererChanged || layoutStale;
+
+  // No-op only when the persisted setting, the live renderer and the layout already match.
+  if (!settingsChanged && !relayout) {
     return;
   }
 
   clearPendingManualPageTurns();
 
   {
-    RenderLock lock(*this);
-
     // Preserve current reading position only when we need a live re-layout.
-    if (rendererChanged && section) {
+    if (relayout && section) {
       prepareCurrentSectionForRelayout();
     }
 
@@ -5708,7 +5718,7 @@ void EpubReaderActivity::applyOrientation(const uint8_t orientation) {
       }
     }
 
-    if (rendererChanged) {
+    if (relayout) {
       // Update renderer orientation to match the new logical coordinate system.
       renderer.setOrientation(targetOrientation);
 
