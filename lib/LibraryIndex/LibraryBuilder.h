@@ -139,6 +139,10 @@ void setActiveLibrary(uint8_t slot);
 uint8_t activeLibrary();
 // Folders skipped, with their subtrees, by every build (full paths).
 void setExcludedDirectories(std::vector<std::string> directories);
+// True when a build rooted at `rootPath` would index `path`: the path lies
+// under the root and under no excluded folder inside that root (an excluded
+// folder that contains the root does not apply, as in the build's walk).
+bool pathInLibrary(const char* rootPath, const std::string& path);
 // Keep only the `limit` most recently added books (0 = all).
 void setIndexLimit(uint16_t limit);
 

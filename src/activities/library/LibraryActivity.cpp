@@ -35,6 +35,7 @@
 #include "components/icons/libraryIcons.h"
 #include "components/icons/listIcons.h"
 #include "JesterLibraries.h"
+#include "FavoritesStore.h"
 #include "util/TwoLineName.h"
 
 namespace fui = freeink::ui;
@@ -301,6 +302,9 @@ void LibraryActivity::resolveRecents() {
   for (size_t row = 0; row < books.size() && recentCount < RecentBooksStore::MAX_RECENT_BOOKS; ++row) {
     const auto& book = books[row];
     if ((library::fileTypeFor(book.path) & visibleTypes) == 0) continue;
+    // Jester (feature 19): only books the active library covers (its root,
+    // minus excluded folders), as in the indexed sorts.
+    if (!library::pathInLibrary(libraryRoot.c_str(), book.path)) continue;
     if (!needle.empty()) {
       readRecentBook(row, rowScratch);
       combined.assign(rowScratch.title);
@@ -685,6 +689,8 @@ void LibraryActivity::openLibrarySwitcher() {
     libraryRoot = active.root;
     index.close();
     query.clear();
+    // A scan cancelled in the previous library must not keep this one unscanned.
+    scanCancelledThisVisit = false;
     refreshIndexIfNeeded(true);
     resetViewport();
     requestUpdate();
@@ -1510,6 +1516,8 @@ void LibraryActivity::promptDeleteBook(const RecentBook& book) {
       LOG_ERR("LIB", "Failed to delete file: %s", path.c_str());
       return;
     }
+    // Jester (feature 1): a deleted book leaves Favorites too.
+    if (!Favorites::remove(path)) LOG_ERR("LIB", "Favorite not removed: %s", path.c_str());
 
     library::invalidateLibraryIndex();
     // The card changed, so a cancelled scan must not keep showing this book.

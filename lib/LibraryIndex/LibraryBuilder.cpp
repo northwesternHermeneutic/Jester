@@ -1967,6 +1967,20 @@ uint8_t activeLibrary() { return gActiveLibrary; }
 
 void setExcludedDirectories(std::vector<std::string> directories) { gExcludedDirectories = std::move(directories); }
 
+bool pathInLibrary(const char* rootPath, const std::string& path) {
+  const std::string root = rootPath && rootPath[0] != '\0' ? rootPath : "/";
+  // Strictly below `folder`, matching the "<folder>/<name>" paths the walk builds.
+  const auto below = [](const std::string& candidate, const std::string& folder) {
+    if (folder == "/") return candidate.size() > 1 && candidate[0] == '/';
+    return candidate.size() > folder.size() + 1 && candidate.compare(0, folder.size(), folder) == 0 &&
+           candidate[folder.size()] == '/';
+  };
+  if (!below(path, root)) return false;
+  return std::none_of(gExcludedDirectories.begin(), gExcludedDirectories.end(), [&](const std::string& excluded) {
+    return below(excluded, root) && below(path, excluded);
+  });
+}
+
 void setIndexLimit(const uint16_t limit) { gIndexLimit = limit; }
 
 uint16_t libraryBookLimit() { return CLIX_MAX_RECORDS; }

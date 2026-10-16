@@ -40,6 +40,7 @@
 #include "fontIds.h"
 #include "util/BookMoveUtils.h"
 #include "JesterLibraries.h"
+#include "FavoritesStore.h"
 #include "util/TwoLineName.h"
 
 namespace fui = freeink::ui;
@@ -442,6 +443,8 @@ void FileBrowserActivity::promptDeleteFile(const std::string& fullPath, const st
       LOG_ERR("FileBrowser", "Failed to delete file: %s", fullPath.c_str());
       return;
     }
+    // Jester (feature 1): a deleted book leaves Favorites too.
+    if (!Favorites::remove(fullPath)) LOG_ERR("FileBrowser", "Favorite not removed: %s", fullPath.c_str());
     ImageFolderIndex::invalidateForPath(fullPath.c_str());
     sdFontSystem.markRegistryDirtyForPath(fullPath.c_str());
 
@@ -493,6 +496,8 @@ void FileBrowserActivity::promptDeleteDirectory(const std::string& fullPath, con
     for (const auto& metadataPath : metadataPaths) {
       BookActions::clearFileMetadata(metadataPath);
     }
+    // Jester (feature 1): books in the deleted folder leave Favorites too.
+    if (!Favorites::removeUnder(dirPath)) LOG_ERR("FileBrowser", "Favorites not removed under: %s", dirPath.c_str());
 
     const std::string favoritePrefix = dirPath + "/";
     if (!APP_STATE.favoriteSleepImagePath.empty() && APP_STATE.favoriteSleepImagePath.rfind(favoritePrefix, 0) == 0) {

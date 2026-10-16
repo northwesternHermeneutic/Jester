@@ -15,7 +15,8 @@
 
 namespace AppVersion {
 const char* version() { return CROSSINK_VERSION; }
-const char* versionLabel() { return "Jester " CROSSINK_VERSION; }
+// Jester: the user-facing name, e.g. "Jester_v1.0.1" (Settings, boot screen, web).
+const char* versionLabel() { return "Jester_v" CROSSINK_VERSION; }
 const char* userAgent() { return "CrossInk-ESP32-" CROSSINK_VERSION; }
 const char* gitSha() { return CROSSINK_GIT_SHA; }
 const char* gitDirtyFlag() { return CROSSINK_GIT_DIRTY; }

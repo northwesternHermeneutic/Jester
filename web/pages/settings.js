@@ -346,9 +346,14 @@ let allSettings = [];
 
   function updateStatusBarPreview(position) {
     const bar = readStatusBarForm(position);
+    // Jester (feature 2): percentages use the global Reader format, not the bar's.
+    const decimals = typeof statusBars.globalPercentageFormat === 'number'
+      ? statusBars.globalPercentageFormat : bar.percentageFormat;
     const examples = ['', '10:30', '85%', '2h 15m', '12m', '4/12', '27',
-      (64.12).toFixed(bar.percentageFormat) + '%', 'Book title', 'Chapter title'];
-    const slot = function(index) { return escapeHtml(examples[bar.slots[index]] || ''); };
+      (64.12).toFixed(decimals) + '%', 'Book title', 'Chapter title'];
+    // Jester (feature 13): Publisher Page Number has the stored value 192.
+    const example = function(value) { return value === 192 ? '241' : (examples[value] || ''); };
+    const slot = function(index) { return escapeHtml(example(bar.slots[index])); };
     const right = [4, 5, 6].map(slot).filter(Boolean).join(' &nbsp; ');
     const progressValue = bar.progressBar === 0 ? 64 : 35;
     const progress = bar.progressBar === 2 ? '' : '<div class="status-bar-preview-progress" style="height:' +

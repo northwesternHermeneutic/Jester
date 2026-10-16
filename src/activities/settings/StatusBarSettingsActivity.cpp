@@ -561,6 +561,7 @@ void StatusBarSettingsActivity::render(RenderLock&&) {
     content.chapterPageCount = 32;
     content.stablePage = 120;
     content.stablePageCount = 540;
+    content.publisherPage = "241";  // Jester (feature 13): example publisher page label
     content.bookTitle = tr(STR_EXAMPLE_BOOK);
     content.chapterTitle = tr(STR_EXAMPLE_CHAPTER);
     content.timeLeftBook = "3h 40m";

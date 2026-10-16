@@ -126,11 +126,25 @@ ToggleResult toggle(const std::string& path, const std::string& title, const std
 }
 
 bool remove(const std::string& path) {
+  if (!fileExists()) return true;
   FileState state;
   if (!readState(state)) return false;
   const auto before = state.books.size();
   state.books.erase(std::remove_if(state.books.begin(), state.books.end(),
                                    [&](const FavoriteBook& b) { return b.path == path; }),
+                    state.books.end());
+  if (state.books.size() == before) return true;
+  return writeState(state);
+}
+
+bool removeUnder(const std::string& folder) {
+  if (folder.empty() || !fileExists()) return true;
+  const std::string prefix = folder.back() == '/' ? folder : folder + "/";
+  FileState state;
+  if (!readState(state)) return false;
+  const auto before = state.books.size();
+  state.books.erase(std::remove_if(state.books.begin(), state.books.end(),
+                                   [&](const FavoriteBook& b) { return b.path.rfind(prefix, 0) == 0; }),
                     state.books.end());
   if (state.books.size() == before) return true;
   return writeState(state);

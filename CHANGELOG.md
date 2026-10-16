@@ -1,3 +1,30 @@
+## [Jester v1.0.1]
+
+A bug-fix release of Jester v1.0.
+
+### Added
+
+- The Status Bars previews, on the device and in the web portal, show an example Publisher Page Number; the web preview uses the global Percentage Format.
+
+### Changed
+
+- The version reads Jester_v1.0.1, without a build number, in Settings > System, on the boot screen and in the web portal; the firmware file is Jester_v1.0.1.bin.
+
+### Fixed
+
+- A book set to the CrossInk Default render mode in Book Options keeps it after it is closed, and the File Browser and Library Render Mode picker shows the mode a book actually opens in (Balanced unless changed).
+- Library: Recently Read lists only books in the selected library, leaving out excluded folders.
+- Library: a changed Library Index Limit also takes effect when the device sleeps or restarts before the Library is opened.
+- Library: switching libraries after cancelling a scan scans the new library.
+- A bookmark, dog ear or clipping picked for a book that cannot be opened no longer moves the next book opened to that place.
+- Deleting a book or a folder on the device also removes it from Favorites.
+- A dictionary kept in both /.dictionaries and /dictionaries stays selected instead of switching to another dictionary.
+- A web upload that fails partway, for example on a full card, no longer leaves a partial file behind (CrossInk fix).
+- A newly opened screen is no longer drawn before it has finished setting up (CrossInk fix).
+- Side-button chapter skips no longer change the page while it is being drawn.
+- Bookmark and dog ear lists opened from Home show whole percentages for short books, as in the book.
+- Option popups with a one-line note no longer freeze (touch devices; CrossInk fix).
+
 ## [Jester v1.0]
 
 Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected CrossInk v1.6.1 changes (Library, top and bottom status bars, side-button actions, inline images, fixes).

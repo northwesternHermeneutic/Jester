@@ -2,7 +2,7 @@
 
 > **Jester is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4**. It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, and keeps the v1.6.0 menus and navigation.
 
-Current version: **1.0**.
+Current version: **1.0.1** (shown on the device as Jester_v1.0.1).
 
 ### Supported device
 
@@ -163,7 +163,7 @@ Jester runs on an ESP32-C3 with about 380 KB of RAM.
 
 ## Installation
 
-Download the latest `jester-x4-v<version>-build<N>.bin` first.
+Download the latest `Jester_v<version>.bin` (for example `Jester_v1.0.1.bin`) first.
 
 ### With the CrossPoint web flash tool (USB)
 
@@ -189,7 +189,7 @@ git submodule update --init --recursive
 pio run -e default
 ```
 
-The firmware is written to `.pio/build/default/jester-x4-v<version>.bin`; the image must stay under 6,553,600 bytes. The version is `version` and the build number `jester_build` in the `[crossink]` section of `platformio.ini`.
+The firmware is written to `.pio/build/default/Jester_v<version>.bin`; the image must stay under 6,553,600 bytes. The version is `version` in the `[crossink]` section of `platformio.ini`; the device shows it as `Jester_v<version>`. An optional `jester_build = <N>` there adds `-build<N>` for test builds.
 
 See [Getting Started](./docs/development/getting-started.md) and [Testing and Debugging](./docs/development/testing-debugging.md) for the shared CrossInk development guides.
 

@@ -104,7 +104,7 @@ const MODAL_CANCEL_FNS = {
 const MODAL_OUTSIDE_CLICK_FNS = { ...MODAL_CANCEL_FNS, uploadModal: closeUploadModal };
 
 async function hydrate() {
-  // Fetch CrossInk version
+  // Fetch the firmware version (Jester_v<version>)
   fetchVersion();
 
   // Close modals when clicking overlay - call proper cleanup functions
@@ -2086,7 +2086,7 @@ function exportLogToFile(filename = null, isBatch = false) {
   }
   // Extract text from log entries
   const entries = logContainer.querySelectorAll(".log-entry");
-  let logText = `CrossInk Reader ${crosspointVersion} - EPUB Conversion Log\n`;
+  let logText = `${crosspointVersion} - EPUB Conversion Log\n`;
   logText += `Generated: ${new Date().toLocaleString()}\n`;
   logText += `${"=".repeat(60)}\n\n`;
 

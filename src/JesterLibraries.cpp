@@ -21,6 +21,8 @@ struct State {
   uint8_t active = 0;
   std::vector<Library> libraries;  // user libraries only (slots 1..)
   std::vector<std::string> excluded;
+  // Index Limit the indexes were last built with; -1 = not recorded yet.
+  int indexLimit = -1;
 };
 
 bool fileExists() {
@@ -48,6 +50,7 @@ bool readState(State& state) {
     const char* path = folder | "";
     if (path[0] != '\0') state.excluded.emplace_back(path);
   }
+  state.indexLimit = doc["indexLimit"] | -1;
   const uint8_t active = doc["active"] | 0;
   const bool activeExists = active == 0 || std::any_of(state.libraries.begin(), state.libraries.end(),
                                                        [active](const Library& l) { return l.slot == active; });
@@ -59,6 +62,7 @@ bool writeState(const State& state) {
   JsonDocument doc;
   doc["version"] = FILE_VERSION;
   doc["active"] = state.active;
+  if (state.indexLimit >= 0) doc["indexLimit"] = state.indexLimit;
   JsonArray libraries = doc["libraries"].to<JsonArray>();
   for (const auto& library : state.libraries) {
     JsonObject entry = libraries.add<JsonObject>();
@@ -246,10 +250,11 @@ bool restoreIndexStateAtBoot(uint32_t& maskOut) {
 
 Library applyToBuilder() {
   State state;
-  readState(state);
+  const bool stateRead = readState(state);
   // A library whose folder was deleted or renamed (on the device or a
   // computer) would fail every scan and could not be removed from its folder's
   // menu. Only prune when the card itself is readable.
+  bool stateChanged = false;
   if (!state.libraries.empty() && Storage.exists("/.crosspoint")) {
     const auto before = state.libraries.size();
     state.libraries.erase(std::remove_if(state.libraries.begin(), state.libraries.end(),
@@ -261,20 +266,26 @@ Library applyToBuilder() {
                                            return true;
                                          }),
                           state.libraries.end());
-    if (state.libraries.size() != before) writeState(state);
+    stateChanged = state.libraries.size() != before;
   }
+  const uint8_t choice = SETTINGS.libraryIndexLimit < INDEX_LIMIT_COUNT ? SETTINGS.libraryIndexLimit
+                                                                         : INDEX_LIMIT_COUNT - 1;
+  const uint16_t limit = INDEX_LIMIT_VALUES[choice];
+  // The limit the indexes were built with is kept on the card, so a change
+  // made before a sleep or restart still rebuilds them (every library). An
+  // unrecorded limit (first boot of this version) also rebuilds once.
+  if (stateRead && state.indexLimit != limit) {
+    library::invalidateLibraryIndex();
+    state.indexLimit = limit;
+    stateChanged = true;
+  }
+  if (stateRead && stateChanged) writeState(state);
   Library activeLibrary = cardLibrary();
   for (const auto& l : state.libraries) {
     if (l.slot == state.active) activeLibrary = l;
   }
   library::setActiveLibrary(state.active);
   library::setExcludedDirectories(std::move(state.excluded));
-  const uint8_t choice = SETTINGS.libraryIndexLimit < INDEX_LIMIT_COUNT ? SETTINGS.libraryIndexLimit
-                                                                         : INDEX_LIMIT_COUNT - 1;
-  const uint16_t limit = INDEX_LIMIT_VALUES[choice];
-  static int lastLimit = -1;
-  if (lastLimit >= 0 && lastLimit != limit) library::invalidateLibraryIndex();
-  lastLimit = limit;
   library::setIndexLimit(limit);
   return activeLibrary;
 }

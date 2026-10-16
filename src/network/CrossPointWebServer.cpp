@@ -441,7 +441,7 @@ bool CrossPointWebServer::dropUploadIfCancelled() const {
   return true;
 }
 
-void CrossPointWebServer::abortUpload(UploadState& state) const {
+void CrossPointWebServer::abortUpload(UploadState& state, const char* error) const {
   state.success = false;
   state.bufferPos = 0;
   if (state.file) {
@@ -449,10 +449,12 @@ void CrossPointWebServer::abortUpload(UploadState& state) const {
     String filePath = state.path;
     if (!filePath.endsWith("/")) filePath += "/";
     filePath += state.fileName;
-    Storage.remove(filePath.c_str());
+    if (!Storage.remove(filePath.c_str())) {
+      LOG_ERR("WEB", "Could not remove incomplete upload: %s", filePath.c_str());
+    }
   }
-  state.error = "Upload aborted";
-  LOG_DBG("WEB", "Upload aborted");
+  state.error = error;
+  LOG_DBG("WEB", "%s", error);
 }
 
 void CrossPointWebServer::abortFontUpload() {
@@ -664,7 +666,7 @@ void CrossPointWebServer::handleStatus() const {
   const String ipAddr = apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
 
   JsonDocument doc;
-  doc["version"] = AppVersion::version();
+  doc["version"] = AppVersion::versionLabel();  // Jester: "Jester_v<version>"
   doc["ip"] = ipAddr;
   doc["mode"] = apMode ? "AP" : "STA";
   doc["rssi"] = apMode ? 0 : WiFi.RSSI();
@@ -1022,7 +1024,7 @@ void CrossPointWebServer::handleUpload(UploadState& state) const {
 
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (dropUploadIfCancelled()) {
-      abortUpload(state);
+      abortUpload(state, "Upload aborted");
       return;
     }
     if (state.file && state.error.isEmpty()) {
@@ -1043,8 +1045,9 @@ void CrossPointWebServer::handleUpload(UploadState& state) const {
         // Flush buffer when full
         if (state.bufferPos >= UploadState::UPLOAD_BUFFER_SIZE) {
           if (!flushUploadBuffer(state)) {
-            state.error = "Failed to write to SD card - disk may be full";
-            state.file.close();
+            // Remove the partial file so it is not mistaken for a book and can be retried.
+            LOG_ERR("WEB", "Failed to flush upload buffer");
+            abortUpload(state, "Failed to write to SD card - disk may be full");
             return;
           }
         }
@@ -1055,15 +1058,27 @@ void CrossPointWebServer::handleUpload(UploadState& state) const {
   } else if (upload.status == UPLOAD_FILE_END) {
     // The final body chunk can produce END even after cancellation.
     if (dropUploadIfCancelled()) {
-      abortUpload(state);
+      abortUpload(state, "Upload aborted");
       return;
     }
     if (state.file) {
       // Flush any remaining buffered data
-      if (!flushUploadBuffer(state)) {
-        state.error = "Failed to write final data to SD card";
+      if (!flushUploadBuffer(state) || !state.file.sync()) {
+        LOG_ERR("WEB", "Failed to finish upload");
+        abortUpload(state, "Failed to write final data to SD card");
+        return;
       }
-      state.file.close();
+      if (!state.file.close()) {
+        state.error = "Failed to close file on SD card";
+        String filePath = state.path;
+        if (!filePath.endsWith("/")) filePath += "/";
+        filePath += state.fileName;
+        if (!Storage.remove(filePath.c_str())) {
+          LOG_ERR("WEB", "Could not remove incomplete upload: %s", filePath.c_str());
+        }
+        LOG_ERR("WEB", "%s", state.error.c_str());
+        return;
+      }
 
       if (state.error.isEmpty()) {
         state.success = true;
@@ -1082,7 +1097,7 @@ void CrossPointWebServer::handleUpload(UploadState& state) const {
       }
     }
   } else if (upload.status == UPLOAD_FILE_ABORTED) {
-    abortUpload(state);
+    abortUpload(state, "Upload aborted");
   }
 }
 
@@ -1481,6 +1496,8 @@ void CrossPointWebServer::handleGetStatusBars() const {
   writeReaderStatusBarJson(doc["bottom"].to<JsonObject>(), SETTINGS.readerStatusBar(ReaderStatusBarPosition::Bottom));
   doc["xtcMode"] = SETTINGS.xtcStatusBarMode;
   doc["clockAvailable"] = halClock.isAvailable();
+  // Jester (feature 2): the reader shows percentages at this one global level.
+  doc["globalPercentageFormat"] = SETTINGS.statusBarBookPercentageFormat;
 
   JsonObject labels = doc["labels"].to<JsonObject>();
   labels["top"] = tr(STR_TOP_STATUS_BAR);

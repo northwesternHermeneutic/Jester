@@ -2,9 +2,8 @@
 PlatformIO post-build script: copy firmware.bin to convenient artifact names
 in the same build directory.
 
-Jester: the default env sets custom_firmware_name_prefix = jester,
-custom_firmware_artifact_device = x4 and custom_firmware_artifact_version,
-so its default output is .pio/build/default/jester-x4-v<version>.bin.
+Jester: the default env sets custom_firmware_artifact_name = Jester_v<version>,
+so its default output is .pio/build/default/Jester_v<version>.bin.
 
 Default outputs:
   .pio/build/default/firmware-x3-x4.bin
@@ -145,7 +144,14 @@ def rename_firmware(source, target, env):
 
     artifact_base = _get_artifact_base(env)
     artifact_version = _get_project_option(env, 'custom_firmware_artifact_version')
-    default_name = f'{artifact_base}-v{artifact_version}.bin' if artifact_version else f'{artifact_base}.bin'
+    # Jester: an explicit artifact name (Jester_v<version>) wins over <prefix>-<device>-v<version>.
+    artifact_name = _get_project_option(env, 'custom_firmware_artifact_name')
+    if artifact_name:
+        default_name = re.sub(r'[^A-Za-z0-9._-]+', '-', artifact_name) + '.bin'
+    elif artifact_version:
+        default_name = f'{artifact_base}-v{artifact_version}.bin'
+    else:
+        default_name = f'{artifact_base}.bin'
     default_dst = os.path.join(build_dir, default_name)
     _copy_artifact(src, default_dst)
 

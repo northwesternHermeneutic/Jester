@@ -28,6 +28,22 @@ static bool isImagePreviewFile(const std::string& path) {
   return FsHelpers::hasBmpExtension(path) || FsHelpers::hasPngExtension(path);
 }
 
+// Jester: a jump picked for this book (Saved Items bookmark, dog ear or
+// clipping, or a low-memory jump restart) is consumed only by the EPUB reader.
+// It is not tied to a path, so drop it whenever this open does not reach that
+// reader; otherwise the next EPUB opened would jump to it.
+static void discardPendingJump() {
+  if (APP_STATE.pendingBookmarkSpine == UINT16_MAX && APP_STATE.pendingBookmarkProgress < 0.0f &&
+      APP_STATE.pendingBookmarkParagraphIndex == UINT16_MAX && APP_STATE.pendingClippingIndex == UINT16_MAX) {
+    return;
+  }
+  APP_STATE.pendingBookmarkSpine = UINT16_MAX;
+  APP_STATE.pendingBookmarkProgress = -1.0f;
+  APP_STATE.pendingBookmarkParagraphIndex = UINT16_MAX;
+  APP_STATE.pendingClippingIndex = UINT16_MAX;
+  if (!APP_STATE.saveToFile()) LOG_ERR("READER", "Failed to clear a pending jump");
+}
+
 bool ReaderActivity::shouldShowLoadingPopup(const std::string& path) {
   // Only first-open EPUBs are slow enough to need the popup (they build the
   // spine/TOC cache). A cached EPUB opens in ~ms, so showing the popup would
@@ -185,6 +201,7 @@ void ReaderActivity::onEnter() {
   }
 
   if (initialBookPath.empty()) {
+    discardPendingJump();
     goToLibrary();  // Start from root when entering via Browse
     return;
   }
@@ -194,12 +211,14 @@ void ReaderActivity::onEnter() {
   }
 
   if (isImagePreviewFile(initialBookPath)) {
+    discardPendingJump();
     onGoToBmpViewer(initialBookPath);
     return;
   }
 
   currentBookPath = initialBookPath;
   if (isXtcFile(initialBookPath)) {
+    discardPendingJump();  // XTC and TXT readers do not take EPUB jump targets
     auto xtc = loadXtc(initialBookPath);
     if (!xtc) {
       onGoBack();
@@ -207,6 +226,7 @@ void ReaderActivity::onEnter() {
     }
     onGoToXtcReader(std::move(xtc));
   } else if (isTxtFile(initialBookPath)) {
+    discardPendingJump();
     auto txt = loadTxt(initialBookPath);
     if (!txt) {
       onGoBack();
@@ -216,6 +236,7 @@ void ReaderActivity::onEnter() {
   } else {
     auto result = loadEpub(initialBookPath);
     if (!result.epub) {
+      discardPendingJump();
       queueEpubOpenAlert(result.failure);
       onGoBack();
       return;

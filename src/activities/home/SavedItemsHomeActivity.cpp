@@ -1,5 +1,7 @@
 #include "SavedItemsHomeActivity.h"
 
+#include <Epub.h>
+#include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
 #include <Logging.h>
@@ -21,12 +23,19 @@
 #include "components/UITheme.h"
 #include "components/UIThemeTokens.h"
 #include "components/UiAppHelpers.h"
+#include "util/BookPercentFormat.h"
 
 namespace fui = freeink::ui;
 
 namespace {
 constexpr unsigned long SAVED_ITEM_DELETE_HOLD_MS = 1000;
 constexpr fui::ActionId ACTION_ROW = 1;
+
+// Jester (feature 2): the same short-book rule as the reader's own lists.
+bool savedBookIsShort(const std::string& bookPath) {
+  return FsHelpers::hasEpubExtension(bookPath) &&
+         BookPercentFormat::loadIsShortBook(Epub::resolveCachePathForFilePath(bookPath, "/.crosspoint"));
+}
 
 void mergeBookmarkEntry(std::vector<SavedBookEntry>& out, const BookmarkedBookEntry& entry) {
   auto it = std::find_if(out.begin(), out.end(), [&](const SavedBookEntry& existing) {
@@ -381,7 +390,8 @@ void SavedItemsHomeActivity::openBookmarkList(const SavedBookEntry& entry) {
   BOOKMARKS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
 
   startActivityForResult(
-      std::make_unique<EpubReaderBookmarkListActivity>(renderer, mappedInput, BOOKMARKS.getBookmarks()),
+      std::make_unique<EpubReaderBookmarkListActivity>(renderer, mappedInput, BOOKMARKS.getBookmarks(),
+                                                       savedBookIsShort(entry.bookPath)),
       [this, entry](const ActivityResult& result) {
         if (!result.isCancelled) {
           const auto* bm = std::get_if<BookmarkResult>(&result.data);
@@ -405,8 +415,9 @@ void SavedItemsHomeActivity::openBookmarkList(const SavedBookEntry& entry) {
 
 void SavedItemsHomeActivity::openDogEarList(const SavedBookEntry& entry) {
   DOGEARS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
-  auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(renderer, mappedInput, DOGEARS.getBookmarks(), false,
-                                                                &DOGEARS, StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS);
+  auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(renderer, mappedInput, DOGEARS.getBookmarks(),
+                                                                savedBookIsShort(entry.bookPath), &DOGEARS,
+                                                                StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS);
   if (!list) {
     LOG_ERR("SVA", "Could not allocate dog ear list");
     requestUpdate();

@@ -32,6 +32,8 @@ bool load(std::vector<FavoriteBook>& out, Sort* sortOut = nullptr);
 bool contains(const std::string& path);
 ToggleResult toggle(const std::string& path, const std::string& title, const std::string& author);
 bool remove(const std::string& path);
+// Removes every favorite inside `folder` (a folder deleted on the device).
+bool removeUnder(const std::string& folder);
 bool setSort(Sort sort);
 // Best effort, used by on-device renames and moves (BookMoveUtils).
 void renamePath(const std::string& oldPath, const std::string& newPath);

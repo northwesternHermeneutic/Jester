@@ -20,7 +20,7 @@ static constexpr const char* DICT_ROOT_CANDIDATES[] = {
     "/dictionaries",
 };
 
-void DictionaryRegistry::scanRoot(const std::string& root) {
+void DictionaryRegistry::scanRoot(const std::string& root, const std::string& configuredPath) {
   auto rootDir = Storage.open(root.c_str());
   if (!rootDir || !rootDir.isDirectory()) {
     LOG_ERR("DREG", "Could not open dictionary directory: %s", root.c_str());
@@ -97,10 +97,20 @@ void DictionaryRegistry::scanRoot(const std::string& root) {
     }
 
     if (!ambiguous && foundStem[0] != '\0' && foundDict) {
-      // Jester: the same folder in both roots is one dictionary; the hidden
-      // root is scanned first and wins.
-      if (std::any_of(entries_.begin(), entries_.end(), [&](const DictionaryEntry& d) { return d.name == name; })) {
-        LOG_DBG("DREG", "Skipping %s/%s: same folder already found in another root", root.c_str(), name);
+      // Jester: the same folder in both roots is one dictionary. The hidden
+      // root is scanned first and wins, unless the selected dictionary is this
+      // copy: then this copy is listed, so the selection stays valid.
+      const auto existing =
+          std::find_if(entries_.begin(), entries_.end(), [&](const DictionaryEntry& d) { return d.name == name; });
+      if (existing != entries_.end()) {
+        const std::string basePath = root + "/" + name + "/" + foundStem;
+        if (!configuredPath.empty() && basePath == configuredPath) {
+          existing->stem = foundStem;
+          existing->basePath = basePath;
+          LOG_DBG("DREG", "Using %s: the selected copy of %s", basePath.c_str(), name);
+        } else {
+          LOG_DBG("DREG", "Skipping %s/%s: same folder already found in another root", root.c_str(), name);
+        }
         continue;
       }
       DictionaryEntry e;
@@ -128,11 +138,12 @@ bool DictionaryRegistry::discover() {
   entries_.reserve(16);
 
   bool foundRoot = false;
+  const std::string configuredPath = Dictionary::readConfiguredDictPath();
   for (const char* candidate : DICT_ROOT_CANDIDATES) {
     char resolvedRoot[32];
     if (!FsHelpers::resolveRootDirectoryIgnoreCase(candidate, resolvedRoot, sizeof(resolvedRoot))) continue;
     foundRoot = true;
-    scanRoot(resolvedRoot);
+    scanRoot(resolvedRoot, configuredPath);
   }
   if (!foundRoot) {
     LOG_DBG("DREG", "No dictionary directory found on SD card");

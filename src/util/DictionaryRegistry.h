@@ -37,7 +37,8 @@ class DictionaryRegistry {
 
  private:
   void maybeAutoSelectDefaultDictionary() const;
-  void scanRoot(const std::string& root);  // adds the dictionaries in one root folder
+  // Adds the dictionaries in one root folder; configuredPath keeps the selected copy of a duplicate.
+  void scanRoot(const std::string& root, const std::string& configuredPath);
 
   std::vector<DictionaryEntry> entries_;  // sorted alphabetically by name; each keeps its own root
   std::atomic<bool> dirty_{false};

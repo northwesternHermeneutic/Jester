@@ -107,6 +107,10 @@ constexpr uint8_t READER_SETTINGS_FLAG_SAFE_MODE = 1 << 4;
 // Jester flags count down from the top bit, clear of upstream's next flags.
 constexpr uint8_t READER_SETTINGS_FLAG_ORIENTATION_EXEMPT = 1 << 7;
 constexpr char READER_SETTINGS_FILE_NAME[] = "/reader_settings.bin";
+// Jester (feature 9): the render mode of a book without its own choice. Every
+// reader of reader_settings.bin must agree on it, or a book whose override is
+// not saved opens, sleeps and shows in pickers in different modes.
+constexpr EpubRenderMode DEFAULT_BOOK_RENDER_MODE = EpubRenderMode::Balanced;
 constexpr char BALANCED_SECTION_CACHE_SUFFIX[] = "_balanced";
 constexpr char LIGHT_SECTION_CACHE_SUFFIX[] = "_light";
 constexpr unsigned long RENDER_MODE_TOAST_MS = 1500UL;
@@ -1416,7 +1420,7 @@ uint8_t EpubReaderActivity::loadBookRenderMode(const std::string& filePath) {
   epub.setupCacheDir();
   const BookReaderSettingsData data = loadBookReaderSettingsFile(epub.getCachePath());
   return data.hasRenderModeOverride ? normalizeRenderModeRaw(data.renderMode)
-                                    : static_cast<uint8_t>(EpubRenderMode::CrossInkDefault);
+                                    : static_cast<uint8_t>(DEFAULT_BOOK_RENDER_MODE);
 }
 
 bool EpubReaderActivity::saveBookRenderMode(const std::string& filePath, const uint8_t renderMode) {
@@ -2004,7 +2008,7 @@ void EpubReaderActivity::loadBookReaderSettings() {
   // opens in Balanced. This line, not the settings initializer, is what seeds
   // the mode on every book open.
   SETTINGS.epubRenderMode = data.hasRenderModeOverride ? normalizeRenderModeRaw(data.renderMode)
-                                                       : static_cast<uint8_t>(EpubRenderMode::Balanced);
+                                                       : static_cast<uint8_t>(DEFAULT_BOOK_RENDER_MODE);
   captureReaderSettings(initialBookReaderSettings.readerSettings);
 }
 
@@ -2068,7 +2072,7 @@ void EpubReaderActivity::saveCurrentBookReaderSettings() {
   data.hasSafeModeOverride = keepSafeMode;
   data.hasAutoPageTurnInterval = bookHasAutoPageTurnInterval;
   data.autoPageTurnSeconds = lastAutoPageTurnIntervalSeconds;
-  data.hasRenderModeOverride = currentSettings.epubRenderMode != static_cast<uint8_t>(EpubRenderMode::CrossInkDefault);
+  data.hasRenderModeOverride = currentSettings.epubRenderMode != static_cast<uint8_t>(DEFAULT_BOOK_RENDER_MODE);
   data.renderMode = currentSettings.epubRenderMode;
   if (!saveBookReaderSettingsFile(epub->getCachePath(), data)) return;
 
@@ -3185,17 +3189,20 @@ void EpubReaderActivity::loop() {
         case CrossPointSettings::SIDE_NEXT_CHAPTER: {
           const bool next = side.action == CrossPointSettings::SIDE_NEXT_CHAPTER;
           clearPendingManualPageTurns();
-          if (!next && isAtBookStart()) break;
-          if (!next && section && section->currentPage > 0) {
-            section->currentPage = 0;
-          } else {
+          {
+            // The render task can replace or finish the section meanwhile.
             RenderLock lock(*this);
-            nextPageNumber = 0;
-            if (next)
-              currentSpineIndex++;
-            else if (currentSpineIndex > 0)
-              currentSpineIndex--;
-            section.reset();
+            if (!next && isAtBookStart()) break;
+            if (!next && section && section->currentPage > 0) {
+              section->currentPage = 0;
+            } else {
+              nextPageNumber = 0;
+              if (next)
+                currentSpineIndex++;
+              else if (currentSpineIndex > 0)
+                currentSpineIndex--;
+              section.reset();
+            }
           }
           requestUpdate();
           break;
@@ -8306,7 +8313,7 @@ bool EpubReaderActivity::drawCurrentPageToBuffer(const std::string& filePath, Gf
   }
   SETTINGS.epubRenderMode = readerSettings.hasRenderModeOverride
                                 ? normalizeRenderModeRaw(readerSettings.renderMode)
-                                : static_cast<uint8_t>(EpubRenderMode::CrossInkDefault);
+                                : static_cast<uint8_t>(DEFAULT_BOOK_RENDER_MODE);
 
   // Load CSS when embeddedStyle is enabled, as createSectionFile may need it to rebuild the cache.
   {
