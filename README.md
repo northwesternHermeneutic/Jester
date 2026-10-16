@@ -44,8 +44,32 @@ Capture the whole text of a page like a screenshot, in a text file like a clippi
 - **One percentage format** everywhere (status bars, bookmarks, dog ears, menus, Home), one decimal by default; short books show whole numbers.
 - **Go to %** steps of 5% and 10%; a short press of the power button switches to 0.1% and 1%.
 - **Landscape Flip** (default: Power + Up) switches between the two landscape orientations; orientation applies to every book.
+- **Exempt from Global Orientation** (in-book menu, after Reader Options): the book keeps its own orientation. Turning it does not change the other books, and changing the orientation elsewhere does not change it. Turn it off to return the book to the global orientation. EPUB books only.
 - **Clean Screen** action: three black-and-white refreshes to clear ghosting, then the page is redrawn.
 - Default margins 30 (top and bottom) and 35 (left and right); default orientation landscape counter-clockwise.
+
+### Sleep screens
+
+With **Settings > Display > Sleep Screen** set to **Page Overlay**, the current screen stays visible and a picture is drawn over it: black covers, white lets the page show through. Jester picks the picture from a different folder depending on what is on screen when the device goes to sleep:
+
+| Folder (root of the SD card) | Used when |
+|---|---|
+| `/PortraitSleep` | a book is open in portrait (or inverted portrait) |
+| `/LandscapeSleep` | a book is open in either landscape orientation |
+| `/HomeSleep` | no book is open (Home, Library, Settings) |
+
+To set it up:
+
+1. Create the folders you want at the root of the SD card. Folder names are not case-sensitive.
+2. Put images in them: 480 x 800 BMP files (1-bit works well; PNG also works in Page Overlay). Each sleep picks one at random and avoids repeating the most recent ones.
+3. Draw every image as if the device is held upright, buttons at the bottom, because overlays are always drawn that way. For `/LandscapeSleep`, design the picture turned to match how you hold the device in landscape.
+4. Choose **Page Overlay** as the sleep screen.
+
+If a folder is missing or empty, Jester uses the normal sleep folder (the one chosen with **Set as Sleep Folder** in the File Browser, otherwise `/.sleep` or `/sleep`). Exception: with no images in `/HomeSleep`, sleeping outside a book shows the light Jester sleep screen. A picture pinned with **Set Sleep Screen** always takes priority over the folders.
+
+Jester remembers which images each folder holds. Files added through File Transfer or the File Browser are picked up at once. After adding or removing images with a computer, delete the folder `/.crosspoint/sleep-image-index` so the folders are read again.
+
+The Dark and Light sleep screens show the ❍ logo and "Sleeping".
 
 ### Marking places
 
