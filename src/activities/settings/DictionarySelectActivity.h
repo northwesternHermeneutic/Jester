@@ -23,14 +23,12 @@ class DictionarySelectActivity final : public Activity {
   void render(RenderLock&&) override;
 
  private:
-  // Active SD card root directory for dictionaries (resolved in scanDictionaries()).
-  std::string dictRoot;
-
-  // Discovered dictionary folder names and file stems (parallel vectors, excluding "None").
-  // e.g. dictFolders[i] = "dict-en-en", dictStems[i] = "dict-data"
-  // folderForIndex() combines them with dictRoot into the full base path used for file access.
+  // Discovered dictionary folder names, file stems and full base paths (parallel vectors,
+  // excluding "None"), e.g. "dict-en-en", "dict-data", "/dictionaries/dict-en-en/dict-data".
+  // Dictionaries can come from /.dictionaries and /dictionaries; folderForIndex() returns the path.
   std::vector<std::string> dictFolders;
   std::vector<std::string> dictStems;
+  std::vector<std::string> dictPaths;
 
   // Index into the full list including "None" at position 0.
   int selectedIndex = 0;

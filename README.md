@@ -2,7 +2,7 @@
 
 > **Jester is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4**. It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, and keeps the v1.6.0 menus and navigation.
 
-Current version: **0.5**.
+Current version: **1.0**.
 
 ### Supported device
 

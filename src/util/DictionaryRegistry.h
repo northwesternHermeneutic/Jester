@@ -23,7 +23,6 @@ class DictionaryRegistry {
 
   const std::vector<DictionaryEntry>& getEntries() const { return entries_; }
   int count() const { return static_cast<int>(entries_.size()); }
-  const std::string& root() const { return root_; }
 
   // Index of the entry whose basePath == path, or -1 if not found / path empty.
   int indexOf(const std::string& basePath) const;
@@ -38,9 +37,9 @@ class DictionaryRegistry {
 
  private:
   void maybeAutoSelectDefaultDictionary() const;
+  void scanRoot(const std::string& root);  // adds the dictionaries in one root folder
 
-  std::vector<DictionaryEntry> entries_;  // sorted alphabetically by name
-  std::string root_;                      // active dictionary root dir on the SD card
+  std::vector<DictionaryEntry> entries_;  // sorted alphabetically by name; each keeps its own root
   std::atomic<bool> dirty_{false};
 };
 

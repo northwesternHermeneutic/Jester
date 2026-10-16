@@ -91,7 +91,7 @@ void DictionarySelectActivity::onEnter() {
     }
 
     // Build augmented "Use Global" label showing the active global dictionary name.
-    // Path format: <dictRoot>/<folder>/<stem> — extract <folder>.
+    // Path format: <root>/<folder>/<stem> — extract <folder>.
     const std::string globalPath = Dictionary::readConfiguredDictPath();
     std::string globalFolderName;
     if (globalPath.empty()) {
@@ -151,15 +151,17 @@ void DictionarySelectActivity::scanDictionaries() {
   // Re-scan on every picker open (matches prior behaviour), then mirror the results into
   // the activity's parallel vectors so folderForIndex()/metadata/per-book logic is unchanged.
   dictionaryRegistry.discover();
-  dictRoot = dictionaryRegistry.root();
   dictFolders.clear();
   dictStems.clear();
+  dictPaths.clear();
   const auto& entries = dictionaryRegistry.getEntries();
   dictFolders.reserve(entries.size());
   dictStems.reserve(entries.size());
+  dictPaths.reserve(entries.size());
   for (const auto& e : entries) {
     dictFolders.push_back(e.name);
     dictStems.push_back(e.stem);
+    dictPaths.push_back(e.basePath);
   }
 }
 
@@ -169,7 +171,7 @@ void DictionarySelectActivity::scanDictionaries() {
 
 std::string DictionarySelectActivity::folderForIndex(int index) const {
   if (index <= 0 || index > static_cast<int>(dictFolders.size())) return "";
-  return dictRoot + "/" + dictFolders[index - 1] + "/" + dictStems[index - 1];
+  return dictPaths[index - 1];  // Jester: each dictionary keeps its own root folder
 }
 
 std::string DictionarySelectActivity::effectiveFolderForIndex(int index) const {

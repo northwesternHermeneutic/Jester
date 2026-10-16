@@ -12,36 +12,20 @@
 
 static constexpr size_t DICT_FILENAME_BUFFER_SIZE = 256;  // FAT LFN max (255) plus terminator.
 
-// Candidate SD card root directories for dictionaries, checked in priority order.
-// The first directory found on the SD card is used; the rest are ignored.
+// Candidate SD card root directories for dictionaries. Jester scans every one
+// that exists (hidden first) and merges their dictionaries, so a card with
+// both /.dictionaries and /dictionaries shows all of them.
 static constexpr const char* DICT_ROOT_CANDIDATES[] = {
     "/.dictionaries",
     "/dictionaries",
 };
 
-bool DictionaryRegistry::discover() {
-  entries_.clear();
-  entries_.reserve(16);
-  root_.clear();
-
-  char resolvedRoot[32];
-  const bool foundRoot = std::any_of(
-      DICT_ROOT_CANDIDATES, DICT_ROOT_CANDIDATES + (sizeof(DICT_ROOT_CANDIDATES) / sizeof(*DICT_ROOT_CANDIDATES)),
-      [&](const auto* candidate) {
-        return FsHelpers::resolveRootDirectoryIgnoreCase(candidate, resolvedRoot, sizeof(resolvedRoot));
-      });
-  if (foundRoot) root_ = resolvedRoot;
-
-  if (root_.empty()) {
-    LOG_DBG("DREG", "No dictionary directory found on SD card");
-    return false;
-  }
-
-  auto rootDir = Storage.open(root_.c_str());
+void DictionaryRegistry::scanRoot(const std::string& root) {
+  auto rootDir = Storage.open(root.c_str());
   if (!rootDir || !rootDir.isDirectory()) {
-    LOG_ERR("DREG", "Could not open dictionary directory: %s", root_.c_str());
+    LOG_ERR("DREG", "Could not open dictionary directory: %s", root.c_str());
     if (rootDir) rootDir.close();
-    return false;
+    return;
   }
 
   rootDir.rewindDirectory();
@@ -57,7 +41,7 @@ bool DictionaryRegistry::discover() {
 
     // Scan the subdirectory for .idx and .ifo files.
     // Folders with multiple .idx or multiple .ifo files are ambiguous and skipped.
-    std::string subPath = root_ + "/" + name;
+    std::string subPath = root + "/" + name;
     entry.close();
 
     auto subDir = Storage.open(subPath.c_str());
@@ -113,10 +97,16 @@ bool DictionaryRegistry::discover() {
     }
 
     if (!ambiguous && foundStem[0] != '\0' && foundDict) {
+      // Jester: the same folder in both roots is one dictionary; the hidden
+      // root is scanned first and wins.
+      if (std::any_of(entries_.begin(), entries_.end(), [&](const DictionaryEntry& d) { return d.name == name; })) {
+        LOG_DBG("DREG", "Skipping %s/%s: same folder already found in another root", root.c_str(), name);
+        continue;
+      }
       DictionaryEntry e;
       e.name = name;
       e.stem = foundStem;
-      e.basePath = root_ + "/" + e.name + "/" + e.stem;
+      e.basePath = root + "/" + e.name + "/" + e.stem;
       entries_.push_back(std::move(e));
       LOG_DBG("DREG", "Found dictionary: %s/%s", name, foundStem);
     } else if (!ambiguous) {
@@ -131,7 +121,24 @@ bool DictionaryRegistry::discover() {
   }
 
   rootDir.close();
-  LOG_DBG("DREG", "Discovery complete: %d dictionaries in %s", static_cast<int>(entries_.size()), root_.c_str());
+}
+
+bool DictionaryRegistry::discover() {
+  entries_.clear();
+  entries_.reserve(16);
+
+  bool foundRoot = false;
+  for (const char* candidate : DICT_ROOT_CANDIDATES) {
+    char resolvedRoot[32];
+    if (!FsHelpers::resolveRootDirectoryIgnoreCase(candidate, resolvedRoot, sizeof(resolvedRoot))) continue;
+    foundRoot = true;
+    scanRoot(resolvedRoot);
+  }
+  if (!foundRoot) {
+    LOG_DBG("DREG", "No dictionary directory found on SD card");
+    return false;
+  }
+  LOG_DBG("DREG", "Discovery complete: %d dictionaries", static_cast<int>(entries_.size()));
 
   // Sort alphabetically by folder name (case-insensitive — matches FileBrowserActivity).
   std::sort(entries_.begin(), entries_.end(), [](const DictionaryEntry& a, const DictionaryEntry& b) {
@@ -152,10 +159,7 @@ bool DictionaryRegistry::discover() {
   return !entries_.empty();
 }
 
-void DictionaryRegistry::clear() {
-  std::vector<DictionaryEntry>().swap(entries_);
-  std::string().swap(root_);
-}
+void DictionaryRegistry::clear() { std::vector<DictionaryEntry>().swap(entries_); }
 
 int DictionaryRegistry::indexOf(const std::string& basePath) const {
   if (basePath.empty()) return -1;

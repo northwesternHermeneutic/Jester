@@ -1,4 +1,4 @@
-## [Jester v0.5]
+## [Jester v1.0]
 
 Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected CrossInk v1.6.1 changes (Library, top and bottom status bars, side-button actions, inline images, fixes).
 
@@ -17,7 +17,7 @@ Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected Cr
 - Clean Screen action: three black and white refreshes, then the page is redrawn.
 - File names, Library titles and Favorites titles wrap to two lines, breaking long words at hyphenation points.
 - Files uploaded over the hotspot carry the browser's date and time.
-- Boot and sleep screens show the ❍ (U+274D) logo, the boot screen with the Jester name and the light and dark sleep screens with "Sleeping" only; Settings > System shows the version as 0.5-build<N>.
+- Boot and sleep screens show the ❍ (U+274D) logo, the boot screen with the Jester name and the light and dark sleep screens with "Sleeping" only; Settings > System shows the version as 1.0-build<N>.
 - Quick Actions can open from a front Left or Right long press, and the Quick Actions screen names that shortcut.
 - Exempt from Global Orientation (in-book menu > Book Options, after Indexing Method): the book keeps its own orientation; rotating it does not change the global orientation, and global changes do not change it.
 - Page Overlay sleep screens use /HomeSleep outside a book, /PortraitSleep in a portrait book and /LandscapeSleep in a landscape book; a missing or empty folder falls back to the normal sleep folder. Until /HomeSleep has images, sleeping from Home shows the light Jester sleep screen.
@@ -56,6 +56,8 @@ Jester is a fork of CrossInk v1.6.0 for the original Xteink X4, with selected Cr
 - In landscape counter-clockwise, menus and lists opened from a book (in-book menu, Look Up Word and the other reader screens) treat the upper front button as Up and label it so, including the Quick Actions popup; page turns on the book page and the Go to % Left/Right steps are unchanged.
 - Status Bars settings: the Top and Bottom previews sit where the reader draws the bars (in landscape the bottom preview was about 50 px too high) and stay clear of the landscape button hints (from CrossInk v1.6.1 code).
 - An orientation chosen in Book Options is kept after sleep, and the page is laid out again for it.
+- Dictionaries are found in both /.dictionaries and /dictionaries (fonts already used both /.fonts and /fonts).
+- Chapters that run short of memory recover more often: a jump to a bookmark, dog ear or Go to % position gets the same one silent restart as opening the book, and a page that cannot be drawn frees the chapter build first.
 
 ## [v1.6.0] - 2026-09-21
 
