@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <utility>
 
 #include "ClippingStore.h"
 #include "CrossInkHalFrontlight.h"
@@ -15,6 +16,7 @@
 #include "MappedInputManager.h"
 #include "Memory.h"
 #include "ReaderUtils.h"
+#include "clippings/ClippingsManager.h"
 #include "components/TouchHeaderBackButton.h"
 #include "components/TouchRegistry.h"
 #include "components/UITheme.h"
@@ -444,10 +446,21 @@ bool EpubReaderMenuActivity::activateSelectedItem() {
   }
 
   if (selectedAction == MenuAction::VIEW_CLIPPINGS) {
-    startActivityForResult(std::make_unique<EpubReaderClippingListActivity>(renderer, mappedInput),
+    startActivityForResult(std::make_unique<EpubReaderClippingListActivity>(renderer, mappedInput,
+                                                                            ClippingsManager::CLIPPINGS_PATH),
                            [this](const ActivityResult& result) {
                              if (result.isCancelled) {
                                requestUpdate();
+                               return;
+                             }
+
+                             if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
+                               // The reader applies the menu's pending orientation, then opens the file.
+                               TextFileResult open = *textFile;
+                               open.orientation = pendingOrientation;
+                               open.hasOrientation = true;
+                               setResult(std::move(open));
+                               finish();
                                return;
                              }
 

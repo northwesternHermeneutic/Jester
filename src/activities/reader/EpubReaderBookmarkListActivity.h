@@ -5,6 +5,7 @@
 #include <I18n.h>
 
 #include <atomic>
+#include <string>
 #include <vector>
 
 #include "../Activity.h"
@@ -17,7 +18,7 @@ class EpubReaderBookmarkListActivity final : public Activity {
   EpubReaderBookmarkListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
                                  const std::vector<Bookmark>& bookmarks, bool shortBook = false,
                                  BookmarkStore* store = nullptr, StrId titleId = StrId::STR_BOOKMARKS,
-                                 StrId emptyId = StrId::STR_NO_BOOKMARKS);
+                                 StrId emptyId = StrId::STR_NO_BOOKMARKS, std::string textFilePath = {});
 
   void onEnter() override;
   void onExit() override;
@@ -33,7 +34,12 @@ class EpubReaderBookmarkListActivity final : public Activity {
   StrId titleId = StrId::STR_BOOKMARKS;
   StrId emptyId = StrId::STR_NO_BOOKMARKS;
   std::vector<Bookmark> bookmarks;
-  int selectedIndex = 0;
+  // Jester (feature 4): when the dog ears text file exists it is row 0, ahead
+  // of the marks, and selecting it asks the caller to open it as text.
+  std::string textFilePath;
+  std::string textFileName;
+  int fileRows = 0;
+  int selectedIndex = 0;  // row; the mark is bookmarks[selectedIndex - fileRows]
   bool confirmingDelete = false;
   ButtonNavigator buttonNavigator;
   OptionPopup confirmPopup;
@@ -47,6 +53,9 @@ class EpubReaderBookmarkListActivity final : public Activity {
   static void listScreen(UiApp::ScreenType& screen, void* user);
   static void onRowEvent(const freeink::ui::ActionEvent& event, void* user);
   void buildListScreen(UiApp::ScreenType& screen);
+  int rowCount() const { return static_cast<int>(bookmarks.size()) + fileRows; }
+  // Index into bookmarks for the selected row, or -1 for the text file row.
+  int selectedMark() const;
   void selectBookmark();
 
   void deleteSelectedBookmark();

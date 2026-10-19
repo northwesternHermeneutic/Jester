@@ -1,5 +1,9 @@
 ## [Jester v1.0.2]
 
+### Added
+
+- The Dog Ears list (Bookmarks & Clippings, or View Dog Ears in a book) starts with the book's dog ears text file, and the Clippings list with `/My Clippings.txt`; selecting it opens the file as text.
+
 ### Changed
 
 - Library: Back (Home) pressed on a book moves to the Switch Library control instead of Refresh.

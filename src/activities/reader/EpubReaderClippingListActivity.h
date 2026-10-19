@@ -14,7 +14,9 @@
 
 class EpubReaderClippingListActivity final : public Activity {
  public:
-  EpubReaderClippingListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput);
+  // textFilePath (Jester, feature 4): the clippings text file, listed first when it exists.
+  EpubReaderClippingListActivity(GfxRenderer& renderer, MappedInputManager& mappedInput,
+                                 std::string textFilePath = {});
 
   void onEnter() override;
   void loop() override;
@@ -24,7 +26,12 @@ class EpubReaderClippingListActivity final : public Activity {
   std::string detailText;
   std::vector<std::string> detailLines;
   ButtonNavigator buttonNavigator;
-  int selectedIndex = 0;
+  // Jester (feature 4): when the text file exists it is row 0, ahead of the
+  // clippings, and selecting it asks the caller to open it as text.
+  std::string textFilePath;
+  std::string textFileName;
+  int fileRows = 0;
+  int selectedIndex = 0;  // row; the clipping is selectedIndex - fileRows
   int detailPage = 0;
   int detailLayoutWidth = 0;
   int detailLinesPerPage = 0;
@@ -46,6 +53,11 @@ class EpubReaderClippingListActivity final : public Activity {
   static void listScreen(UiApp::ScreenType& screen, void* user);
   static void onRowEvent(const freeink::ui::ActionEvent& event, void* user);
   void buildListScreen(UiApp::ScreenType& screen);
+  int rowCount() const { return static_cast<int>(CLIPPINGS.clippingCount()) + fileRows; }
+  bool fileRowSelected() const { return fileRows > 0 && selectedIndex == 0; }
+  // Clipping index for the selected row, or -1 for the text file row.
+  int selectedClippingIndex() const;
+  void openTextFile();
   int getDetailTextWidth() const;
   int getDetailLinesPerPage() const;
   int getDetailPageCount() const;

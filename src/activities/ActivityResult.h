@@ -124,11 +124,20 @@ struct ClippingJumpResult {
   bool settingsChanged = false;
 };
 
+// Jester (feature 4): the dog ear or clipping list asks its caller to open the
+// matching text file in the reader. The X4 reader menu forwards it with the
+// orientation picked in the menu.
+struct TextFileResult {
+  std::string path;
+  uint8_t orientation = 0;
+  bool hasOrientation = false;
+};
+
 using ResultVariant =
     std::variant<std::monostate, WifiResult, KeyboardResult, MenuResult, ChapterResult, PercentResult, IntervalResult,
                  OptionSelectionResult, PageResult, NetworkModeResult, FootnoteResult, BookmarkResult,
                  FileBrowserActionResult, FilePathResult, WordResult, ReadingStatsResult, ClippingResult,
-                 DictionaryClippingRequest, ClippingJumpResult, FrontlightPanelResult>;
+                 DictionaryClippingRequest, ClippingJumpResult, FrontlightPanelResult, TextFileResult>;
 
 struct ActivityResult {
   bool isCancelled = false;

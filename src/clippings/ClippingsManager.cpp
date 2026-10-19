@@ -159,12 +159,20 @@ bool ClippingsManager::saveClipping(const std::string& bookTitle, const std::str
   return true;
 }
 
-bool ClippingsManager::saveDogEar(const std::string& bookFileName, const std::string& bookTitle,
-                                  const std::string& author, const std::string& chapterTitle,
-                                  const std::string& percentLabel, const char* pageLabel,
-                                  const TextWriter writeText, void* context) {
+std::string ClippingsManager::dogEarTextPath(const std::string& bookPath) {
+  std::string fileName = bookPath;
+  const size_t slash = fileName.find_last_of('/');
+  if (slash != std::string::npos) fileName.erase(0, slash + 1);
+  const size_t dot = fileName.find_last_of('.');
+  if (dot != std::string::npos && dot > 0) fileName.resize(dot);
+  return std::string(DOGEARS_TEXT_DIR) + "/dogears-" + fileName + ".txt";
+}
+
+bool ClippingsManager::saveDogEar(const std::string& bookPath, const std::string& bookTitle, const std::string& author,
+                                  const std::string& chapterTitle, const std::string& percentLabel,
+                                  const char* pageLabel, const TextWriter writeText, void* context) {
   Storage.mkdir(DOGEARS_TEXT_DIR);
-  const std::string path = std::string(DOGEARS_TEXT_DIR) + "/dogears-" + bookFileName + ".txt";
+  const std::string path = dogEarTextPath(bookPath);
   FsFile file = Storage.open(path.c_str(), O_RDWR | O_CREAT | O_AT_END);
   if (!file) {
     LOG_ERR("CLIP", "Failed to open %s for append", path.c_str());

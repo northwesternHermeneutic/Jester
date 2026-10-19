@@ -18,6 +18,7 @@
 #include "FileBrowserActionActivity.h"
 #include "MappedInputManager.h"
 #include "activities/util/ConfirmationActivity.h"
+#include "clippings/ClippingsManager.h"
 #include "components/CompactHeader.h"
 #include "components/TouchHeaderBackButton.h"
 #include "components/UITheme.h"
@@ -415,9 +416,9 @@ void SavedItemsHomeActivity::openBookmarkList(const SavedBookEntry& entry) {
 
 void SavedItemsHomeActivity::openDogEarList(const SavedBookEntry& entry) {
   DOGEARS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
-  auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(renderer, mappedInput, DOGEARS.getBookmarks(),
-                                                                savedBookIsShort(entry.bookPath), &DOGEARS,
-                                                                StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS);
+  auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(
+      renderer, mappedInput, DOGEARS.getBookmarks(), savedBookIsShort(entry.bookPath), &DOGEARS, StrId::STR_DOG_EARS,
+      StrId::STR_NO_DOG_EARS, ClippingsManager::dogEarTextPath(entry.bookPath));
   if (!list) {
     LOG_ERR("SVA", "Could not allocate dog ear list");
     requestUpdate();
@@ -425,6 +426,13 @@ void SavedItemsHomeActivity::openDogEarList(const SavedBookEntry& entry) {
   }
   startActivityForResult(std::move(list),
                          [this, entry](const ActivityResult& result) {
+                           const auto* textFile =
+                               result.isCancelled ? nullptr : std::get_if<TextFileResult>(&result.data);
+                           if (textFile) {
+                             DOGEARS.unload();
+                             onSelectBook(textFile->path);
+                             return;
+                           }
                            const auto* mark = result.isCancelled ? nullptr : std::get_if<BookmarkResult>(&result.data);
                            if (mark) {
                              APP_STATE.pendingBookmarkSpine = mark->spineIndex;
@@ -445,11 +453,14 @@ void SavedItemsHomeActivity::openDogEarList(const SavedBookEntry& entry) {
 void SavedItemsHomeActivity::openClippingList(const SavedBookEntry& entry) {
   CLIPPINGS.loadForBook(entry.bookPath, entry.bookTitle, entry.bookAuthor, entry.bookType);
 
-  startActivityForResult(std::make_unique<EpubReaderClippingListActivity>(renderer, mappedInput),
+  startActivityForResult(std::make_unique<EpubReaderClippingListActivity>(renderer, mappedInput,
+                                                                          ClippingsManager::CLIPPINGS_PATH),
                          [this, entry](const ActivityResult& result) {
                            if (!result.isCancelled) {
                              const auto* clipping = std::get_if<ClippingJumpResult>(&result.data);
-                             if (clipping) {
+                             if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
+                               onSelectBook(textFile->path);
+                             } else if (clipping) {
                                APP_STATE.pendingBookmarkSpine = clipping->spineIndex;
                                APP_STATE.pendingBookmarkProgress =
                                    clipping->pageCount > 0 ? static_cast<float>(clipping->page) / clipping->pageCount

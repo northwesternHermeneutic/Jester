@@ -2651,6 +2651,12 @@ void EpubReaderActivity::openReaderMenu() {
       requestUpdate();
       return;
     }
+    // Jester (feature 4): View Clippings > the clippings text file.
+    if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
+      if (textFile->hasOrientation) applyOrientation(textFile->orientation);
+      onSelectBook(textFile->path);
+      return;
+    }
 
     // Always apply orientation change even if the menu was cancelled
     const auto* menu = std::get_if<MenuResult>(&result.data);
@@ -4243,8 +4249,13 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
     }
     case EpubReaderMenuActivity::MenuAction::VIEW_CLIPPINGS: {
       pauseReadingPaceTimer("clipping_list");
-      startActivityForResult(std::make_unique<EpubReaderClippingListActivity>(renderer, mappedInput),
+      startActivityForResult(std::make_unique<EpubReaderClippingListActivity>(renderer, mappedInput,
+                                                                              ClippingsManager::CLIPPINGS_PATH),
                              [this, returnToReaderMenu](const ActivityResult& result) {
+                               if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
+                                 onSelectBook(textFile->path);
+                                 return;
+                               }
                                if (!result.isCancelled) {
                                  const auto& clipping = std::get<ClippingJumpResult>(result.data);
                                  handleClippingJump(clipping);
@@ -5289,13 +5300,6 @@ void EpubReaderActivity::toggleDogEar() {
     return;
   }
 
-  // Book file name without folder or extension, for /DogEars/dogears-<name>.txt.
-  std::string fileName = epub->getPath();
-  const size_t slash = fileName.find_last_of('/');
-  if (slash != std::string::npos) fileName.erase(0, slash + 1);
-  const size_t dot = fileName.find_last_of('.');
-  if (dot != std::string::npos && dot > 0) fileName.resize(dot);
-
   // The record always gives the location to a tenth of a percent.
   char percent[16];
   snprintf(percent, sizeof(percent), "%.1f%%", std::clamp(getCurrentBookProgressPercent(), 0.0f, 100.0f));
@@ -5327,15 +5331,16 @@ void EpubReaderActivity::toggleDogEar() {
     }
   }
   DogEarTextSource source{page.get()};
-  const bool textSaved = ClippingsManager::saveDogEar(fileName, epub->getTitle(), epub->getAuthor(), chapterTitle,
-                                                      percent, pageLabel, &writeDogEarText, &source);
+  const bool textSaved = ClippingsManager::saveDogEar(epub->getPath(), epub->getTitle(), epub->getAuthor(),
+                                                      chapterTitle, percent, pageLabel, &writeDogEarText, &source);
   showFeedback(textSaved ? BookmarkFeedbackType::DogEarAdded : BookmarkFeedbackType::DogEarTextFailed);
 }
 
 void EpubReaderActivity::openDogEarList() {
   auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(
       renderer, mappedInput, DOGEARS.getBookmarks(), epub && BookPercentFormat::isShortBook(epub->getBookSize()),
-      &DOGEARS, StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS);
+      &DOGEARS, StrId::STR_DOG_EARS, StrId::STR_NO_DOG_EARS,
+      epub ? ClippingsManager::dogEarTextPath(epub->getPath()) : std::string{});
   if (!list) {
     LOG_ERR("ERS", "Could not allocate dog ear list");
     requestUpdate();
@@ -5345,6 +5350,10 @@ void EpubReaderActivity::openDogEarList() {
   startActivityForResult(
       std::move(list),
       [this](const ActivityResult& result) {
+        if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
+          onSelectBook(textFile->path);
+          return;
+        }
         if (!result.isCancelled) {
           jumpToSavedLocation(std::get<BookmarkResult>(result.data));
         } else {

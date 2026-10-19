@@ -15,8 +15,10 @@ class ClippingsManager {
   // in the clippings record format, with the book percentage in the location line.
   // `writeText` streams the page text into the open file (no whole-page buffer).
   using TextWriter = bool (*)(void* context, FsFile& file);
-  static bool saveDogEar(const std::string& bookFileName, const std::string& bookTitle, const std::string& author,
+  static bool saveDogEar(const std::string& bookPath, const std::string& bookTitle, const std::string& author,
                          const std::string& chapterTitle, const std::string& percentLabel, const char* pageLabel,
                          TextWriter writeText, void* context);
   static constexpr const char* DOGEARS_TEXT_DIR = "/DogEars";
+  // /DogEars/dogears-<book file name without folder or extension>.txt
+  static std::string dogEarTextPath(const std::string& bookPath);
 };
