@@ -2654,7 +2654,7 @@ void EpubReaderActivity::openReaderMenu() {
     // Jester (feature 4): View Clippings > the clippings text file.
     if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
       if (textFile->hasOrientation) applyOrientation(textFile->orientation);
-      onSelectBook(textFile->path);
+      openTextFileFromBook(textFile->path);
       return;
     }
 
@@ -4253,7 +4253,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
                                                                               ClippingsManager::CLIPPINGS_PATH),
                              [this, returnToReaderMenu](const ActivityResult& result) {
                                if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
-                                 onSelectBook(textFile->path);
+                                 openTextFileFromBook(textFile->path);
                                  return;
                                }
                                if (!result.isCancelled) {
@@ -5336,6 +5336,15 @@ void EpubReaderActivity::toggleDogEar() {
   showFeedback(textSaved ? BookmarkFeedbackType::DogEarAdded : BookmarkFeedbackType::DogEarTextFailed);
 }
 
+void EpubReaderActivity::openTextFileFromBook(const std::string& path) {
+  // Jester (feature 4): Back in the text file returns to this book, and Home
+  // keeps showing this book rather than the text file.
+  if (epub)
+    activityManager.goToTextFromBook(path, epub->getPath());
+  else
+    onSelectBook(path);
+}
+
 void EpubReaderActivity::openDogEarList() {
   auto list = makeUniqueNoThrow<EpubReaderBookmarkListActivity>(
       renderer, mappedInput, DOGEARS.getBookmarks(), epub && BookPercentFormat::isShortBook(epub->getBookSize()),
@@ -5351,7 +5360,7 @@ void EpubReaderActivity::openDogEarList() {
       std::move(list),
       [this](const ActivityResult& result) {
         if (const auto* textFile = std::get_if<TextFileResult>(&result.data)) {
-          onSelectBook(textFile->path);
+          openTextFileFromBook(textFile->path);
           return;
         }
         if (!result.isCancelled) {

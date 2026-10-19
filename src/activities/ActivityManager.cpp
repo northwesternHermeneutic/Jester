@@ -760,6 +760,12 @@ void ActivityManager::goToReader(std::string path, const bool suppressBackReleas
                                                    allowFastInitialRefresh, cleanImageBaseOnEntry));
 }
 
+void ActivityManager::goToTextFromBook(std::string path, std::string returnBookPath) {
+  OPDS_STORE.release();
+  replaceActivity(std::make_unique<ReaderActivity>(renderer, mappedInput, std::move(path), false, false, false,
+                                                   std::move(returnBookPath)));
+}
+
 void ActivityManager::goToReaderAndRunMenuAction(std::string path, const uint8_t action) {
   pendingReaderMenuAction = action;
   goToReader(std::move(path));

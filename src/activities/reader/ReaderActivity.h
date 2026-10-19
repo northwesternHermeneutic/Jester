@@ -21,6 +21,8 @@ class ReaderActivity final : public Activity {
   bool suppressInitialBackRelease = false;
   bool allowFastInitialRefresh = false;
   bool cleanImageBaseOnEntry = false;
+  // Jester (feature 4): book a text file opened from that book's menu returns to.
+  std::string returnBookPath;
   // Non-static (unlike the other loaders): draws the first-open indexing popup, which needs the renderer.
   EpubOpenResult loadEpub(const std::string& path);
   static std::unique_ptr<Xtc> loadXtc(const std::string& path);
@@ -45,12 +47,13 @@ class ReaderActivity final : public Activity {
  public:
   explicit ReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::string initialBookPath,
                           bool suppressInitialBackRelease = false, bool allowFastInitialRefresh = false,
-                          bool cleanImageBaseOnEntry = false)
+                          bool cleanImageBaseOnEntry = false, std::string returnBookPath = {})
       : Activity("Reader", renderer, mappedInput),
         initialBookPath(std::move(initialBookPath)),
         suppressInitialBackRelease(suppressInitialBackRelease),
         allowFastInitialRefresh(allowFastInitialRefresh),
-        cleanImageBaseOnEntry(cleanImageBaseOnEntry) {}
+        cleanImageBaseOnEntry(cleanImageBaseOnEntry),
+        returnBookPath(std::move(returnBookPath)) {}
   void onEnter() override;
   bool isReaderActivity() const override { return true; }
 };

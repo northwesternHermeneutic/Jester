@@ -41,6 +41,7 @@
 #include "components/themes/lyra/LyraCarouselTheme.h"
 #include "components/themes/minimal/MinimalTheme.h"
 #include "fontIds.h"
+#include "images/JesterLogo120.h"
 
 namespace {
 constexpr uint32_t CAROUSEL_CACHE_MAGIC = 0x43434152;  // "CCAR"
@@ -2260,24 +2261,52 @@ void HomeActivity::render(RenderLock&&) {
     homeCoverTileHeight = std::clamp(maxCoverHeight, 0, metrics.homeCoverTileHeight);
   }
 
+  int heroY = metrics.homeTopPadding;
+  int menuStartY = metrics.homeTopPadding + homeCoverTileHeight + metrics.homeMenuTopOffset;
+  int menuEndY = pageHeight - metrics.buttonHintsHeight;
+  constexpr int LOGO_SIZE = 120;  // JesterLogo120
+  int logoY = -1;
+  if (SETTINGS.uiTheme == CrossPointSettings::UI_THEME::BELACQUA) {
+    // Jester (feature 5): Belacqua stacks the hero tile and the menu at the
+    // bottom, Settings one row gap above the button hints, and shows the Jester
+    // logo in the space left under the status bar. LyraTheme::drawButtonMenu
+    // pages after 7 rows.
+    constexpr int MENU_PAGE_ROWS = 7;
+    const int rows = std::min(static_cast<int>(menuItems.size()), MENU_PAGE_ROWS);
+    const int rowsHeight = rows * metrics.menuRowHeight + std::max(0, rows - 1) * metrics.menuSpacing;
+    const int bottomMenuEndY = pageHeight - metrics.buttonHintsHeight - metrics.menuSpacing;
+    const int bottomHeroY = bottomMenuEndY - rowsHeight - metrics.homeMenuTopOffset - homeCoverTileHeight;
+    if (bottomHeroY >= metrics.homeTopPadding) {
+      heroY = bottomHeroY;
+      menuStartY = bottomMenuEndY - rowsHeight;
+      menuEndY = bottomMenuEndY;
+      // The logo bitmap is stored for portrait screens (generate_jester_logo.py).
+      const int gap = heroY - metrics.homeTopPadding;
+      if (renderer.getOrientation() == GfxRenderer::Portrait && gap >= LOGO_SIZE + 2 * metrics.menuSpacing) {
+        logoY = metrics.homeTopPadding + (gap - LOGO_SIZE) / 2;
+      }
+    }
+  }
+
   GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding},
                  metrics.homeContinueReadingInMenu && !recentBooks.empty() ? recentBooks[0].title.c_str() : nullptr);
+  if (logoY >= 0) {
+    renderer.drawImage(JesterLogo120, (pageWidth - LOGO_SIZE) / 2, logoY, LOGO_SIZE, LOGO_SIZE);
+  }
 
   // Record the tile rect so storeCoverBuffer (called from the theme) knows
   // which sub-region of the framebuffer to snapshot. ~16 KB in Portrait
   // instead of the 48 KB full framebuffer the previous bind captured.
   coverRectX = 0;
-  coverRectY = metrics.homeTopPadding;
+  coverRectY = heroY;
   coverRectW = pageWidth;
   coverRectH = homeCoverTileHeight;
 
-  GUI.drawRecentBookCover(renderer, Rect{0, metrics.homeTopPadding, pageWidth, homeCoverTileHeight}, recentBooks,
-                          selectorIndex, coverRendered, coverBufferStored, bufferRestored,
+  GUI.drawRecentBookCover(renderer, Rect{0, heroY, pageWidth, homeCoverTileHeight}, recentBooks, selectorIndex,
+                          coverRendered, coverBufferStored, bufferRestored,
                           std::bind(&HomeActivity::storeCoverBuffer, this),
                           hasAnyBookStats(currentBookStats) ? &currentBookStats : nullptr, currentBookProgressPercent);
 
-  const int menuStartY = metrics.homeTopPadding + homeCoverTileHeight + metrics.homeMenuTopOffset;
-  const int menuEndY = pageHeight - metrics.buttonHintsHeight;
   const int menuHeight = std::max(0, menuEndY - menuStartY);
 
   const bool isCarouselTheme =
@@ -2379,7 +2408,15 @@ void HomeActivity::onLibraryOpen() { activityManager.goToLibrary(); }
 
 void HomeActivity::onSettingsOpen() { activityManager.goToSettings(); }
 
-void HomeActivity::onFileTransferOpen() { activityManager.goToFileTransfer(); }
+void HomeActivity::onFileTransferOpen() {
+#if CROSSINK_APP_CAP_USB_DRIVE
+  activityManager.goToFileTransfer();  // the page also offers USB Drive
+#else
+  // Jester (feature 16): Create Hotspot is the only transfer mode here, so
+  // start it at once instead of opening the File Transfer page.
+  activityManager.goToHotspotFileTransfer();
+#endif
+}
 
 void HomeActivity::onOpdsBrowserOpen() { activityManager.goToBrowser(); }
 

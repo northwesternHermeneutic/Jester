@@ -190,7 +190,7 @@ void ReaderActivity::onGoToTxtReader(std::unique_ptr<Txt> txt) {
   const auto txtPath = txt->getPath();
   currentBookPath = txtPath;
   activityManager.replaceActivity(std::make_unique<TxtReaderActivity>(
-      renderer, mappedInput, std::move(txt), initialRefreshCountdown(), allowFastInitialRefresh));
+      renderer, mappedInput, std::move(txt), initialRefreshCountdown(), allowFastInitialRefresh, returnBookPath));
 }
 
 void ReaderActivity::onEnter() {
@@ -229,6 +229,10 @@ void ReaderActivity::onEnter() {
     discardPendingJump();
     auto txt = loadTxt(initialBookPath);
     if (!txt) {
+      if (!returnBookPath.empty()) {
+        activityManager.goToReader(returnBookPath);
+        return;
+      }
       onGoBack();
       return;
     }

@@ -2,6 +2,8 @@
 
 #include <Txt.h>
 
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "CrossPointSettings.h"
@@ -28,6 +30,10 @@ class TxtReaderActivity final : public Activity {
   bool longPressBackHandled = false;
   bool longPressMenuHandled = false;
   bool skipRecentBookUpdateOnEntry = false;
+  // Jester (feature 4): set when a dog ear or clippings text file is opened
+  // from a book's menu. Back reopens that book, and the text file is neither
+  // added to recent books nor saved as the open book.
+  std::string returnBookPath;
   ReaderProgressSaveDebouncer progressSaveDebouncer;
 #if CROSSINK_APP_CAP_TOUCH
   ReaderPinchGesture pinchFontGesture;
@@ -85,11 +91,13 @@ class TxtReaderActivity final : public Activity {
 
  public:
   explicit TxtReaderActivity(GfxRenderer& renderer, MappedInputManager& mappedInput, std::unique_ptr<Txt> txt,
-                             int initialRefreshCountdown, bool skipRecentBookUpdateOnEntry = false)
+                             int initialRefreshCountdown, bool skipRecentBookUpdateOnEntry = false,
+                             std::string returnBookPath = {})
       : Activity("TxtReader", renderer, mappedInput),
         txt(std::move(txt)),
         pagesUntilFullRefresh(initialRefreshCountdown),
-        skipRecentBookUpdateOnEntry(skipRecentBookUpdateOnEntry) {}
+        skipRecentBookUpdateOnEntry(skipRecentBookUpdateOnEntry),
+        returnBookPath(std::move(returnBookPath)) {}
   void onEnter() override;
   void onExit() override;
   void loop() override;

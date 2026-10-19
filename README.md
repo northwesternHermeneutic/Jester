@@ -73,7 +73,7 @@ The Dark and Light sleep screens show the ❍ logo and "Sleeping".
 
 ### Marking places
 
-- **Dog Ears** (default: hold Select). Marks the page like a bookmark, shows a folded corner in the status bar, and appends the page's text to `/DogEars/dogears-<book>.txt` with the book percentage, the printed (publisher) or stable page number, and the chapter. Dog ears have their own list in the in-book menu and in Bookmarks & Clippings; the first row opens the book's dog ears text file.
+- **Dog Ears** (default: hold Select). Marks the page like a bookmark, shows a folded corner in the status bar, and appends the page's text to `/DogEars/dogears-<book>.txt` with the book percentage, the printed (publisher) or stable page number, and the chapter. Dog ears have their own list in the in-book menu and in Bookmarks & Clippings; the first row opens the book's dog ears text file. Opened from the in-book menu, Back returns to the book and Home keeps showing the book.
 - **Bookmarks and clippings** from CrossInk. Create Clipping uses the same buttons and labels as Look Up Word in every orientation. The first row of the clippings list opens `/My Clippings.txt`.
 - **Unify Bookmarks** (Settings > System, or the in-book menu): after a book was moved or renamed on a computer, re-attaches its bookmarks, dog ears, clippings, favorite and reading position to the new file (matched by title and author in the Library index).
 
@@ -84,7 +84,7 @@ The Dark and Light sleep screens show the ❍ logo and "Sleeping".
 
 ### Home, Library and Favorites
 
-- **Belacqua**, the default UI theme: a hero tile with the current book's title, author and progress (no cover), then Favorites, Files, Library, Bookmarks & Clippings, File Transfer and Settings. Classic and Lyra remain available.
+- **Belacqua**, the default UI theme: the Jester logo under the status bar, then a hero tile with the current book's title, author and progress (no cover), then Favorites, Files, Library, Bookmarks & Clippings, File Transfer and Settings, with Settings just above the button hints. Classic and Lyra remain available.
 - **Favorites**: add or remove a book from its long-press menu or the in-book menu; up to 36 books, sorted by recently added, title or author.
 - **Library** (from CrossInk v1.6.1) with Jester navigation: all four buttons move through the header controls and books, Back moves to the Switch Library control, hold Back goes Home.
 - **Multiple libraries**: make any folder a library from its long-press menu in Files and switch with the Switch Library control. Folders can be excluded from the Library, and **Library Index Limit** keeps only the most recently added books.
@@ -110,7 +110,7 @@ Jester keeps CrossInk's configurable shortcuts and adds front-button long presse
 ### System
 
 - **SD card firmware update** (Settings > SD Card Firmware Update) is always kept working.
-- **File Transfer** creates a hotspot for the web file manager; uploaded files carry the browser's date and time.
+- **File Transfer** creates a hotspot for the web file manager (from Home it starts the hotspot at once); uploaded files carry the browser's date and time.
 - Settings live in `/.crosspoint/jester-settings.json` and are never imported from other firmware, so switching between Jester and CrossInk does not mix settings.
 - After the reset button, the device starts on Home instead of reopening the last book, so a book that is slow to open cannot trap you.
 - `.txt` files with long lines (such as dog-ear files) open quickly.

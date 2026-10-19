@@ -167,14 +167,17 @@ void TxtReaderActivity::onEnter() {
 
   txt->setupCacheDir();
 
-  // Save current txt as last opened file and add to recent books
+  // Save current txt as last opened file and add to recent books. A text file
+  // opened from a book's menu leaves both to that book (Jester, feature 4).
   auto filePath = txt->getPath();
   auto fileName = filePath.substr(filePath.rfind('/') + 1);
-  APP_STATE.openEpubPath = filePath;
-  APP_STATE.saveToFile();
+  if (returnBookPath.empty()) {
+    APP_STATE.openEpubPath = filePath;
+    APP_STATE.saveToFile();
+  }
   SleepCoverAssets::prepareTxt(*txt);
   const std::string coverBmpPath = Storage.exists(txt->getCoverBmpPath().c_str()) ? txt->getCoverBmpPath() : "";
-  if (!skipRecentBookUpdateOnEntry) {
+  if (!skipRecentBookUpdateOnEntry && returnBookPath.empty()) {
     RECENT_BOOKS.addOrUpdateBook(filePath, fileName, "", coverBmpPath);
   }
 
@@ -305,10 +308,14 @@ void TxtReaderActivity::loop() {
     return;
   }
 
-  // Short press BACK goes directly to home
+  // Short press BACK goes directly to home, or back to the book this text
+  // file was opened from (Jester, feature 4).
   if (!touch.prev && !touch.next && mappedInput.wasReleased(MappedInputManager::Button::Back) &&
       mappedInput.getHeldTime() < ReaderUtils::GO_HOME_MS) {
-    onGoHome();
+    if (!returnBookPath.empty())
+      activityManager.goToReader(returnBookPath);
+    else
+      onGoHome();
     return;
   }
 

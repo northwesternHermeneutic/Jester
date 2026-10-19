@@ -2,11 +2,14 @@
 
 ### Added
 
-- The Dog Ears list (Bookmarks & Clippings, or View Dog Ears in a book) starts with the book's dog ears text file, and the Clippings list with `/My Clippings.txt`; selecting it opens the file as text.
+- The Dog Ears list (Bookmarks & Clippings, or View Dog Ears in a book) starts with the book's dog ears text file, and the Clippings list with `/My Clippings.txt`; selecting it opens the file as text. Opened from the in-book menu, Back in the text file returns to the book, and the text file does not replace the book on Home's continue reading tile.
+- Belacqua Home shows the Jester logo under the status bar.
 
 ### Changed
 
 - Library: Back (Home) pressed on a book moves to the Switch Library control instead of Refresh.
+- Belacqua Home: the continue reading tile and the menu sit at the bottom, Settings just above the button hints; the free space is at the top.
+- File Transfer on Home starts the hotspot at once instead of opening the File Transfer page.
 - The version reads Jester_v1.0.2; the firmware file is Jester_v1.0.2.bin.
 
 ## [Jester v1.0.1]

@@ -455,6 +455,7 @@ class EpubReaderActivity final : public Activity {
   // appends the page text to /DogEars/dogears-<book>.txt.
   void toggleDogEar();
   void openDogEarList();
+  void openTextFileFromBook(const std::string& path);
   void jumpToSavedLocation(const BookmarkResult& bm);
   // Jester (feature 13): label of the most recent publisher page break at or
   // before the shown page, for the status bar item.

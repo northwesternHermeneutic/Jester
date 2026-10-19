@@ -134,6 +134,9 @@ class ActivityManager {
   void goToReader(std::string path, bool suppressBackRelease = false, bool allowFastInitialRefresh = false,
                   bool cleanImageBaseOnEntry = false);
   void goToReaderAndRunMenuAction(std::string path, uint8_t action);
+  // Jester (feature 4): a dog ear or clippings text file opened from a book's
+  // menu; Back reopens returnBookPath and Home keeps showing that book.
+  void goToTextFromBook(std::string path, std::string returnBookPath);
   void goToSleep(bool fromTimeout = false);
   void goToBoot();
   void goToFullScreenMessage(std::string message, EpdFontFamily::Style style = EpdFontFamily::REGULAR);
