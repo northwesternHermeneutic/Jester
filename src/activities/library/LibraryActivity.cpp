@@ -947,9 +947,10 @@ void LibraryActivity::handleInput(const LibraryInputBuffer::Event& input) {
   if (input.type == Type::BackRelease) {
     pendingInput.clear();
     if (!mappedInput.hasTouchHardware() && selection >= CONTROL_COUNT) {
-      // Jester (Handoff 5.3): from a book row, Back moves to the header controls.
+      // Jester (Handoff 5.3): from a book row, Back moves to the header controls,
+      // starting at Switch Library (control 5).
       showSelection = true;
-      selection = 0;
+      selection = 5;
       requestUpdate();
     } else if (!query.empty()) {
       query.clear();

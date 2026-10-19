@@ -1,3 +1,10 @@
+## [Jester v1.0.2]
+
+### Changed
+
+- Library: Back (Home) pressed on a book moves to the Switch Library control instead of Refresh.
+- The version reads Jester_v1.0.2; the firmware file is Jester_v1.0.2.bin.
+
 ## [Jester v1.0.1]
 
 A bug-fix release of Jester v1.0.

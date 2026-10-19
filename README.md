@@ -2,7 +2,7 @@
 
 > **Jester is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4**. It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, and keeps the v1.6.0 menus and navigation.
 
-Current version: **1.0.1** (shown on the device as Jester_v1.0.1).
+Current version: **1.0.2** (shown on the device as Jester_v1.0.2).
 
 ### Supported device
 
@@ -86,7 +86,7 @@ The Dark and Light sleep screens show the ❍ logo and "Sleeping".
 
 - **Belacqua**, the default UI theme: a hero tile with the current book's title, author and progress (no cover), then Favorites, Files, Library, Bookmarks & Clippings, File Transfer and Settings. Classic and Lyra remain available.
 - **Favorites**: add or remove a book from its long-press menu or the in-book menu; up to 36 books, sorted by recently added, title or author.
-- **Library** (from CrossInk v1.6.1) with Jester navigation: all four buttons move through the header controls and books, Back moves to the controls, hold Back goes Home.
+- **Library** (from CrossInk v1.6.1) with Jester navigation: all four buttons move through the header controls and books, Back moves to the Switch Library control, hold Back goes Home.
 - **Multiple libraries**: make any folder a library from its long-press menu in Files and switch with the Switch Library control. Folders can be excluded from the Library, and **Library Index Limit** keeps only the most recently added books.
 - The Library keeps its index across sleep, so it does not rescan after every wake. After adding books with a computer while the device sleeps, use **Library > Refresh**.
 - File names, Library titles and Favorites titles wrap to two lines, hyphenating long words.
@@ -163,7 +163,7 @@ Jester runs on an ESP32-C3 with about 380 KB of RAM.
 
 ## Installation
 
-Download the latest `Jester_v<version>.bin` (for example `Jester_v1.0.1.bin`) first.
+Download the latest `Jester_v<version>.bin` (for example `Jester_v1.0.2.bin`) first.
 
 ### With the CrossPoint web flash tool (USB)
 
