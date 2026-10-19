@@ -2,7 +2,7 @@
 
 > **Jester is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4**. It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, and keeps the v1.6.0 menus and navigation.
 
-Current version: **1.0.2** (shown on the device as Jester_v1.0.2).
+Current version: **1.0.3** (shown on the device as Jester_v1.0.3).
 
 ### Supported device
 
@@ -163,7 +163,7 @@ Jester runs on an ESP32-C3 with about 380 KB of RAM.
 
 ## Installation
 
-Download the latest `Jester_v<version>.bin` (for example `Jester_v1.0.2.bin`) first.
+Download the latest `Jester_v<version>.bin` (for example `Jester_v1.0.3.bin`) first.
 
 ### With the CrossPoint web flash tool (USB)
 
