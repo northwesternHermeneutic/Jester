@@ -37,7 +37,7 @@ Capture the whole text of a page like a screenshot, in a text file like a clippi
 
 ### Reading
 
-- **IBM Plex Serif** is the built-in reader and UI font, with a semibold body for e-ink contrast and IPA and Greek coverage. SD-card fonts still work.
+- **IBM Plex Serif** is the built-in reader and UI font, with a Medium body (Medium and Medium Italic, with Bold and Bold Italic for emphasis) for e-ink contrast and IPA and Greek coverage. SD-card fonts still work.
 - **Embedded Style** (publisher CSS) with less memory pressure: large stylesheets are looked up from the SD cache instead of being held in RAM, chapter link targets are kept on the card while a chapter is indexed, and a chapter build that runs short of memory restarts itself instead of stopping with "Chapter needs too much memory".
 - **Inline images** inside text (from CrossInk v1.6.1).
 - **Long footnotes** can be read to the end (previews run up to 24 pages).

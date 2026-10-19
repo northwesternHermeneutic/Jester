@@ -3,10 +3,10 @@ set -e
 cd "$(dirname "$0")"
 SRC="../builtinFonts/source/IBMPlexSerif"
 
-# Semibold swap: the visually heavier SemiBold occupies the regular/italic slots
-# so body text is bolder; true Regular/Italic occupy the bold slots so emphasis
-# still reads as distinct from body text.
-declare -A FACE=( [regular]=SemiBold [italic]=SemiBoldItalic [bold]=Regular [bolditalic]=Italic )
+# Medium body: Medium/Medium Italic occupy the regular/italic slots so body
+# text is a little heavier on e-ink; Bold/Bold Italic occupy the bold slots.
+# Same faces as SD_Card_Extras/Fonts/IBMPlexSerifMedium-ExpandedCoverage.
+declare -A FACE=( [regular]=Medium [italic]=MediumItalic [bold]=Bold [bolditalic]=BoldItalic )
 NOTO="../builtinFonts/source/NotoSerif"
 
 # Coverage transcribed from the tested .cpfont files so the built-in faces
@@ -60,7 +60,7 @@ gen() {  # $1 size  $2 style-slot  $3 interval-array-name  [$4 "stack"]
   local name="plexserif_${size}_${slot}"
   local stack=("$SRC/IBMPlexSerif-${FACE[$slot]}.ttf") fill=()
   if [[ "$4" == "stack" ]]; then
-    # Noto Serif carries the same semibold swap as Plex.
+    # Noto Serif uses the same weights as Plex.
     stack+=("$NOTO/NotoSerif-${FACE[$slot]}.ttf")
     fill=("${NOTO_FILL[@]}")
   fi

@@ -178,9 +178,9 @@ static void logBootHeap(const char* stage) {
   LOG_DBG("BOOTMEM", "%s: free=%u maxAlloc=%u", stage, ESP.getFreeHeap(), ESP.getMaxAllocHeap());
 }
 
-// Fonts. Jester ships one family, IBM Plex Serif with the semibold swap:
-// the regular/italic slots hold SemiBold/SemiBold Italic (heavier body text)
-// and the bold/bolditalic slots hold Regular/Italic (still distinct emphasis).
+// Fonts. Jester ships one family, IBM Plex Serif: the regular/italic slots
+// hold Medium/Medium Italic (slightly heavier body text) and the
+// bold/bolditalic slots hold Bold/Bold Italic.
 EpdFont plexserif8RegularFont(&plexserif_8_regular);
 EpdFont plexserif8BoldFont(&plexserif_8_bold);
 EpdFont plexserif8ItalicFont(&plexserif_8_italic);

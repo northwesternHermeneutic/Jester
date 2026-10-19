@@ -10,6 +10,7 @@
 - Library: Back (Home) pressed on a book moves to the Switch Library control instead of Refresh.
 - Belacqua Home: the continue reading tile and the menu sit at the bottom, Settings just above the button hints; the free space is at the top.
 - File Transfer on Home starts the hotspot at once instead of opening the File Transfer page.
+- The built-in IBM Plex Serif uses Medium and Medium Italic for regular and italic text and Bold and Bold Italic for bold, instead of SemiBold for regular and Regular for bold. Sizes and coverage are unchanged. Books lay out again on first open.
 - The version reads Jester_v1.0.2; the firmware file is Jester_v1.0.2.bin.
 
 ## [Jester v1.0.1]
