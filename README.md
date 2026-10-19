@@ -37,7 +37,7 @@ Capture the whole text of a page like a screenshot, in a text file like a clippi
 
 ### Reading
 
-- **IBM Plex Serif** is the built-in reader and UI font, with a Medium body (Medium and Medium Italic, with Bold and Bold Italic for emphasis) for e-ink contrast and IPA and Greek coverage. SD-card fonts still work.
+- **Jester Serif** is the built-in reader and UI font: Jester's build of IBM Plex Serif, with a Medium body (Medium and Medium Italic, with Bold and Bold Italic for emphasis) for e-ink contrast and IPA and Greek coverage. SD-card fonts still work; copy their folders to `/fonts` on the card.
 - **Embedded Style** (publisher CSS) with less memory pressure: large stylesheets are looked up from the SD cache instead of being held in RAM, chapter link targets are kept on the card while a chapter is indexed, and a chapter build that runs short of memory restarts itself instead of stopping with "Chapter needs too much memory".
 - **Inline images** inside text (from CrossInk v1.6.1).
 - **Long footnotes** can be read to the end (previews run up to 24 pages).
@@ -140,7 +140,7 @@ These v1.6.1 changes were deliberately not taken:
 Removed features are hidden and switched off; their saved values are kept reserved.
 
 - Reading statistics, time left, focus (bionic) reading, guide dots and auto page turn.
-- Wi-Fi networks, KOReader Sync, OPDS, Check for Updates, Calibre Wireless and Nearby transfers.
+- Wi-Fi networks, KOReader Sync, OPDS, Check for Updates, Download Fonts, Calibre Wireless and Nearby transfers. The firmware carries no HTTPS library.
 - Publisher page numbers in the page margin (they appear as a status bar item instead).
 - UI themes other than Classic, Lyra and Belacqua; sleep screens other than None, Dark, Light, Custom, Page Overlay and Quick Resume.
 - CrossInk's reader fonts (Lexend Deca, Bitter) and non-English UI languages.
@@ -206,6 +206,7 @@ Jester builds on the work of these projects. All are MIT-licensed unless noted.
 - **[inx](https://github.com/obijuankenobiii/inx)**: the on-demand, versioned book-state file that Favorites is modelled on.
 - **[casper](https://github.com/tweakerinc/casper)**: lessons on capturing a page's text safely (dog ears) and on avoiding wasted Home work.
 - **[YACP](https://github.com/Sichroteph/YACP)** by Sichroteph, via CrossInk: no-op write suppression and per-fragment layout checks.
-- **[IBM Plex Serif](https://github.com/IBM/plex)** (SIL Open Font License 1.1).
+- **[IBM Plex Serif](https://github.com/IBM/plex)** by IBM (SIL Open Font License 1.1): the source of the built-in Jester Serif. The licence reserves the name "Plex", so the converted font carries another name; it is not endorsed by IBM.
+- **[Noto Serif](https://github.com/notofonts/latin-greek-cyrillic)** and **Noto Sans Symbols 2** (SIL Open Font License 1.1): Greek and IPA characters in Jester Serif, and UI symbols.
 
-Licensed under the MIT License, like CrossPoint Reader and CrossInk.
+Licensed under the MIT License, like CrossPoint Reader and CrossInk. The firmware also contains third-party components under their own licences, listed with their licence texts in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -10,8 +10,13 @@
 - Library: Back (Home) pressed on a book moves to the Switch Library control instead of Refresh.
 - Belacqua Home: the continue reading tile and the menu sit at the bottom, Settings just above the button hints; the free space is at the top.
 - File Transfer on Home starts the hotspot at once instead of opening the File Transfer page.
-- The built-in IBM Plex Serif uses Medium and Medium Italic for regular and italic text and Bold and Bold Italic for bold, instead of SemiBold for regular and Regular for bold. Sizes and coverage are unchanged. Books lay out again on first open.
+- The built-in font is now called Jester Serif. It is built from IBM Plex Serif, whose licence reserves the name "Plex" for unmodified fonts. It uses Medium and Medium Italic for regular and italic text and Bold and Bold Italic for bold, instead of SemiBold for regular and Regular for bold. Sizes and coverage are unchanged. Books lay out again on first open.
 - The version reads Jester_v1.0.2; the firmware file is Jester_v1.0.2.bin.
+- THIRD_PARTY_NOTICES.md lists the third-party components in the firmware with their licence texts.
+
+### Removed
+
+- Download Fonts (Settings > Reader). The firmware no longer includes the wolfSSL HTTPS library (GPL), which only Download Fonts still used. Install SD-card fonts by copying their folders to `/fonts`.
 
 ## [Jester v1.0.1]
 
