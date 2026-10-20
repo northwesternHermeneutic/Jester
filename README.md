@@ -115,7 +115,7 @@ Quick Actions holds Look Up Word, Dog Ear, Library, Create Hotspot and Clean Scr
 | Reading stats, time left, focus reading, guide dots, auto page turn | Removed | Yes | Yes |
 | Wi-Fi networks, KOReader Sync, OPDS, Calibre, Nearby, update check, Download Fonts | Removed (File Transfer by hotspot only; no HTTPS library) | Yes | Yes |
 | UI themes | Classic, Lyra, Belacqua | All CrossInk themes | All CrossInk themes |
-| Reader fonts and UI languages | Jester Serif plus SD fonts; English | CrossInk fonts; many languages | CrossInk fonts; many languages |
+| Reader fonts and UI languages | Jester Serif plus SD fonts; English and 11 Western European languages | CrossInk fonts; 28 languages | CrossInk fonts; 28 languages |
 
 Jester also takes fixes from CrossInk development after v1.6.1, such as the page-turn crash at the end of a book (#822) and per-fragment layout memory checks. Removed features are hidden and switched off; their saved values stay reserved. See [CHANGELOG.md](./CHANGELOG.md) for everything.
 

@@ -3,6 +3,15 @@
 ### Added
 
 - Favorites shows "(Hold Home to Change)" after the sort name when the row has room.
+- Interface languages (Settings > System > Language): Catalan, Danish, Dutch, Finnish, French, German, Italian, Portuguese (Brazil and Portugal), Spanish, Swedish and Valencian, with CrossInk's latest community translations (CrossInk `1930eb23`, `f625a008`). Jester's own menu items stay in English.
+- Web file upload: choose whether the EPUB optimizer removes embedded fonts; removal is on by default (CrossInk `df068c49`). The X4 cannot use fonts embedded in EPUBs.
+
+### Fixed
+
+- Words in long EPUB paragraphs are no longer split between text chunks, including non-Latin text and combining marks (CrossInk `8c77f7fa`, #844). It applies to chapters indexed after the update; clear `.crosspoint/epub_*` to apply it to books opened before.
+- SD-card fonts use less lookup-table memory when they include supplementary Unicode ranges, and fewer cache allocations while keeping kerning (CrossInk `17194d2a`, `8ffb5936`).
+- EPUB3 series are read by collection ID even when declared out of order (CrossInk `8ffb5936`); the Library reads book metadata again once after the update.
+- Web uploads store file names in composed Unicode (NFC), and web dialogs stay open after a text-selection drag ends outside them (CrossInk `95e8dcab`, `753e555e`).
 
 ### Changed
 
