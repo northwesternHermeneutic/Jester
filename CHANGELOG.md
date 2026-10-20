@@ -6,6 +6,15 @@
 - Interface languages (Settings > System > Language): Catalan, Danish, Dutch, Finnish, French, German, Italian, Portuguese (Brazil and Portugal), Spanish, Swedish and Valencian, with CrossInk's latest community translations (CrossInk `1930eb23`, `f625a008`). Jester's own menu items stay in English.
 - Web file upload: choose whether the EPUB optimizer removes embedded fonts; removal is on by default (CrossInk `df068c49`). The X4 cannot use fonts embedded in EPUBs.
 
+### Changed
+
+- The version reads Jester_v1.0.4; the firmware file is Jester_v1.0.4.bin.
+- New defaults. Controls: hold front Left = Look Up Word, hold front Right = Dog Ear, hold Select = Quick Actions, hold Back = Footnotes, hold side Up = Landscape Flip, hold side Down = Create Clipping, Power + Up = Refresh Screen, Quick-return from Footnotes off. Quick Actions: Look Up Word, Dog Ear, Library, Create Hotspot, Clean Screen. Bottom status bar centre: Stable Page Number. Library: series and genre lines off, Index Limit 200 books. Defaults apply to a new settings file; delete `/.crosspoint/jester-settings.json` to get them.
+- Home menu order: Library, Favorites, Bookmarks & Clippings, File Transfer, Browse Files, Settings.
+- Library opens on the Sort control. Its Back hint reads Back: from a book, Back moves to Switch Library, further presses move through the top bar, and Back on Refresh leaves the Library. Hold Back still leaves at once.
+- README shortened, with a feature table comparing Jester, CrossInk v1.6.1 and CrossInk v1.6.0, and an explanation of the redacted sleep screens.
+- Page Overlay sleep folders moved into one `/Sleep` folder: `/Sleep/PortraitSleep`, `/Sleep/LandscapeSleep`, `/Sleep/HomeSleep`, and the new `/Sleep/UniversalSleep`, whose images, when it has any, are used for every sleep. Root-level `/PortraitSleep`, `/LandscapeSleep` and `/HomeSleep` are no longer read; move them into `/Sleep`. Empty sleep folders no longer clear the sleep image index on every sleep.
+
 ### Fixed
 
 - Words in long EPUB paragraphs are no longer split between text chunks, including non-Latin text and combining marks (CrossInk `8c77f7fa`, #844). It applies to chapters indexed after the update; clear `.crosspoint/epub_*` to apply it to books opened before.
@@ -15,15 +24,6 @@
 - Night Mode shows EPUB images dithered in black and white instead of as dark silhouettes; the grayscale passes, which the panel skips in Night Mode, are no longer run (CrossInk `a8b33aa7`, #825).
 - Look Up Word finds French words with contracted prefixes such as l', d' and qu' (CrossInk `1babd9da`, #793).
 - Go to % and the end-of-book prompt find their chapter with a binary search instead of scanning every chapter before it, and 1-bit BMP covers and sleep images (such as the redacted Page Overlay screens) decode faster (CrossInk `52e9fc49`).
-
-### Changed
-
-- The version reads Jester_v1.0.4; the firmware file is Jester_v1.0.4.bin.
-- New defaults. Controls: hold front Left = Look Up Word, hold front Right = Dog Ear, hold Select = Quick Actions, hold Back = Footnotes, hold side Up = Landscape Flip, hold side Down = Create Clipping, Power + Up = Refresh Screen, Quick-return from Footnotes off. Quick Actions: Look Up Word, Dog Ear, Library, Create Hotspot, Clean Screen. Bottom status bar centre: Stable Page Number. Library: series and genre lines off, Index Limit 200 books. Defaults apply to a new settings file; delete `/.crosspoint/jester-settings.json` to get them.
-- Home menu order: Library, Favorites, Bookmarks & Clippings, File Transfer, Browse Files, Settings.
-- Library opens on the Sort control. Its Back hint reads Back: from a book, Back moves to Switch Library, further presses move through the top bar, and Back on Refresh leaves the Library. Hold Back still leaves at once.
-- README shortened, with a feature table comparing Jester, CrossInk v1.6.1 and CrossInk v1.6.0, and an explanation of the redacted sleep screens.
-- Page Overlay sleep folders moved into one `/Sleep` folder: `/Sleep/PortraitSleep`, `/Sleep/LandscapeSleep`, `/Sleep/HomeSleep`, and the new `/Sleep/UniversalSleep`, whose images, when it has any, are used for every sleep. Root-level `/PortraitSleep`, `/LandscapeSleep` and `/HomeSleep` are no longer read; move them into `/Sleep`. Empty sleep folders no longer clear the sleep image index on every sleep.
 
 ## [Jester v1.0.3]
 
