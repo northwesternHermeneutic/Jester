@@ -12,6 +12,9 @@
 - SD-card fonts use less lookup-table memory when they include supplementary Unicode ranges, and fewer cache allocations while keeping kerning (CrossInk `17194d2a`, `8ffb5936`).
 - EPUB3 series are read by collection ID even when declared out of order (CrossInk `8ffb5936`); the Library reads book metadata again once after the update.
 - Web uploads store file names in composed Unicode (NFC), and web dialogs stay open after a text-selection drag ends outside them (CrossInk `95e8dcab`, `753e555e`).
+- Night Mode shows EPUB images dithered in black and white instead of as dark silhouettes; the grayscale passes, which the panel skips in Night Mode, are no longer run (CrossInk `a8b33aa7`, #825).
+- Look Up Word finds French words with contracted prefixes such as l', d' and qu' (CrossInk `1babd9da`, #793).
+- Go to % and the end-of-book prompt find their chapter with a binary search instead of scanning every chapter before it, and 1-bit BMP covers and sleep images (such as the redacted Page Overlay screens) decode faster (CrossInk `52e9fc49`).
 
 ### Changed
 
