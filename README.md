@@ -84,7 +84,7 @@ The Dark and Light sleep screens show the ❍ logo and "Sleeping".
 
 ### Home, Library and Favorites
 
-- **Belacqua**, the default UI theme: the Jester logo under the status bar, then a hero tile with the current book's title, author and progress (no cover), then Favorites, Files, Library, Bookmarks & Clippings, File Transfer and Settings, with Settings just above the button hints. Classic and Lyra remain available.
+- **Belacqua**, the default UI theme: the Jester logo under the status bar, then a hero tile with the current book's title, author and progress (no cover), then Favorites, Files, Library, Bookmarks & Clippings, File Transfer and Settings, at the bottom with a gap above the button hints. Classic and Lyra remain available.
 - **Favorites**: add or remove a book from its long-press menu or the in-book menu; up to 36 books, sorted by recently added, title or author.
 - **Library** (from CrossInk v1.6.1) with Jester navigation: all four buttons move through the header controls and books, Back moves to the Switch Library control, hold Back goes Home.
 - **Multiple libraries**: make any folder a library from its long-press menu in Files and switch with the Switch Library control. Folders can be excluded from the Library, and **Library Index Limit** keeps only the most recently added books.

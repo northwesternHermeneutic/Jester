@@ -10,6 +10,7 @@ Licence clean-up before publishing; includes everything in v1.0.2.
 
 - The built-in font is shown as Jester Serif. It is built from IBM Plex Serif, whose licence reserves the name "Plex" for unmodified fonts.
 - The version reads Jester_v1.0.3; the firmware file is Jester_v1.0.3.bin.
+- Belacqua Home: the logo, the continue reading tile and the menu sit one menu icon height (32 px) higher, taken from the space above the logo, so Settings has a gap above the button hints.
 
 ### Removed
 

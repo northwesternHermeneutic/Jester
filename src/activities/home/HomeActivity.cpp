@@ -2268,23 +2268,29 @@ void HomeActivity::render(RenderLock&&) {
   int logoY = -1;
   if (SETTINGS.uiTheme == CrossPointSettings::UI_THEME::BELACQUA) {
     // Jester (feature 5): Belacqua stacks the hero tile and the menu at the
-    // bottom, Settings one row gap above the button hints, and shows the Jester
-    // logo in the space left under the status bar. LyraTheme::drawButtonMenu
-    // pages after 7 rows.
+    // bottom and shows the Jester logo in the space left under the status bar.
+    // Placed with Settings one row gap above the button hints and the logo
+    // centred, then everything is lifted by up to one menu icon height, taken
+    // from the space above the logo: Settings ends up that much further from
+    // the hints. LyraTheme::drawButtonMenu pages after 7 rows.
     constexpr int MENU_PAGE_ROWS = 7;
+    constexpr int BOTTOM_LIFT = 32;  // LyraTheme mainMenuIconSize
     const int rows = std::min(static_cast<int>(menuItems.size()), MENU_PAGE_ROWS);
     const int rowsHeight = rows * metrics.menuRowHeight + std::max(0, rows - 1) * metrics.menuSpacing;
     const int bottomMenuEndY = pageHeight - metrics.buttonHintsHeight - metrics.menuSpacing;
     const int bottomHeroY = bottomMenuEndY - rowsHeight - metrics.homeMenuTopOffset - homeCoverTileHeight;
     if (bottomHeroY >= metrics.homeTopPadding) {
-      heroY = bottomHeroY;
-      menuStartY = bottomMenuEndY - rowsHeight;
-      menuEndY = bottomMenuEndY;
       // The logo bitmap is stored for portrait screens (generate_jester_logo.py).
-      const int gap = heroY - metrics.homeTopPadding;
+      const int gap = bottomHeroY - metrics.homeTopPadding;
+      int lift = std::min(BOTTOM_LIFT, gap);
       if (renderer.getOrientation() == GfxRenderer::Portrait && gap >= LOGO_SIZE + 2 * metrics.menuSpacing) {
-        logoY = metrics.homeTopPadding + (gap - LOGO_SIZE) / 2;
+        const int centredLogoY = metrics.homeTopPadding + (gap - LOGO_SIZE) / 2;
+        lift = std::min(BOTTOM_LIFT, centredLogoY - metrics.homeTopPadding - metrics.menuSpacing);
+        logoY = centredLogoY - lift;
       }
+      heroY = bottomHeroY - lift;
+      menuStartY = bottomMenuEndY - rowsHeight - lift;
+      menuEndY = bottomMenuEndY - lift;
     }
   }
 
