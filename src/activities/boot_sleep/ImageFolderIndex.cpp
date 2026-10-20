@@ -88,7 +88,8 @@ bool pathsIntersect(std::string_view a, std::string_view b, const bool ignoreCas
 }
 
 // Folders this module indexes: the configurable sleep-image folder plus the
-// fixed-name folders (sleep, boot-screen and Jester's Page Overlay folders). Boot-screen has no
+// fixed-name folders (sleep, boot-screen). The /sleep prefix also covers
+// Jester's Page Overlay folders inside /Sleep. Boot-screen has no
 // configurable folder, unlike sleep's preferredSleepFolderPath.
 bool isTrackedImageFolderPath(std::string_view path) {
   if (path.empty()) return false;
@@ -97,8 +98,7 @@ bool isTrackedImageFolderPath(std::string_view path) {
          pathHasPrefix("/.sleep", path, true) || pathHasPrefix(path, "/sleep", true) ||
          pathHasPrefix("/sleep", path, true) || pathHasPrefix(path, "/.bootscreen", true) ||
          pathHasPrefix("/.bootscreen", path, true) || pathHasPrefix(path, "/bootscreen", true) ||
-         pathHasPrefix("/bootscreen", path, true) || pathsIntersect(path, "/HomeSleep", true) ||
-         pathsIntersect(path, "/PortraitSleep", true) || pathsIntersect(path, "/LandscapeSleep", true);
+         pathHasPrefix("/bootscreen", path, true);
 }
 
 bool makeCachePath(const std::string& directory, const bool includePng, char* output, const size_t outputSize) {

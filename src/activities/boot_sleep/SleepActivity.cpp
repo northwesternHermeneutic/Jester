@@ -326,8 +326,8 @@ bool tryOpenSleepDirectory(FsFile& dir, std::string& sleepDir, const std::string
   return false;
 }
 
-// Jester: Page Overlay can use a folder per context. A missing or empty
-// context folder falls back to the normal sleep folder.
+// Jester: Page Overlay can use a folder per context, all inside /Sleep. A
+// missing or empty context folder falls back to the normal sleep folder.
 bool resolvePreferredSleepDirectory(std::string& sleepDir, const char* contextFolder = nullptr) {
   sleepDir.clear();
 
@@ -338,9 +338,14 @@ bool resolvePreferredSleepDirectory(std::string& sleepDir, const char* contextFo
   };
 
   if (contextFolder) {
-    char contextDir[32];
-    return FsHelpers::resolveRootDirectoryIgnoreCase(contextFolder, contextDir, sizeof(contextDir)) &&
-           folderExists(contextDir);
+    // The /Sleep subfolders are nested, so resolveRootDirectoryIgnoreCase does
+    // not apply; FAT and exFAT lookups ignore case already.
+    FsFile contextDir = Storage.open(contextFolder);
+    const bool isDirectory = contextDir && contextDir.isDirectory();
+    contextDir.close();
+    if (!isDirectory) return false;
+    sleepDir = contextFolder;
+    return true;
   }
 
   if (folderExists(APP_STATE.preferredSleepFolderPath)) return true;
@@ -396,6 +401,33 @@ bool selectPinnedSleepImage(SleepImageMode mode, SleepImageSelection& selection)
   return false;
 }
 
+// Jester: stops at the first usable image, so it reads little of a full folder.
+// The /Sleep subfolders are often empty, and /Sleep itself (the normal sleep
+// folder fallback) usually holds only them. A failed ImageFolderIndex::select
+// removes every cached index, so folders without images are skipped before it.
+bool folderHasSleepImage(const std::string& directory, const bool allowPng) {
+  FsFile dir = Storage.open(directory.c_str());
+  if (!dir || !dir.isDirectory()) {
+    dir.close();
+    return false;
+  }
+  char name[256];  // FAT long filenames are at most 255 bytes.
+  bool found = false;
+  while (!found) {
+    FsFile file = dir.openNextFile();
+    if (!file) break;
+    if (!file.isDirectory()) {
+      file.getName(name, sizeof(name));
+      const std::string_view filename(name);
+      found = !filename.empty() && filename.front() != '.' &&
+              (FsHelpers::hasBmpExtension(filename) || (allowPng && FsHelpers::hasPngExtension(filename)));
+    }
+    file.close();
+  }
+  dir.close();
+  return found;
+}
+
 bool selectRandomSleepImage(SleepImageMode mode, SleepImageSelection& selection, bool validateBmpHeaders = false,
                             bool bmpOnly = false, const char* contextFolder = nullptr) {
   FsFile dir;
@@ -403,6 +435,7 @@ bool selectRandomSleepImage(SleepImageMode mode, SleepImageSelection& selection,
   if (!resolvePreferredSleepDirectory(sleepDir, contextFolder)) return false;
 
   const bool allowPng = mode == SleepImageMode::Overlay && !bmpOnly;
+  if (!folderHasSleepImage(sleepDir, allowPng)) return false;
   ImageFolderIndex::Selection indexedSelection;
   if (ImageFolderIndex::select(sleepDir, allowPng, validateBmpHeaders, APP_STATE.recentSleepImages,
                                CrossPointState::SLEEP_RECENT_COUNT, APP_STATE.recentSleepPos, APP_STATE.recentSleepFill,
@@ -1208,18 +1241,24 @@ void SleepActivity::renderOverlaySleepScreen() const {
   if (selectPinnedSleepImage(SleepImageMode::Overlay, selection)) {
     trySelectedOverlay(selection);
   }
-  // Jester: Home, portrait book and landscape book each have their own folder.
-  const char* contextFolder = "/HomeSleep";
+  // Jester: everything lives in /Sleep. Images in /Sleep/UniversalSleep are
+  // used for every sleep; otherwise Home, portrait books and landscape books
+  // each have their own subfolder.
+  static constexpr char UNIVERSAL_SLEEP_FOLDER[] = "/Sleep/UniversalSleep";
+  const char* contextFolder = "/Sleep/HomeSleep";
   if (APP_STATE.lastSleepFromReader) {
     const bool landscape = sleepPopupOrientation == GfxRenderer::Orientation::LandscapeClockwise ||
                            sleepPopupOrientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
-    contextFolder = landscape ? "/LandscapeSleep" : "/PortraitSleep";
+    contextFolder = landscape ? "/Sleep/LandscapeSleep" : "/Sleep/PortraitSleep";
   }
   if (!overlayDrawn && !pngOverlayFallbackMustUseDefault) {
-    if (selectRandomSleepImage(SleepImageMode::Overlay, selection, false, false, contextFolder)) {
+    if (selectRandomSleepImage(SleepImageMode::Overlay, selection, false, false, UNIVERSAL_SLEEP_FOLDER)) {
+      contextFolder = UNIVERSAL_SLEEP_FOLDER;
+      trySelectedOverlay(selection);
+    } else if (selectRandomSleepImage(SleepImageMode::Overlay, selection, false, false, contextFolder)) {
       trySelectedOverlay(selection);
     } else if (!APP_STATE.lastSleepFromReader) {
-      // Jester placeholder: Home without /HomeSleep images shows the light Jester sleep screen.
+      // Jester placeholder: Home without /Sleep/HomeSleep images shows the light Jester sleep screen.
       renderer.setOrientation(savedOrientation);
       return renderDefaultSleepScreen(/*forceLight=*/true);
     } else {

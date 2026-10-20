@@ -11,6 +11,7 @@
 - Home menu order: Library, Favorites, Bookmarks & Clippings, File Transfer, Browse Files, Settings.
 - Library opens on the Sort control. Its Back hint reads Back: from a book, Back moves to Switch Library, further presses move through the top bar, and Back on Refresh leaves the Library. Hold Back still leaves at once.
 - README shortened, with a feature table comparing Jester, CrossInk v1.6.1 and CrossInk v1.6.0, and an explanation of the redacted sleep screens.
+- Page Overlay sleep folders moved into one `/Sleep` folder: `/Sleep/PortraitSleep`, `/Sleep/LandscapeSleep`, `/Sleep/HomeSleep`, and the new `/Sleep/UniversalSleep`, whose images, when it has any, are used for every sleep. Root-level `/PortraitSleep`, `/LandscapeSleep` and `/HomeSleep` are no longer read; move them into `/Sleep`. Empty sleep folders no longer clear the sleep image index on every sleep.
 
 ## [Jester v1.0.3]
 
