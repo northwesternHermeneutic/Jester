@@ -482,8 +482,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t statusBarBattery = 1;
   uint8_t xtcStatusBarMode = XTC_STATUS_BAR_HIDE;
   // Jester defaults (feature 13): top bar empty; bottom bar Battery in the
-  // first left slot, Publisher Page Number in the center and book percentage
-  // (one decimal, feature 2) in the first right slot; no progress bar.
+  // first left slot, Stable Page Number in the center (since v1.0.4) and book
+  // percentage (one decimal, feature 2) in the first right slot; no progress bar.
   ReaderStatusBarConfig topReaderStatusBar = [] {
     ReaderStatusBarConfig config;
     config.percentageFormat = BOOK_PERCENTAGE_ONE_DECIMAL;
@@ -495,7 +495,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     config.slots = {ReaderStatusBarItem::Battery,
                     ReaderStatusBarItem::Empty,
                     ReaderStatusBarItem::Empty,
-                    ReaderStatusBarItem::PublisherPageNumber,
+                    ReaderStatusBarItem::StablePageNumber,
                     ReaderStatusBarItem::BookProgressPercentage,
                     ReaderStatusBarItem::Empty,
                     ReaderStatusBarItem::Empty};
@@ -551,7 +551,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t longPwrBtn = SLEEP;
   // Power + Up shortcut action. Disabled by default so the established
   // Power + Down screenshot chord remains screenshot-only.
-  uint8_t powerChordAction = CHORD_LANDSCAPE_FLIP;  // Jester default (features 7, 10)
+  uint8_t powerChordAction = CHORD_FORCE_REFRESH;  // Jester default (feature 10, v1.0.4)
   // Up + Down shortcut action. On touch hardware, while the reader touchscreen
   // is disabled, this chord instead opens Settings as the recovery route.
   uint8_t sideButtonChordAction = CHORD_DISABLED;
@@ -576,15 +576,16 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t sideButtonOrientationAware = 0;
   // Legacy shared side-button long action, retained for migration only.
   uint8_t sideButtonLongPress = SIDE_LONG_CHAPTER_SKIP;
-  // Jester defaults (feature 10 v4): short Up/Down turn pages, long Up opens
-  // Quick Actions (its owning trigger below), long Down looks up a word.
+  // Jester defaults (feature 10, v1.0.4): short Up/Down turn pages, long Up
+  // flips landscape, long Down creates a clipping.
   uint8_t sideButtonUpShort = PREVIOUS_PAGE;
-  uint8_t sideButtonUpLong = QUICK_ACTIONS;
+  uint8_t sideButtonUpLong = LANDSCAPE_FLIP;
   uint8_t sideButtonDownShort = PAGE_TURN;
-  uint8_t sideButtonDownLong = LOOKUP_WORD;
-  // Jester (feature 20): front Left/Right long-press actions (side-button catalog); off by default.
-  uint8_t frontLeftLong = IGNORE;
-  uint8_t frontRightLong = IGNORE;
+  uint8_t sideButtonDownLong = CREATE_CLIPPING;
+  // Jester (feature 20): front Left/Right long-press actions (side-button catalog).
+  // Defaults since v1.0.4: Left looks up a word, Right adds a dog ear.
+  uint8_t frontLeftLong = LOOKUP_WORD;
+  uint8_t frontRightLong = DOG_EAR;
   // Front button remap (logical -> hardware)
   // Used by MappedInputManager to translate logical buttons into physical front buttons.
   uint8_t frontButtonBack = FRONT_HW_BACK;
@@ -644,7 +645,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
   // Quick-return from footnotes when a footnote shortcut is active.
-  uint8_t pwrBtnFootnoteBack = 1;
+  uint8_t pwrBtnFootnoteBack = 0;  // Jester default (v1.0.4)
   // Use book's embedded CSS styles for EPUB rendering (1 = enabled, 0 = disabled)
   uint8_t embeddedStyle = 0;  // Jester default (feature 9)
   // EPUB section indexing policy. The current chapter keeps its active build.
@@ -668,12 +669,12 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Prefer embedded EPUB titles/authors in Library; disable for filename-only scans.
   uint8_t libraryUseMetadata = 1;
   // Jester (feature 19): index into JesterLibraries::INDEX_LIMIT_VALUES; 9 = All Books.
-  uint8_t libraryIndexLimit = 9;
+  uint8_t libraryIndexLimit = 5;  // Jester default (v1.0.4): 200 books
   uint8_t librarySortMethod = 4;
   uint8_t librarySortDescending = 1;
   uint8_t libraryListExpanded = 1;
-  uint8_t libraryShowSeries = 1;
-  uint8_t libraryShowGenre = 1;
+  uint8_t libraryShowSeries = 0;  // Jester default (v1.0.4)
+  uint8_t libraryShowGenre = 0;   // Jester default (v1.0.4)
   uint8_t libraryShowEpub = 1;
   uint8_t libraryShowXtc = 1;
   uint8_t libraryShowTxt = 1;
@@ -694,17 +695,17 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Image rendering mode in EPUB reader
   uint8_t imageRendering = IMAGES_DISPLAY;
   // Long-press Confirm (menu button) quick action in reader (0 = off)
-  // Jester default (feature 10 v4): Dog Ear; inactive until feature 4 lands.
-  uint8_t longPressMenuAction = LONG_MENU_DOG_EAR;
+  // Jester default (feature 10, v1.0.4): Quick Actions (its owning trigger below).
+  uint8_t longPressMenuAction = LONG_MENU_QUICK_ACTIONS;
   // Long-press Back quick action in reader (defaults to the historical file browser shortcut)
   uint8_t longPressBackAction = LONG_MENU_FOOTNOTES;  // Jester default (feature 10 v4)
   // Five reusable reader commands and their single owning shortcut. Keep these
   // adjacent so old settings files simply retain their default-initialized tail.
-  // Jester default Quick Actions (feature 10 v4).
-  uint8_t quickActionSlots[5] = {LANDSCAPE_FLIP, CREATE_CLIPPING, CREATE_HOTSPOT, CLEAN_SCREEN, LIBRARY};
-  // Raw QuickActions::Trigger::SideUpLong (static_assert in QuickActions.h). Must agree
-  // with sideButtonUpLong so two gestures never claim the Quick Actions menu.
-  uint8_t quickActionsTrigger = 11;  // Jester default (feature 10 v4)
+  // Jester default Quick Actions (feature 10, v1.0.4).
+  uint8_t quickActionSlots[5] = {LOOKUP_WORD, DOG_EAR, LIBRARY, CREATE_HOTSPOT, CLEAN_SCREEN};
+  // Raw QuickActions::Trigger::LongMenu (static_assert in QuickActions.h). Must agree
+  // with longPressMenuAction so two gestures never claim the Quick Actions menu.
+  uint8_t quickActionsTrigger = 4;  // Jester default (feature 10, v1.0.4)
   // Tilt-based page turning on devices with a supported IMU (X3 and Sticky).
   uint8_t tiltPageTurn = TILT_OFF;
   uint8_t tiltPageTurnDirection = TILT_LEFT_RIGHT;

@@ -1,18 +1,10 @@
 # Jester
 
-> **Jester is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4**. It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, and keeps the v1.6.0 menus and navigation.
+> **Jester is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4** (ESP32-C3, PlatformIO environment `default`). It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, and keeps the v1.6.0 menus and navigation.
 
-Current version: **1.0.3** (shown on the device as Jester_v1.0.3).
+Current version: **1.0.4** (shown on the device as Jester_v1.0.4).
 
-### Supported device
-
-- Xteink X4 (original, ESP32-C3), PlatformIO environment `default`.
-
-Code for the other CrossInk devices (X3, X4 Pro, X4 Classic, Sticky) is still in the tree but is not built, tested or supported by Jester.
-
-## Why Jester
-
-Jester is a reading-first firmware: fewer features, but the ones that matter for reading books (and keeping track of passages in them) work well on a 380 KB device. Improved embedded page number support, they are now an option to add in the status bar for books with them. Reverts the CrossInk v1.6.1 in-book menu and button behaviour to v1.6.0.
+Jester is a reading-first firmware: fewer features, but the ones that matter for reading books and keeping track of passages in them work well on a 380 KB device. Code for the other CrossInk devices stays in the tree but is not built or supported.
 
 ---
 
@@ -37,161 +29,125 @@ Capture the whole text of a page like a screenshot, in a text file like a clippi
 
 ### Reading
 
-- **Jester Serif** is the built-in reader and UI font: Jester's build of IBM Plex Serif, with a Medium body (Medium and Medium Italic, with Bold and Bold Italic for emphasis) for e-ink contrast and IPA and Greek coverage. SD-card fonts still work; copy their folders to `/fonts` on the card.
-- **Embedded Style** (publisher CSS) with less memory pressure: large stylesheets are looked up from the SD cache instead of being held in RAM, chapter link targets are kept on the card while a chapter is indexed, and a chapter build that runs short of memory restarts itself instead of stopping with "Chapter needs too much memory".
-- **Inline images** inside text (from CrossInk v1.6.1).
-- **Long footnotes** can be read to the end (previews run up to 24 pages).
-- **One percentage format** everywhere (status bars, bookmarks, dog ears, menus, Home), one decimal by default; short books show whole numbers.
-- **Go to %** steps of 5% and 10%; a short press of the power button switches to 0.1% and 1%.
-- **Landscape Flip** (default: Power + Up) switches between the two landscape orientations; orientation applies to every book.
-- **Exempt from Global Orientation** (in-book menu > Book Options, last row): the book keeps its own orientation. Turning it does not change the other books, and changing the orientation elsewhere does not change it. Turn it off to return the book to the global orientation. EPUB books only.
-- **Clean Screen** action: three black-and-white refreshes to clear ghosting, then the page is redrawn.
-- Default margins 30 (top and bottom) and 35 (left and right); default orientation landscape counter-clockwise.
-
-### Sleep screens
-
-With **Settings > Display > Sleep Screen** set to **Page Overlay**, the current screen stays visible and a picture is drawn over it: black covers, white lets the page show through. Jester picks the picture from a different folder depending on what is on screen when the device goes to sleep:
-
-| Folder (root of the SD card) | Used when |
-|---|---|
-| `/PortraitSleep` | a book is open in portrait (or inverted portrait) |
-| `/LandscapeSleep` | a book is open in either landscape orientation |
-| `/HomeSleep` | no book is open (Home, Library, Settings) |
-
-To set it up:
-
-1. Create the folders you want at the root of the SD card. Folder names are not case-sensitive.
-2. Put images in them: 480 x 800 BMP files (1-bit works well; PNG also works in Page Overlay). Each sleep picks one at random and avoids repeating the most recent ones.
-3. Draw every image as if the device is held upright, buttons at the bottom, because overlays are always drawn that way. For `/LandscapeSleep`, design the picture turned to match how you hold the device in landscape.
-4. Choose **Page Overlay** as the sleep screen.
-
-If a folder is missing or empty, Jester uses the normal sleep folder (the one chosen with **Set as Sleep Folder** in the File Browser, otherwise `/.sleep` or `/sleep`). Exception: with no images in `/HomeSleep`, sleeping outside a book shows the light Jester sleep screen. A picture pinned with **Set Sleep Screen** always takes priority over the folders.
-
-Jester remembers which images each folder holds. Files added through File Transfer or the File Browser are picked up at once. After adding or removing images with a computer, delete the folder `/.crosspoint/sleep-image-index` so the folders are read again.
-
-The Dark and Light sleep screens show the ❍ logo and "Sleeping".
+- **Jester Serif**, the built-in reader and UI font: IBM Plex Serif with a Medium body for e-ink contrast, plus IPA and Greek. SD-card fonts in `/fonts` still work.
+- **Embedded Style** (publisher CSS) with less memory pressure; a chapter that runs short of memory rebuilds itself instead of stopping.
+- **Inline images**, and **long footnotes** readable to the end (previews up to 24 pages).
+- **One percentage format** everywhere, one decimal by default; short books show whole numbers. **Go to %** steps by 5% and 10%, or by 0.1% and 1% after a short power press.
+- **Landscape Flip** switches between the two landscape orientations. Orientation applies to every book unless a book is **Exempt from Global Orientation** (Book Options, last row; EPUB only).
+- **Clean Screen**: three black-and-white refreshes clear ghosting, then the page is redrawn.
 
 ### Marking places
 
-- **Dog Ears** (default: hold Select). Marks the page like a bookmark, shows a folded corner in the status bar, and appends the page's text to `/DogEars/dogears-<book>.txt` with the book percentage, the printed (publisher) or stable page number, and the chapter. Dog ears have their own list in the in-book menu and in Bookmarks & Clippings; the first row opens the book's dog ears text file. Opened from the in-book menu, Back returns to the book and Home keeps showing the book.
-- **Bookmarks and clippings** from CrossInk. Create Clipping uses the same buttons and labels as Look Up Word in every orientation. The first row of the clippings list opens `/My Clippings.txt`.
-- **Unify Bookmarks** (Settings > System, or the in-book menu): after a book was moved or renamed on a computer, re-attaches its bookmarks, dog ears, clippings, favorite and reading position to the new file (matched by title and author in the Library index).
+- **Dog Ears** (above): the page is marked, a folded corner shows in the status bar, and the text is added to `/DogEars/dogears-<book>.txt`. Dog ears have their own list in the in-book menu and in Bookmarks & Clippings; its first row opens the text file.
+- **Bookmarks and clippings** from CrossInk. Create Clipping uses the Look Up Word buttons; the first row of the clippings list opens `/My Clippings.txt`.
+- **Unify Bookmarks** (Settings > System, or the in-book menu) re-attaches bookmarks, dog ears, clippings, favorite and reading position to a book that was moved or renamed on a computer.
+
+### Sleep screens
+
+The default sleep screen, **Page Overlay**, leaves the screen as it was and draws a picture over it. The pictures made for Jester mimic redacted documents: inside a book, the page you were reading goes to sleep under black bars, like a declassified file. Covering much of the page in solid black also helps reduce ghosting.
+
+Jester picks a picture at random from a folder at the root of the SD card:
+
+| Folder | Used when |
+|---|---|
+| `/PortraitSleep` | a book is open in portrait |
+| `/LandscapeSleep` | a book is open in landscape |
+| `/HomeSleep` | no book is open (Home, Library, Settings) |
+
+- Use 480 x 800 BMP (1-bit works well) or PNG, drawn as if the device is held upright; turn landscape pictures to match how you hold the device. White in a BMP lets the screen show through; a PNG without transparency covers it in black and white.
+- The `Jester_SD_SleepScreens` download on the Releases page has redacted pictures for `/PortraitSleep` and `/LandscapeSleep`, and Jester's Light and Dark screens in `DarkLight sleep`.
+- With no images in `/HomeSleep`, Jester shows its light sleep screen (the ❍ logo and SLEEPING). For the dark one, copy `Jester_Sleep_Dark.png` to `/HomeSleep`.
+- A missing or empty book folder falls back to the normal sleep folder. A picture pinned with **Set Sleep Screen** always wins. After changing images with a computer, delete `/.crosspoint/sleep-image-index`.
 
 ### Status bars
 
-- Top and bottom status bars (from CrossInk v1.6.1) with Battery, Chapter Page Count, Stable Page Number, Book Percentage and **Publisher Page Number** (the printed page from the book's page markers).
-- Default bottom bar: Battery left, Publisher Page Number centre, Book Percentage right.
+Top and bottom bars with Battery, Chapter Page Count, Stable Page Number, Book Percentage and **Publisher Page Number** (the printed page, from the book's page markers). Default bottom bar: Battery, Stable Page Number, Book Percentage.
 
 ### Home, Library and Favorites
 
-- **Belacqua**, the default UI theme: the Jester logo under the status bar, then a hero tile with the current book's title, author and progress (no cover), then Favorites, Files, Library, Bookmarks & Clippings, File Transfer and Settings, at the bottom with a gap above the button hints. Classic and Lyra remain available.
-- **Favorites**: add or remove a book from its long-press menu or the in-book menu; up to 36 books, sorted by recently added, title or author.
-- **Library** (from CrossInk v1.6.1) with Jester navigation: all four buttons move through the header controls and books, Back moves to the Switch Library control, hold Back goes Home.
-- **Multiple libraries**: make any folder a library from its long-press menu in Files and switch with the Switch Library control. Folders can be excluded from the Library, and **Library Index Limit** keeps only the most recently added books.
-- The Library keeps its index across sleep, so it does not rescan after every wake. After adding books with a computer while the device sleeps, use **Library > Refresh**.
-- File names, Library titles and Favorites titles wrap to two lines, hyphenating long words.
+- **Belacqua** (default theme): the logo, the current book, then Library, Favorites, Bookmarks & Clippings, File Transfer, Browse Files and Settings. Classic and Lyra remain available.
+- **Library** opens on the Sort control. From a book, Back moves to Switch Library, then through the top bar, and leaves after Refresh; hold Back to leave at once. Series and genre lines are off by default (Library settings).
+- **Multiple libraries**: make any folder a library from its long-press menu in Browse Files. Folders can be excluded, and **Library Index Limit** (default 200 books) keeps the most recently added. After adding books with a computer, use Refresh.
+- **Favorites**: up to 36 books; hold Home to change the sort (recently added, title, author).
+- File names and titles wrap to two lines, hyphenating long words.
 
 ### Controls
 
-Jester keeps CrossInk's configurable shortcuts and adds front-button long presses.
-
 | Default | Action |
 |---|---|
-| Hold side Up | Quick Actions |
-| Hold side Down | Look Up Word |
+| Hold front Left | Look Up Word |
+| Hold front Right | Dog Ear |
+| Hold Select | Quick Actions |
 | Hold Back | Footnotes |
-| Hold Select | Dog Ear |
-| Power + Up | Landscape Flip |
+| Hold side Up | Landscape Flip |
+| Hold side Down | Create Clipping |
+| Power + Up | Refresh Screen |
 
-- **Front Left and Right long presses** can be assigned any action (Settings > Controls > Front Buttons). Short presses still turn pages.
-- Quick Actions can open from any of these, including a front long press.
-- In landscape counter-clockwise, menus and lists opened from a book treat the upper front button as Up and label it so.
+Quick Actions holds Look Up Word, Dog Ear, Library, Create Hotspot and Clean Screen. Quick-return from Footnotes is off. All of these can be changed in Settings > Controls.
 
 ### System
 
-- **SD card firmware update** (Settings > SD Card Firmware Update) is always kept working.
-- **File Transfer** creates a hotspot for the web file manager (from Home it starts the hotspot at once); uploaded files carry the browser's date and time.
-- Settings live in `/.crosspoint/jester-settings.json` and are never imported from other firmware, so switching between Jester and CrossInk does not mix settings.
-- After the reset button, the device starts on Home instead of reopening the last book, so a book that is slow to open cannot trap you.
-- `.txt` files with long lines (such as dog-ear files) open quickly.
+- **SD card firmware update** (Settings > SD Card Firmware Update) always keeps working.
+- **File Transfer** starts a hotspot for the web file manager.
+- Settings live in `/.crosspoint/jester-settings.json` and are never imported from other firmware.
+- The reset button starts on Home, so a book that is slow to open cannot trap you.
 
 ---
 
-## How Jester differs from CrossInk v1.6.1
+## Jester, CrossInk v1.6.1 and CrossInk v1.6.0
 
-### Kept as in CrossInk v1.6.0
+| Feature | Jester | CrossInk v1.6.1 | CrossInk v1.6.0 |
+|---|---|---|---|
+| In-book menu | v1.6.0 menu and Book Options | Five-tab reader menu | X4 menu and Reader Options |
+| Menu buttons | v1.6.0 behaviour | Follow the device layout | Original behaviour |
+| Footnotes | List | Chosen on the page | List |
+| Power button | v1.6.0 sleep and wake | Separate Sleep and Wake options | Sleep and wake |
+| Keyboard | v1.6.0 keyboard | Wider keys, new spacing | Original keyboard |
+| Library | Yes, with multiple libraries | Yes | No (Recent Books) |
+| Status bars | Top and bottom, plus Publisher Page Number | Top and bottom | One bar |
+| Side-button actions | Short and long per button, plus front long presses | Short and long per button | Layout and one long press |
+| Inline images | Yes | Yes | No |
+| Dog Ears, Favorites, Unify Bookmarks | Yes | No | No |
+| Landscape Flip, Clean Screen, per-book orientation | Yes | No | No |
+| Sleep folders for Home, portrait and landscape | Yes | No | No |
+| Publisher page numbers | Status bar item | Page margin | Page margin |
+| Reading stats, time left, focus reading, guide dots, auto page turn | Removed | Yes | Yes |
+| Wi-Fi networks, KOReader Sync, OPDS, Calibre, Nearby, update check, Download Fonts | Removed (File Transfer by hotspot only; no HTTPS library) | Yes | Yes |
+| UI themes | Classic, Lyra, Belacqua | All CrossInk themes | All CrossInk themes |
+| Reader fonts and UI languages | Jester Serif plus SD fonts; English | CrossInk fonts; many languages | CrossInk fonts; many languages |
 
-These v1.6.1 changes were deliberately not taken:
-
-- **In-book menu**: the X4 v1.6.0 in-book menu and Reader Options, not v1.6.1's unified five-tab reader menu or its full-screen reader menus.
-- **Menu navigation**: v1.6.0 button behaviour in menus; v1.6.1's "menu buttons follow the physical layout" change is not used.
-- **Footnotes**: the v1.6.0 footnote list, not selecting footnotes on the reading page.
-- **Power button**: v1.6.0 sleep and wake behaviour, not v1.6.1's separate Sleep/Wake options.
-- **Keyboard**: the v1.6.0 button keyboard, without v1.6.1's layout, spacing and side-hint changes.
-- No Home/Reader shortcut, no drawer gear menu, no font previews in global settings.
-
-### Taken from CrossInk v1.6.1 and later
-
-- Library, top and bottom status bars, side-button actions, inline images, and many reader, sleep, clippings and File Browser fixes.
-- From CrossInk development after v1.6.1: the page-turn crash fix at the end of a book (#822) and per-fragment layout memory checks.
-
-### Removed
-
-Removed features are hidden and switched off; their saved values are kept reserved.
-
-- Reading statistics, time left, focus (bionic) reading, guide dots and auto page turn.
-- Wi-Fi networks, KOReader Sync, OPDS, Check for Updates, Download Fonts, Calibre Wireless and Nearby transfers. The firmware carries no HTTPS library.
-- Publisher page numbers in the page margin (they appear as a status bar item instead).
-- UI themes other than Classic, Lyra and Belacqua; sleep screens other than None, Dark, Light, Custom, Page Overlay and Quick Resume.
-- CrossInk's reader fonts (Lexend Deca, Bitter) and non-English UI languages.
-
-See [CHANGELOG.md](./CHANGELOG.md) for the full list.
+Jester also takes fixes from CrossInk development after v1.6.1, such as the page-turn crash at the end of a book (#822) and per-fragment layout memory checks. Removed features are hidden and switched off; their saved values stay reserved. See [CHANGELOG.md](./CHANGELOG.md) for everything.
 
 ---
 
-## Tips for the best reading experience
+## Tips
 
-Jester runs on an ESP32-C3 with about 380 KB of RAM.
-
-- Keep folders under about 200 files; 50-100 per folder browses fastest. Split large collections into folders by author, series or status.
-- Text-first EPUBs work best. Very large, image-heavy or omnibus EPUBs can be slow or run short of memory. EPUBs under 20 MB are the most comfortable.
-- If a book is slow, optimize it with the web optimizer in File Transfer before copying it.
-- Use a reliable SD card and leave free space: settings, progress, caches and dog-ear files live on the card.
-- After a firmware update that changes the layout, books re-index on first open; clearing `.crosspoint/epub_*` forces it.
+- Keep folders under about 200 files; 50-100 browse fastest.
+- Text-first EPUBs under 20 MB work best. Very large or image-heavy EPUBs can be slow or run short of memory; the web optimizer in File Transfer can help.
+- Use a reliable SD card with free space: settings, progress, caches and dog-ear files live on it.
+- After a firmware update that changes the layout, books re-index on first open; deleting `.crosspoint/epub_*` forces it.
 
 ---
 
 ## Installation
 
-Download the latest `Jester_v<version>.bin` (for example `Jester_v1.0.3.bin`) first.
+Download the latest `Jester_v<version>.bin`, then either:
 
-### With the CrossPoint web flash tool (USB)
+- **USB**: open the flash tool at [crosspointreader.com/#flash-tools](https://crosspointreader.com/#flash-tools), select **XTEINK X4**, choose the custom `.bin` option and flash the Jester file; or
+- **SD card**: copy the `.bin` to the card and, on a device running CrossInk or Jester, open **Settings > SD Card Firmware Update**.
 
-1. Connect the X4 to your computer with a USB cable.
-2. Open the flash tool at [crosspointreader.com/#flash-tools](https://crosspointreader.com/#flash-tools).
-3. Select **XTEINK X4**, choose the custom `.bin` option, pick the Jester `.bin`, and flash.
-
-### From the SD card
-
-1. Copy the `.bin` to the SD card.
-2. On a device running CrossInk or Jester, open **Settings > SD Card Firmware Update** and choose the file.
-
-After an update that changes default settings, delete `/.crosspoint/jester-settings.json` if you want the new Jester defaults.
+New default settings apply to a fresh settings file. To get them after an update, delete `/.crosspoint/jester-settings.json`.
 
 ---
 
 ## Development
-
-Jester uses PlatformIO. Initialize the submodules first:
 
 ```sh
 git submodule update --init --recursive
 pio run -e default
 ```
 
-The firmware is written to `.pio/build/default/Jester_v<version>.bin`; the image must stay under 6,553,600 bytes. The version is `version` in the `[crossink]` section of `platformio.ini`; the device shows it as `Jester_v<version>`. An optional `jester_build = <N>` there adds `-build<N>` for test builds.
-
-See [Getting Started](./docs/development/getting-started.md) and [Testing and Debugging](./docs/development/testing-debugging.md) for the shared CrossInk development guides.
+The firmware is written to `.pio/build/default/Jester_v<version>.bin` and must stay under 6,553,600 bytes. The version is `version` in the `[crossink]` section of `platformio.ini`; an optional `jester_build = <N>` adds `-build<N>` for test builds. See [Getting Started](./docs/development/getting-started.md) and [Testing and Debugging](./docs/development/testing-debugging.md) for the shared CrossInk guides.
 
 ---
 

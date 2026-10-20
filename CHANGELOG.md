@@ -1,8 +1,16 @@
 ## [Jester v1.0.4]
 
+### Added
+
+- Favorites shows "(Hold Home to Change)" after the sort name when the row has room.
+
 ### Changed
 
 - The version reads Jester_v1.0.4; the firmware file is Jester_v1.0.4.bin.
+- New defaults. Controls: hold front Left = Look Up Word, hold front Right = Dog Ear, hold Select = Quick Actions, hold Back = Footnotes, hold side Up = Landscape Flip, hold side Down = Create Clipping, Power + Up = Refresh Screen, Quick-return from Footnotes off. Quick Actions: Look Up Word, Dog Ear, Library, Create Hotspot, Clean Screen. Bottom status bar centre: Stable Page Number. Library: series and genre lines off, Index Limit 200 books. Defaults apply to a new settings file; delete `/.crosspoint/jester-settings.json` to get them.
+- Home menu order: Library, Favorites, Bookmarks & Clippings, File Transfer, Browse Files, Settings.
+- Library opens on the Sort control. Its Back hint reads Back: from a book, Back moves to Switch Library, further presses move through the top bar, and Back on Refresh leaves the Library. Hold Back still leaves at once.
+- README shortened, with a feature table comparing Jester, CrossInk v1.6.1 and CrossInk v1.6.0, and an explanation of the redacted sleep screens.
 
 ## [Jester v1.0.3]
 

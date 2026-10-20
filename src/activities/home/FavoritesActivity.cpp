@@ -179,11 +179,15 @@ void FavoritesActivity::buildListScreen(UiApp::ScreenType& screen) {
     screen.centeredText(loadFailed ? tr(STR_FAVORITES_SAVE_FAILED) : tr(STR_NO_FAVORITES), screen.theme().bodyText);
     return;
   }
-  const std::string sortLine = std::string(tr(STR_SORT)) + ": " + sortLabel();
+  std::string sortLine = std::string(tr(STR_SORT)) + ": " + sortLabel();
   const auto sortRow = screen.take(fui::LayoutAnchor::Top, uiTarget.lineHeight(screen.theme().smallText.font) + 8)
                            .inset(fui::Insets{0, static_cast<int16_t>(metrics.contentSidePadding), 0,
                                               static_cast<int16_t>(metrics.contentSidePadding)});
-  uiTarget.text(sortRow, sortLine.c_str(), screen.theme().smallText);
+  // Jester (v1.0.4): name the button that changes the sort, when the row has room.
+  const std::string withHint = sortLine + " " + tr(STR_FAVORITES_SORT_HINT);
+  const auto& sortStyle = screen.theme().smallText;
+  if (uiTarget.measureText(sortStyle.font, withHint.c_str(), sortStyle).width <= sortRow.width) sortLine = withHint;
+  uiTarget.text(sortRow, sortLine.c_str(), sortStyle);
 
   // Jester (feature 18): two-line titles break long words at a hyphenation point.
   fui::TextStyle labelStyle = screen.theme().bodyText;

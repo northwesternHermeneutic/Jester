@@ -258,9 +258,9 @@ void appendHomeMenuItems(HomeMenuEntries& items, bool hasOpdsServers, bool hasRe
   // Jester: no OPDS browser (feature 16) or Reading Stats (feature 17) entries.
   hasOpdsServers = false;
   hasReadingStats = false;
-  items.push({tr(STR_FAVORITES), Book, HomeMenuAction::Favorites});
-  items.push({tr(STR_BROWSE_FILES), Folder, HomeMenuAction::BrowseFiles});
+  // Jester order (v1.0.4): Library, Favorites, Bookmarks & Clippings, File Transfer, Browse Files, Settings.
   items.push({tr(STR_LIBRARY), Library, HomeMenuAction::Library});
+  items.push({tr(STR_FAVORITES), Book, HomeMenuAction::Favorites});
 
   if (hasOpdsServers) {
     items.push({tr(STR_OPDS_BROWSER), Opds, HomeMenuAction::OpdsBrowser});
@@ -273,6 +273,7 @@ void appendHomeMenuItems(HomeMenuEntries& items, bool hasOpdsServers, bool hasRe
   }
 
   items.push({tr(STR_FILE_TRANSFER), Transfer, HomeMenuAction::FileTransfer});
+  items.push({tr(STR_BROWSE_FILES), Folder, HomeMenuAction::BrowseFiles});
   items.push({tr(STR_SETTINGS_TITLE), Settings, HomeMenuAction::Settings});
 }
 

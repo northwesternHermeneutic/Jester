@@ -139,6 +139,8 @@ void LibraryActivity::onEnter() {
     refreshIndexIfNeeded();
     initialScanPending = false;
     resetViewport();
+    // Jester (v1.0.4): button devices open the Library on the Sort control.
+    if (!mappedInput.hasTouchHardware()) selection = 3;
     ignoreConfirmRelease = mappedInput.isPressed(MappedInputManager::Button::Confirm);
     requestUpdate();
   }
@@ -952,10 +954,18 @@ void LibraryActivity::handleInput(const LibraryInputBuffer::Event& input) {
       showSelection = true;
       selection = 5;
       requestUpdate();
+    } else if (!mappedInput.hasTouchHardware() && selection > 0) {
+      // Jester (v1.0.4): further presses walk the header controls back to
+      // Refresh (control 0); only Back on Refresh leaves the Library.
+      showSelection = true;
+      selection--;
+      requestUpdate();
     } else if (!query.empty()) {
       query.clear();
       applyFilter();
       resetViewport();
+      // Stay on Refresh so the next Back leaves.
+      if (!mappedInput.hasTouchHardware()) selection = 0;
       requestUpdate();
     } else
       onGoHome();
@@ -1483,9 +1493,8 @@ void LibraryActivity::render(RenderLock&&) {
   const char* confirmLabel = !mappedInput.hasTouchHardware() && rowCount() == 0 ? ""
                              : selection < CONTROL_COUNT                        ? tr(STR_SELECT)
                                                                                 : tr(STR_OPEN);
-  const auto labels =
-      mappedInput.mapLabels(mappedInput.withBackArrow(query.empty() ? tr(STR_HOME) : tr(STR_BACK)), confirmLabel,
-                            tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+  const auto labels = mappedInput.mapLabels(mappedInput.withBackArrow(tr(STR_BACK)), confirmLabel, tr(STR_DIR_UP),
+                                            tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   char footer[32];
   snprintf(footer, sizeof(footer), tr(STR_LIBRARY_FILES_COUNT), static_cast<unsigned>(rowCount()));
