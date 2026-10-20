@@ -1,3 +1,9 @@
+## [Jester v1.0.4]
+
+### Changed
+
+- The version reads Jester_v1.0.4; the firmware file is Jester_v1.0.4.bin.
+
 ## [Jester v1.0.3]
 
 Licence clean-up before publishing; includes everything in v1.0.2.
