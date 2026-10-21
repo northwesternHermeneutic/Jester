@@ -13,6 +13,7 @@ Current version: **1.0.4**
 - Publisher page numbers in status bar
 - Ability to limit books indexed by Library
 - Rolled back the change in menu/settings navigation, so that the front buttons still go up/down when in a menu as in 1.6.0, rather than right/left, to enable one handed menu/settings navigation
+- Better experience with long footnotes
 - Clean Screen action: Performs a longer refresh to more fully clear screen of ghosting
 - Ability to cycle increments for Go To Percent
 - Font Change: Jester Serif, which is IBM Plex Serif with Medium font size rather than Regular, making it a bit bolder to aid readability
