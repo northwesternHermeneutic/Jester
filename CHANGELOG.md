@@ -1,3 +1,10 @@
+## [Jester v1.0.5]
+
+### Changed
+
+- The version reads Jester_v1.0.5; the firmware file is Jester_v1.0.5.bin.
+- Page Overlay shows the images of each `/Sleep` folder in turn instead of at random: the first sleep from a portrait book shows the first image in `/Sleep/PortraitSleep`, the next one the second, and so on, starting again after the last. `/Sleep/LandscapeSleep`, `/Sleep/HomeSleep` and `/Sleep/UniversalSleep` each keep their own place. The order is the file browser's (by name, numbers in numeric order). Images added or removed with a computer are used from the next sleep; `/.crosspoint/sleep-image-index` no longer needs deleting for these folders.
+
 ## [Jester v1.0.4]
 
 ### Added

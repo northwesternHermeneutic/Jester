@@ -122,6 +122,10 @@ void CrossPointState::toJson(JsonDocument& doc) const {
   for (int i = 0; i < SLEEP_RECENT_COUNT; i++) recentArr.add(recentSleepImages[i]);
   doc["recentSleepPos"] = recentSleepPos;
   doc["recentSleepFill"] = recentSleepFill;
+  doc["lastUniversalSleepImage"] = lastUniversalSleepImage;
+  doc["lastHomeSleepImage"] = lastHomeSleepImage;
+  doc["lastPortraitSleepImage"] = lastPortraitSleepImage;
+  doc["lastLandscapeSleepImage"] = lastLandscapeSleepImage;
   doc["favoriteBootImagePath"] = favoriteBootImagePath;
   JsonArray recentBootArr = doc["recentBootImages"].to<JsonArray>();
   for (int i = 0; i < BOOT_RECENT_COUNT; i++) recentBootArr.add(recentBootImages[i]);
@@ -167,6 +171,10 @@ bool CrossPointState::fromJson(JsonVariantConst doc) {
     const uint8_t legacy = doc["lastSleepImage"] | static_cast<uint8_t>(UINT8_MAX);
     if (legacy != UINT8_MAX) pushRecentSleep(static_cast<uint16_t>(legacy));
   }
+  lastUniversalSleepImage = doc["lastUniversalSleepImage"] | "";
+  lastHomeSleepImage = doc["lastHomeSleepImage"] | "";
+  lastPortraitSleepImage = doc["lastPortraitSleepImage"] | "";
+  lastLandscapeSleepImage = doc["lastLandscapeSleepImage"] | "";
   favoriteBootImagePath = doc["favoriteBootImagePath"] | "";
   std::fill_n(recentBootImages, BOOT_RECENT_COUNT, static_cast<uint16_t>(0));
   JsonArrayConst recentBootArr = doc["recentBootImages"];

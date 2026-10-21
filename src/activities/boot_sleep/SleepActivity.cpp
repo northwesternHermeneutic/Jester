@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <new>
 #include <string_view>
@@ -402,8 +403,8 @@ bool selectPinnedSleepImage(SleepImageMode mode, SleepImageSelection& selection)
 }
 
 // Jester: stops at the first usable image, so it reads little of a full folder.
-// The /Sleep subfolders are often empty, and /Sleep itself (the normal sleep
-// folder fallback) usually holds only them. A failed ImageFolderIndex::select
+// /Sleep itself (the normal sleep folder fallback) usually holds only the Page
+// Overlay subfolders. A failed ImageFolderIndex::select
 // removes every cached index, so folders without images are skipped before it.
 bool folderHasSleepImage(const std::string& directory, const bool allowPng) {
   FsFile dir = Storage.open(directory.c_str());
@@ -426,6 +427,75 @@ bool folderHasSleepImage(const std::string& directory, const bool allowPng) {
   }
   dir.close();
   return found;
+}
+
+// Same order as the file browser. Names that differ only in case or leading
+// zeros compare equal there; strcmp separates them so none is skipped.
+int compareSleepImageNames(const char* a, const char* b) {
+  const int natural = FsHelpers::naturalCompare(a, b);
+  return natural != 0 ? natural : strcmp(a, b);
+}
+
+// Jester: the /Sleep Page Overlay folders show their images in turn. Picks the
+// first name after lastShown, or the first name in the folder once the end is
+// reached, and stores it in lastShown. It reads the folder itself instead of
+// ImageFolderIndex, so images added or removed with a computer are seen at the
+// next sleep; these folders hold few images.
+bool selectNextSleepImage(const char* folder, std::string& lastShown, SleepImageSelection& selection,
+                          const bool validateBmpHeaders = false, const bool bmpOnly = false) {
+  FsFile dir = Storage.open(folder);
+  if (!dir || !dir.isDirectory()) {
+    dir.close();
+    return false;
+  }
+  std::string first;
+  std::string next;
+  char name[256];  // FAT long filenames are at most 255 bytes.
+  for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
+    if (file.isDirectory()) {
+      file.close();
+      continue;
+    }
+    file.getName(name, sizeof(name));
+    const std::string_view filename(name);
+    const bool isBmp = FsHelpers::hasBmpExtension(filename);
+    const bool isPng = !bmpOnly && FsHelpers::hasPngExtension(filename);
+    if (filename.empty() || filename.front() == '.' || (!isBmp && !isPng)) {
+      file.close();
+      continue;
+    }
+    const bool afterLast = lastShown.empty() || compareSleepImageNames(name, lastShown.c_str()) > 0;
+    const bool betterNext = afterLast && (next.empty() || compareSleepImageNames(name, next.c_str()) < 0);
+    const bool betterFirst = first.empty() || compareSleepImageNames(name, first.c_str()) < 0;
+    if (!betterNext && !betterFirst) {
+      file.close();
+      continue;
+    }
+    // Only used after a selected BMP failed to render.
+    if (isBmp && validateBmpHeaders) {
+      Bitmap bitmap(file);
+      const BmpReaderError parseResult = bitmap.parseHeaders();
+      if (parseResult != BmpReaderError::Ok) {
+        LOG_ERR("SLP", "Skipping invalid BMP sleep image %s/%s: %s", folder, name, Bitmap::errorToString(parseResult));
+        file.close();
+        continue;
+      }
+    }
+    if (betterNext) next = name;
+    if (betterFirst) first = name;
+    file.close();
+  }
+  dir.close();
+
+  const std::string& chosen = next.empty() ? first : next;
+  if (chosen.empty()) return false;
+  selection.path = folder;
+  selection.path += '/';
+  selection.path += chosen;
+  selection.isPng = FsHelpers::hasPngExtension(chosen);
+  lastShown = chosen;
+  APP_STATE.saveToFile();
+  return true;
 }
 
 bool selectRandomSleepImage(SleepImageMode mode, SleepImageSelection& selection, bool validateBmpHeaders = false,
@@ -1243,19 +1313,22 @@ void SleepActivity::renderOverlaySleepScreen() const {
   }
   // Jester: everything lives in /Sleep. Images in /Sleep/UniversalSleep are
   // used for every sleep; otherwise Home, portrait books and landscape books
-  // each have their own subfolder.
+  // each have their own subfolder. Each folder shows its images in turn.
   static constexpr char UNIVERSAL_SLEEP_FOLDER[] = "/Sleep/UniversalSleep";
   const char* contextFolder = "/Sleep/HomeSleep";
+  std::string* contextLastShown = &APP_STATE.lastHomeSleepImage;
   if (APP_STATE.lastSleepFromReader) {
     const bool landscape = sleepPopupOrientation == GfxRenderer::Orientation::LandscapeClockwise ||
                            sleepPopupOrientation == GfxRenderer::Orientation::LandscapeCounterClockwise;
     contextFolder = landscape ? "/Sleep/LandscapeSleep" : "/Sleep/PortraitSleep";
+    contextLastShown = landscape ? &APP_STATE.lastLandscapeSleepImage : &APP_STATE.lastPortraitSleepImage;
   }
   if (!overlayDrawn && !pngOverlayFallbackMustUseDefault) {
-    if (selectRandomSleepImage(SleepImageMode::Overlay, selection, false, false, UNIVERSAL_SLEEP_FOLDER)) {
+    if (selectNextSleepImage(UNIVERSAL_SLEEP_FOLDER, APP_STATE.lastUniversalSleepImage, selection)) {
       contextFolder = UNIVERSAL_SLEEP_FOLDER;
+      contextLastShown = &APP_STATE.lastUniversalSleepImage;
       trySelectedOverlay(selection);
-    } else if (selectRandomSleepImage(SleepImageMode::Overlay, selection, false, false, contextFolder)) {
+    } else if (selectNextSleepImage(contextFolder, *contextLastShown, selection)) {
       trySelectedOverlay(selection);
     } else if (!APP_STATE.lastSleepFromReader) {
       // Jester placeholder: Home without /Sleep/HomeSleep images shows the light Jester sleep screen.
@@ -1263,6 +1336,7 @@ void SleepActivity::renderOverlaySleepScreen() const {
       return renderDefaultSleepScreen(/*forceLight=*/true);
     } else {
       contextFolder = nullptr;
+      contextLastShown = nullptr;
       if (selectRandomSleepImage(SleepImageMode::Overlay, selection)) trySelectedOverlay(selection);
     }
   }
@@ -1271,12 +1345,19 @@ void SleepActivity::renderOverlaySleepScreen() const {
   // temporary buffer while the reader page is still resident, so an otherwise
   // valid PNG can fail on C3 devices. Try another folder image before using
   // the root/default fallback: use BMP-only after a PNG failure, or validate
-  // BMP headers after a failed BMP selection.
-  if (!overlayDrawn && !pngOverlayFallbackMustUseDefault && overlayCandidateFailed && !selection.path.empty() &&
-      selectRandomSleepImage(SleepImageMode::Overlay, selection,
-                             /*validateBmpHeaders=*/!selection.isPng,
-                             /*bmpOnly=*/selection.isPng, contextFolder)) {
-    trySelectedOverlay(selection);
+  // BMP headers after a failed BMP selection. In a /Sleep folder this is the
+  // next image in turn; it is skipped when the turn comes back to the image
+  // that failed.
+  if (!overlayDrawn && !pngOverlayFallbackMustUseDefault && overlayCandidateFailed && !selection.path.empty()) {
+    const std::string failedPath = selection.path;
+    const bool validateBmpHeaders = !selection.isPng;
+    const bool bmpOnly = selection.isPng;
+    const bool retrySelected =
+        contextLastShown
+            ? selectNextSleepImage(contextFolder, *contextLastShown, selection, validateBmpHeaders, bmpOnly) &&
+                  selection.path != failedPath
+            : selectRandomSleepImage(SleepImageMode::Overlay, selection, validateBmpHeaders, bmpOnly, contextFolder);
+    if (retrySelected) trySelectedOverlay(selection);
   }
 
   if (!overlayDrawn && !pngOverlayFallbackMustUseDefault) {

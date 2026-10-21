@@ -27,6 +27,12 @@ class CrossPointState : public PersistableStore<CrossPointState> {
   uint16_t recentSleepImages[SLEEP_RECENT_COUNT] = {};  // circular buffer of recent wallpaper indices
   uint8_t recentSleepPos = 0;                           // next write slot
   uint8_t recentSleepFill = 0;                          // valid entries (0..SLEEP_RECENT_COUNT)
+  // Jester: file name of the image each /Sleep Page Overlay folder showed
+  // last. The next sleep from that folder shows the next name in order.
+  std::string lastUniversalSleepImage;
+  std::string lastHomeSleepImage;
+  std::string lastPortraitSleepImage;
+  std::string lastLandscapeSleepImage;
   std::string favoriteBootImagePath;
   uint16_t recentBootImages[BOOT_RECENT_COUNT] = {};  // circular buffer of recent boot-screen indices
   uint8_t recentBootPos = 0;                          // next write slot

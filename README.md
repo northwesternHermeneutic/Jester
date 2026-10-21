@@ -68,7 +68,7 @@ Capture the whole text of a page like a screenshot, in a text file like a clippi
 
 The default sleep screen, **Page Overlay**, leaves the screen as it was and draws a picture over it. The pictures made for Jester mimic redacted documents: inside a book, the page you were reading goes to sleep under black bars, like a declassified file. Covering much of the page in solid black also helps reduce ghosting.
 
-Jester picks a picture at random from a subfolder of `/Sleep` on the SD card:
+Jester shows the pictures in a subfolder of `/Sleep` on the SD card in turn, in the order Browse Files lists them, and starts again after the last. Each folder keeps its own place:
 
 | Folder | Used when |
 |---|---|
@@ -78,9 +78,9 @@ Jester picks a picture at random from a subfolder of `/Sleep` on the SD card:
 | `/Sleep/HomeSleep` | no book is open (Home, Library, Settings) |
 
 - Use 480 x 800 BMP (1-bit works well) or PNG, drawn as if the device is held upright; turn landscape pictures to match how you hold the device. White in a BMP lets the screen show through; a PNG without transparency covers it in black and white.
-- The `Jester_SD_SleepScreens` download on the Releases page has the whole `Sleep` folder: redacted pictures for portrait and landscape, empty `UniversalSleep` and `HomeSleep`, and Jester's Light and Dark screens in `DarkLight sleep` (not read by Jester; copy from it).
-- With no images in `/Sleep/HomeSleep`, Jester shows its light sleep screen (the ❍ logo and SLEEPING). For the dark one, copy `Jester_Sleep_Dark.png` to `/Sleep/HomeSleep`.
-- A missing or empty book folder falls back to the normal sleep folder. A picture pinned with **Set Sleep Screen** always wins. After changing images with a computer, delete `/.crosspoint/sleep-image-index`.
+- The `Jester_SD_SleepScreens` download on the Releases page has the whole `Sleep` folder: redacted pictures for portrait and landscape, Jester's light sleep screen in `HomeSleep`, an empty `UniversalSleep`, and Jester's Light and Dark screens in `DarkLight sleep` (not read by Jester; copy from it).
+- With no images in `/Sleep/HomeSleep`, Jester shows its light sleep screen (the ❍ logo and SLEEPING). For the dark one, put `Jester_Sleep_Dark.png` in `/Sleep/HomeSleep` in place of `Jester_Sleep_Light.png`.
+- A missing or empty book folder falls back to the normal sleep folder. A picture pinned with **Set Sleep Screen** always wins. Pictures added to or removed from the `/Sleep` subfolders with a computer are used from the next sleep. After changing the normal sleep folder with a computer, delete `/.crosspoint/sleep-image-index`.
 
 ### Status bars
 
