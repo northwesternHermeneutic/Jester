@@ -1,12 +1,32 @@
 # Jester
 
-> **Jester is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4** (ESP32-C3, PlatformIO environment `default`). It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, and keeps the v1.6.0 menus and navigation.
+> **Jester is a personal, vibe coded fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4** (ESP32-C3, PlatformIO environment `default`). It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, keeps the v1.6.0 menus and navigation to improve UX for the original X4 with a focus on enabling one handed use, and adds various features.
 
-Current version: **1.0.4** (shown on the device as Jester_v1.0.4).
+Current version: **1.0.4**
 
-Jester is a reading-first firmware: fewer features, but the ones that matter for reading books and keeping track of passages in them work well on a 380 KB device. Code for the other CrossInk devices stays in the tree but is not built or supported.
+## Biggest Differences from CrossInk:
+- ***Multiple libraries***: Make a folder into its own library by going to it in the file browser and holding select to open the menu, change current library when in Library using the books icon top bar.
+- ***Dog Ears***: Mix of screenshot, clipping, and bookmark; one button press to add all text on screen to a .txt file for the book, similar to clippings, marking the page like a bookmark rather than highlighting the text.
+- ***Favorites Tab***: Hold select on a book in the Library or in file browser to add it to favorites
+- ***Long Press Front Nav Button Action Mapping***: Now you can add actions to long press front left/right buttons in addition to back/menu buttons and side buttons.
+- ***Different Sleep Screens for Lortrait, Landscape, and Home***: Download some premade files for them from the release to use with Page Overlay sleep screen, "redacted" appearance when sleeping while reading, which helps reduce ghosting)
+- Publisher page numbers in status bar
+- Ability to limit books indexed by Library
+- Rolled back the change in menu/settings navigation, so that the front buttons still go up/down when in a menu as in 1.6.0, rather than right/left, to enable one handed menu/settings navigation
+- Clean Screen action: Performs a longer refresh to more fully clear screen of ghosting
+- Removed most network features, leaving only Hotspot for connectivity
+- Ability to cycle increments for Go To Percent
+- Font Change: Jester Serif, which is IBM Plex Serif with Medium font size rather than Regular, making it a bit bolder to aid readability
 
 ---
+## Screenshots
+<img src="https://github.com/user-attachments/files/33755997/Home_Screen.bmp" alt="Home Screen" width="20%"> <img src="https://github.com/user-attachments/files/33757538/Library.bmp" alt="Library" width="20%"> <img src="https://github.com/user-attachments/files/33756026/MakeLibrary.bmp" alt="Make Library" width="20%"> 
+
+<img src="https://github.com/user-attachments/files/33756049/View_Dog_Ears.bmp" alt="View Dog Ears" width="30%"> <img src="https://github.com/user-attachments/files/33756052/Dog_Ears_Format.bmp" alt="Dog Ears file" width="30%"> 
+
+<img src="https://github.com/user-attachments/files/33756058/GoToPercent1.bmp" alt="Go To Percent 1" width="30%"> <img src="https://github.com/user-attachments/files/33756060/GoToPercent2.bmp" alt="Go To Percent 2" width="30%"> 
+
+<img src="https://github.com/user-attachments/files/33756040/Default-Controls-Front.bmp" alt="Controls" width="20%"> <img src="https://github.com/user-attachments/files/33756031/System.bmp" alt="System" width="20%"> <img src="https://github.com/user-attachments/files/33756065/PublisherPageNumbers.bmp" alt="Publisher Page Numbers Status Bar" width="20%"> 
 
 ## Features
 
