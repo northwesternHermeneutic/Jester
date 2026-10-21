@@ -4,6 +4,9 @@
 
 Current version: **1.0.5**
 
+## Supported Devices
+- XTEINK X4
+
 ## Biggest Differences from CrossInk:
 - ***Multiple libraries***: Make a folder into its own library by going to it in the file browser and holding select to open the menu, change current library when in Library using the books icon top bar.
 - ***Dog Ears***: Mix of screenshot, clipping, and bookmark; one button press to add all text on screen to a .txt file for the book, similar to clippings, marking the page like a bookmark rather than highlighting the text.
