@@ -2,14 +2,14 @@
 
 > **Jester is a personal, vibe coded fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4** (ESP32-C3, PlatformIO environment `default`). It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, keeps the v1.6.0 menus and navigation to improve UX for the original X4 with a focus on enabling one handed use, and adds various features.
 
-Current version: **1.0.4**
+Current version: **1.0.5**
 
 ## Biggest Differences from CrossInk:
 - ***Multiple libraries***: Make a folder into its own library by going to it in the file browser and holding select to open the menu, change current library when in Library using the books icon top bar.
 - ***Dog Ears***: Mix of screenshot, clipping, and bookmark; one button press to add all text on screen to a .txt file for the book, similar to clippings, marking the page like a bookmark rather than highlighting the text.
 - ***Favorites Tab***: Hold select on a book in the Library or in file browser to add it to favorites
 - ***Long Press Front Nav Button Action Mapping***: Now you can add actions to long press front left/right buttons in addition to back/menu buttons and side buttons.
-- ***Different Sleep Screens for Lortrait, Landscape, and Home***: Download some premade files for them from the release to use with Page Overlay sleep screen, "redacted" appearance when sleeping while reading, which helps reduce ghosting)
+- ***Different Sleep Screens for Portrait, Landscape, and Home***: Download some premade files for them from the release to use with Page Overlay sleep screen, "redacted" appearance when sleeping while reading, which helps reduce ghosting)
 - Publisher page numbers in status bar
 - Ability to limit books indexed by Library
 - Rolled back the change in menu/settings navigation, so that the front buttons still go up/down when in a menu as in 1.6.0, rather than right/left, to enable one handed menu/settings navigation
