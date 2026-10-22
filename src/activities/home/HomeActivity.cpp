@@ -171,7 +171,16 @@ std::string getRecentBookCachePath(const RecentBook& book) {
   return "";
 }
 
+// Jester (feature 17): reading stats are neither tracked nor shown on Home, so
+// Home leaves their files alone (each missing file is a search on the card).
+GlobalReadingStats loadHomeGlobalStats() {
+  return SETTINGS.shouldTrackReadingStats() ? GlobalReadingStats::load() : GlobalReadingStats{};
+}
+
+bool homeHasSyncedStats() { return SETTINGS.shouldTrackReadingStats() && GlobalReadingStats::hasSyncedStats(); }
+
 BookReadingStats loadRecentBookStats(const RecentBook& book) {
+  if (!SETTINGS.shouldTrackReadingStats()) return BookReadingStats{};
   if (!FsHelpers::hasEpubExtension(book.path) && !FsHelpers::hasXtcExtension(book.path)) {
     return BookReadingStats{};
   }
@@ -628,6 +637,9 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
       break;
     }
 
+    // Jester: a finished book leaves the continue-reading tile to the next
+    // most recently opened book.
+    if (storedBook.finished) continue;
     RecentBook book = storedBook;
     if (RecentBooksStore::isMissing(book)) {
       continue;
@@ -917,8 +929,8 @@ void HomeActivity::onEnter() {
     selectInitialBook(APP_STATE.openEpubPath);
   }
 
-  globalStats = GlobalReadingStats::load();
-  showAllDevicesStats = GlobalReadingStats::hasSyncedStats();
+  globalStats = loadHomeGlobalStats();
+  showAllDevicesStats = homeHasSyncedStats();
   allDevicesGlobalStats = showAllDevicesStats ? GlobalReadingStats::loadAggregated(globalStats) : globalStats;
   if (isCarouselTheme) {
     loadAllBookStats();
@@ -1011,8 +1023,8 @@ std::unique_ptr<Activity> HomeActivity::createFrontlightReadingStatsActivity() {
 }
 
 void HomeActivity::onFrontlightPanelClosed() {
-  globalStats = GlobalReadingStats::load();
-  showAllDevicesStats = GlobalReadingStats::hasSyncedStats();
+  globalStats = loadHomeGlobalStats();
+  showAllDevicesStats = homeHasSyncedStats();
   allDevicesGlobalStats = showAllDevicesStats ? GlobalReadingStats::loadAggregated(globalStats) : globalStats;
   bookStatsCached = false;
   updateHighlightedBookContext();
@@ -2455,8 +2467,8 @@ void HomeActivity::onReadingStatsOpen() {
                              mappedInput.suppressNextConfirmRelease();
                              const auto* statsResult = std::get_if<ReadingStatsResult>(&result.data);
                              if (statsResult && statsResult->changed) {
-                               globalStats = GlobalReadingStats::load();
-                               showAllDevicesStats = GlobalReadingStats::hasSyncedStats();
+                               globalStats = loadHomeGlobalStats();
+                               showAllDevicesStats = homeHasSyncedStats();
                                allDevicesGlobalStats =
                                    showAllDevicesStats ? GlobalReadingStats::loadAggregated(globalStats) : globalStats;
                                bookStatsCached = false;
@@ -2472,8 +2484,8 @@ void HomeActivity::onReadingStatsOpen() {
           mappedInput.suppressNextConfirmRelease();
           const auto* statsResult = std::get_if<ReadingStatsResult>(&result.data);
           if (statsResult && statsResult->changed) {
-            globalStats = GlobalReadingStats::load();
-            showAllDevicesStats = GlobalReadingStats::hasSyncedStats();
+            globalStats = loadHomeGlobalStats();
+            showAllDevicesStats = homeHasSyncedStats();
             allDevicesGlobalStats = showAllDevicesStats ? GlobalReadingStats::loadAggregated(globalStats) : globalStats;
             bookStatsCached = false;
             updateHighlightedBookContext();

@@ -14,6 +14,9 @@ struct RecentBook {
   std::string author;
   std::string coverBmpPath;
   CoverState coverState = CoverState::Unknown;
+  // Jester: marked as finished. Home's continue-reading tile skips finished
+  // books; the list keeps them (Recently Opened, Clear Finished Books setting).
+  bool finished = false;
 
   bool operator==(const RecentBook& other) const { return path == other.path; }
 };
@@ -53,6 +56,10 @@ class RecentBooksStore : public PersistableStore<RecentBooksStore> {
   // Returns true if an entry was found and removed (no-op + false otherwise).
   // Persistence is best-effort: a failed save is logged, not reflected in the return.
   bool removeByPath(const std::string& path);
+
+  // Jester: record the book's finished state on its entry (no-op if absent).
+  // Persists only on change; keeps the list order.
+  void setFinished(const std::string& path, bool finished);
 
   // Repoint an entry's path (and coverBmpPath, if it lived under the old cache dir) after the
   // backing file and cache dir were moved on disk. No-op if no entry matches oldPath.

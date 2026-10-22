@@ -793,6 +793,7 @@ void XtcReaderActivity::setBookCompleted(const bool isCompleted) {
     }
   }
 
+  RECENT_BOOKS.setFinished(xtc->getPath(), isCompleted);  // Jester: Home tile skips finished books
   if (isCompleted) {
     globalStats.completedBooks++;
   } else if (globalStats.completedBooks > 0) {

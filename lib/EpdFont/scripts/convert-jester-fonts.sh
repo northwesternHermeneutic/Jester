@@ -44,11 +44,13 @@ NOTO_FILL=(
   --font-include-intervals 1:0x0370,0x03FF
   --font-include-intervals 1:0x1F00,0x1FFF
 )
-# UI sizes: ASCII, Latin-1 (accented file names, titles and authors, plus the
-# degree sign in UI strings) and General Punctuation.
+# UI sizes: ASCII, Latin-1 and Latin Extended-A (accented file names, titles
+# and authors such as Karel Čapek, plus the degree sign in UI strings) and
+# General Punctuation.
 BASE_INTERVALS=(
   --additional-intervals 0x0000,0x007F
   --additional-intervals 0x00A0,0x00FF
+  --additional-intervals 0x0100,0x017F
   --additional-intervals 0x2000,0x2064
   --additional-intervals 0x2066,0x206F
   --additional-intervals 0xFFFD,0xFFFD

@@ -26,7 +26,7 @@
 
 namespace {
 // AP Mode configuration
-constexpr const char* AP_SSID = "CrossPoint-Reader";
+constexpr const char* AP_SSID = "Jester-Reader";  // Jester (v1.0.6); the mDNS name stays crosspoint.local
 constexpr const char* AP_PASSWORD = nullptr;  // Open network for ease of use
 constexpr const char* AP_HOSTNAME = "crosspoint";
 constexpr uint8_t AP_CHANNEL = 1;

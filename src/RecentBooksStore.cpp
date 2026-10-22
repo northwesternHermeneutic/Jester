@@ -26,6 +26,7 @@ void RecentBooksStore::toJson(JsonDocument& doc) const {
     obj["author"] = book.author;
     obj["coverBmpPath"] = book.coverBmpPath;
     obj["coverState"] = static_cast<uint8_t>(book.coverState);
+    if (book.finished) obj["finished"] = true;
   }
 }
 
@@ -46,6 +47,7 @@ bool RecentBooksStore::fromJson(JsonVariantConst doc) {
     if (storedCoverState == static_cast<int>(RecentBook::CoverState::Missing)) {
       book.coverState = RecentBook::CoverState::Missing;
     }
+    book.finished = obj["finished"] | false;
     recentBooks.push_back(book);
   }
 
@@ -85,7 +87,7 @@ void RecentBooksStore::addOrUpdateBook(const std::string& path, const std::strin
       changed = true;
     }
   } else {
-    recentBooks.insert(recentBooks.begin(), {path, title, author, coverBmpPath, coverState});
+    recentBooks.insert(recentBooks.begin(), {path, title, author, coverBmpPath, coverState, false});
     changed = true;
     if (recentBooks.size() > MAX_RECENT_BOOKS) {
       recentBooks.resize(MAX_RECENT_BOOKS);
@@ -114,6 +116,15 @@ bool RecentBooksStore::updateBook(const std::string& path, const std::string& ti
   book.coverState = coverState;
   saveToFile();
   return true;
+}
+
+void RecentBooksStore::setFinished(const std::string& path, const bool finished) {
+  ensureLoaded();
+  auto it =
+      std::find_if(recentBooks.begin(), recentBooks.end(), [&](const RecentBook& book) { return book.path == path; });
+  if (it == recentBooks.end() || it->finished == finished) return;
+  it->finished = finished;
+  if (!saveToFile()) LOG_ERR("RBS", "Failed to persist finished state of recent book: %s", path.c_str());
 }
 
 bool RecentBooksStore::removeByPath(const std::string& path) {

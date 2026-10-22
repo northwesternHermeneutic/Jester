@@ -5,6 +5,7 @@
 #include <Logging.h>
 
 #include <cstring>
+#include <strings.h>
 
 #include "util/FileContentEquals.h"
 
@@ -107,22 +108,76 @@ bool openRecoverableStatsFile(const std::string& path, FsFile& f) {
   return false;
 }
 
+// Jester: which of the stats files a book's cache folder holds, from one pass
+// over the folder. Each path lookup of a missing file searches the whole folder
+// on the card, and a book without stats used to pay for five of them (current
+// file, its .tmp and .bak, previous version, legacy name) on every open, Home
+// visit and Library hide-finished filter.
+struct StatsFilesPresent {
+  bool scanned = false;
+  bool current = false;
+  bool currentRecovery = false;  // .tmp or .bak of the current file
+  bool previous = false;
+  bool legacy = false;
+};
+
+StatsFilesPresent scanStatsFiles(const std::string& cachePath, const std::string& currentName,
+                                 const std::string& previousName) {
+  StatsFilesPresent present;
+  FsFile dir = Storage.open(cachePath.c_str());
+  if (!dir) {
+    present.scanned = true;  // no cache folder: no stats
+    return present;
+  }
+  if (!dir.isDirectory()) {
+    dir.close();
+    return present;
+  }
+  char name[32];  // longer names cannot be stats files
+  for (FsFile file = dir.openNextFile(); file; file = dir.openNextFile()) {
+    const bool isDirectory = file.isDirectory();
+    const size_t nameLen = file.getName(name, sizeof(name));
+    file.close();
+    if (isDirectory || nameLen == 0 || strncasecmp(name, "stats", 5) != 0) continue;
+    if (strcasecmp(name, currentName.c_str()) == 0) {
+      present.current = true;
+    } else if (strncasecmp(name, currentName.c_str(), currentName.size()) == 0 &&
+               (strcasecmp(name + currentName.size(), ".tmp") == 0 ||
+                strcasecmp(name + currentName.size(), ".bak") == 0)) {
+      present.currentRecovery = true;
+    } else if (strcasecmp(name, previousName.c_str()) == 0) {
+      present.previous = true;
+    } else if (strcasecmp(name, LEGACY_STATS_FILE_NAME) == 0) {
+      present.legacy = true;
+    }
+  }
+  // A failed iteration or wrapper allocation leaves the result incomplete;
+  // fall back to looking each file up.
+  present.scanned = !dir.iterationFailed() && !dir.allocationFailed();
+  dir.close();
+  return present;
+}
+
 bool openStatsFileForRead(const std::string& cachePath, FsFile& f) {
   const std::string currentName = statsFileNameForVersion(STATS_FILE_VERSION);
-  if (openRecoverableStatsFile(cachePath + "/" + currentName, f)) {
-    return true;
-  }
-
   // When bumping STATS_FILE_VERSION, this automatically tries the previous
   // versioned filename (e.g. v6 falls back to stats_v5.bin) before the original
   // unversioned stats.bin migration source.
   const std::string previousName = statsFileNameForVersion(PREVIOUS_VERSIONED_STATS_FILE_VERSION);
-  if (Storage.openFileForRead("STATS", cachePath + "/" + previousName, f)) {
+  const StatsFilesPresent present = scanStatsFiles(cachePath, currentName, previousName);
+  const bool tryAll = !present.scanned;
+
+  if ((tryAll || present.current || present.currentRecovery) &&
+      openRecoverableStatsFile(cachePath + "/" + currentName, f)) {
+    return true;
+  }
+
+  if ((tryAll || present.previous) && Storage.openFileForRead("STATS", cachePath + "/" + previousName, f)) {
     LOG_DBG("STATS", "Migrating %s to %s", previousName.c_str(), currentName.c_str());
     return true;
   }
 
-  if (Storage.openFileForRead("STATS", cachePath + "/" + LEGACY_STATS_FILE_NAME, f)) {
+  if ((tryAll || present.legacy) && Storage.openFileForRead("STATS", cachePath + "/" + LEGACY_STATS_FILE_NAME, f)) {
     LOG_DBG("STATS", "Migrating legacy %s to %s", LEGACY_STATS_FILE_NAME, currentName.c_str());
     return true;
   }

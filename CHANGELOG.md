@@ -3,12 +3,18 @@
 ### Added
 
 - Orientation Menu, a new action for any button, Power + Up or Quick Actions: it opens a list of Portrait, Landscape CCW, Landscape CW and Portrait 180°, with the current orientation selected. In a book the choice applies like Landscape Flip (every book, or only this book when it is Exempt from Global Orientation); on Home it sets the orientation books open in. Landscape Flip stays available.
+- Reaching the End of Book screen asks "Mark as Finished?" when the book is not finished yet and the 99% prompt has not already asked during this reading. Choosing to mark it saves it as finished, so the Library hides it when Hide Finished Books is on.
+- Interface text and the 8, 10 and 14 reading sizes of Jester Serif include Latin Extended-A (Č, ł, ő, ş, ž and the rest), so names such as Karel Čapek no longer show a box. About 78 KB more firmware. Books read at those sizes are laid out again on first open; the default size 12 is unchanged.
 
 ### Changed
 
 - The version reads Jester_v1.0.6; the firmware file is Jester_v1.0.6.bin.
 - While the screen refreshes, the processor runs at its low clock (10 MHz) instead of 160 MHz, since it only waits for the panel; it returns to full speed when the refresh ends, or at once on a button press. Off while Wi-Fi is on. Adapted from YACP.
 - Embedded Style books whose CSS has too many rules to keep in memory (about 130 or more, or fewer when free memory is low) index faster: the last 8 rules read from the card are kept, instead of reopening the CSS cache file for every element that uses one.
+- A finished book leaves Home's continue-reading tile to the next most recently opened book that is not finished. Marking it unfinished brings it back.
+- The Library's default sort is Date Added (it was Recently Opened, which showed no books on a new card). Applies to a new settings file.
+- The File Transfer hotspot is called Jester-Reader (was CrossPoint-Reader). Join the new network once on your phone; the address stays http://crosspoint.local/ or http://192.168.4.1/.
+- Fewer card lookups for reading statistics: a book's cache folder is read once instead of looking for five possible stats files, and Home and the reader no longer load the device-wide statistics, which Jester does not show. This speeds up opening books, Home, and the Library with Hide Finished Books on.
 - Default margins: 25 top and bottom, 25 left and right. Defaults apply to a new settings file; change them in Settings > Reader > Screen Margins, or delete `/.crosspoint/jester-settings.json` to get all defaults.
 
 ### Fixed

@@ -56,7 +56,7 @@ Use either URL from a phone, tablet, or computer on the same network.
 2. Connect your phone or computer to the open Wi-Fi network:
 
 ```text
-CrossPoint-Reader
+Jester-Reader
 ```
 
 3. Open the URL shown on the reader. `http://crosspoint.local/` is preferred

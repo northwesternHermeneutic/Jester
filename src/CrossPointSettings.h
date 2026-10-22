@@ -673,7 +673,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t libraryUseMetadata = 1;
   // Jester (feature 19): index into JesterLibraries::INDEX_LIMIT_VALUES; 9 = All Books.
   uint8_t libraryIndexLimit = 5;  // Jester default (v1.0.4): 200 books
-  uint8_t librarySortMethod = 4;
+  uint8_t librarySortMethod = 0;  // Jester default (v1.0.6): Date Added; Recently Opened was empty on a new card
   uint8_t librarySortDescending = 1;
   uint8_t libraryListExpanded = 1;
   uint8_t libraryShowSeries = 0;  // Jester default (v1.0.4)

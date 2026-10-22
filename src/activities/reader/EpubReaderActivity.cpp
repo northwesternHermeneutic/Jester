@@ -2405,7 +2405,8 @@ void EpubReaderActivity::onEnter() {
   sessionReadingSeconds = 0;
   hasSessionStartLocalDateTime = getCurrentLocalReadingStatsDateTime(sessionStartLocalDateTime);
 
-  globalStats = GlobalReadingStats::load();
+  globalStatsLoaded = false;
+  if (SETTINGS.shouldTrackReadingStats()) ensureGlobalStatsLoaded();
 
   initializeCompletionPromptTrigger();
 
@@ -2947,9 +2948,12 @@ void EpubReaderActivity::loop() {
     completionPromptQueued = false;
     completionPromptShown = true;
     pauseReadingPaceTimer("completion_prompt");
+    const bool atEnd = completionPromptAtEnd;
+    completionPromptAtEnd = false;
     startActivityForResult(
-        std::make_unique<ConfirmationActivity>(renderer, mappedInput, tr(STR_MARK_FINISHED_PROMPT_TITLE),
-                                               tr(STR_MARK_FINISHED_PROMPT_BODY)),
+        std::make_unique<ConfirmationActivity>(
+            renderer, mappedInput, tr(STR_MARK_FINISHED_PROMPT_TITLE),
+            atEnd ? tr(STR_MARK_FINISHED_PROMPT_END_BODY) : tr(STR_MARK_FINISHED_PROMPT_BODY)),
         [this](const ActivityResult& result) {
           resumeReadingPaceTimer("completion_prompt_return");
           if (!result.isCancelled) {
@@ -3001,6 +3005,13 @@ void EpubReaderActivity::loop() {
   const bool atEndOfBook = currentSpineIndex > 0 && currentSpineIndex >= epub->getSpineItemsCount();
   if (atEndOfBook) {
     clearPendingManualPageTurns();
+    // Jester: reaching the end asks whether to mark the book finished, unless
+    // it already is or the 99% prompt already asked during this visit.
+    if (!stats.isCompleted && !completionPromptShown && !completionPromptQueued) {
+      completionPromptQueued = true;
+      completionPromptAtEnd = true;
+      return;
+    }
   }
 
   // Paged back into the book: release the end screen app and its theme tokens.
@@ -3997,6 +4008,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       break;
     }
     case EpubReaderMenuActivity::MenuAction::READING_STATS: {
+      ensureGlobalStatsLoaded();
       // Include elapsed time from the current session in the display stats.
       BookReadingStats displayStats = stats;
       if (SETTINGS.shouldTrackReadingStats()) {
@@ -4284,6 +4296,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
 
 std::unique_ptr<Activity> EpubReaderActivity::createFrontlightReadingStatsActivity() {
   if (!epub) return {};
+  ensureGlobalStatsLoaded();
 
   BookReadingStats displayStats = stats;
   if (SETTINGS.shouldTrackReadingStats()) {
@@ -4334,7 +4347,7 @@ void EpubReaderActivity::onFrontlightPanelOpened() {
 }
 
 void EpubReaderActivity::onFrontlightPanelClosed() {
-  globalStats = GlobalReadingStats::load();
+  if (globalStatsLoaded) globalStats = GlobalReadingStats::load();
   stats = epub ? BookReadingStats::load(epub->getCachePath()) : stats;
   resumeReadingPaceTimer("frontlight_panel_return");
   requestUpdate();
@@ -5641,6 +5654,9 @@ void EpubReaderActivity::setBookCompleted(bool isCompleted) {
     recentsEntryRemoved = false;
     pendingReadFolderMove = false;
   }
+  // Jester: Home's continue-reading tile moves on from a finished book.
+  RECENT_BOOKS.setFinished(epub->getPath(), isCompleted);
+  ensureGlobalStatsLoaded();
   if (isCompleted) {
     globalStats.completedBooks++;
   } else if (globalStats.completedBooks > 0) {
@@ -5650,6 +5666,12 @@ void EpubReaderActivity::setBookCompleted(bool isCompleted) {
   refreshCachedTimeLeftEstimate();
   stats.save(epub->getCachePath());
   globalStats.save();
+}
+
+void EpubReaderActivity::ensureGlobalStatsLoaded() {
+  if (globalStatsLoaded) return;
+  globalStats = GlobalReadingStats::load();
+  globalStatsLoaded = true;
 }
 
 void EpubReaderActivity::showCompletedFeedback(bool isCompleted) {

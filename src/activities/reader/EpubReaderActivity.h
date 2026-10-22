@@ -188,6 +188,10 @@ class EpubReaderActivity final : public Activity {
   ReaderSettingsSnapshot suspendedBookReaderSettings;
   BookReadingStats stats;
   GlobalReadingStats globalStats;
+  // Jester: global stats are only read when used (tracking is off; Mark as
+  // Finished still updates the completed-books count).
+  bool globalStatsLoaded = false;
+  void ensureGlobalStatsLoaded();
   ReadingStatsDateTime sessionStartLocalDateTime;
   bool hasSessionStartLocalDateTime = false;
   // Signals that the next render should reposition within the newly loaded section
@@ -252,6 +256,8 @@ class EpubReaderActivity final : public Activity {
   int completionTriggerSpineIndex = -1;
   float completionTriggerSpineProgress = 1.0f;
   bool completionPromptQueued = false;
+  // Jester: the queued prompt was raised by reaching the End of Book screen.
+  bool completionPromptAtEnd = false;
   bool completionPromptShown = false;
   bool completionTriggerSeenBelow = false;
   bool completionTriggerCrossed = false;

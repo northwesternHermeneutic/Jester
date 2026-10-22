@@ -230,6 +230,7 @@ bool toggleBookCompleted(const std::string& fullPath, const std::string& display
 
   // Changing completion status does not open a book. The reader adds it to
   // recents if it is opened again after being marked unfinished.
+  RECENT_BOOKS.setFinished(fullPath, completed);  // Jester: Home tile skips finished books
   if (SETTINGS.removeReadBooksFromRecents && completed) RECENT_BOOKS.removeByPath(fullPath);
 
   if (isEpub && completed && SETTINGS.moveFinishedToReadFolder && fullPath.rfind("/Read/", 0) != 0) {
