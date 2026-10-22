@@ -13,6 +13,8 @@
 
 ### Fixed
 
+- Two-line names in the Library, Favorites and Browse Files keep the space between words on the second line ("Ernest Vincent Wright", not "VincentWright"). Found in the eink-qemu emulator.
+- Quick Actions > Orientation Menu no longer leaves the edge of the larger Quick Actions box drawn around the orientation list.
 - In text files (including the Dog Ears and Clippings text files) and XTC books, holding Select opens Quick Actions, the default, instead of the reader menu. Hold Back set to Quick Actions works there too.
 
 ## [Jester v1.0.5]

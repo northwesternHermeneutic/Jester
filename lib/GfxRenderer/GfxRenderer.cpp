@@ -2476,20 +2476,24 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
       // Last available line: combine any word already started on this line with
       // the rest of the text, then let truncatedText fit it with an ellipsis.
       std::string lastContent = currentLine.empty() ? remaining : currentLine + " " + remaining;
+      std::replace(lastContent.begin(), lastContent.end(), '\n', ' ');
       lines.push_back(truncatedText(fontId, lastContent.c_str(), maxWidth, style));
       return lines;
     }
 
-    // Find next word
-    size_t spacePos = remaining.find(' ');
+    // Find next word. Jester: a '\n' (TwoLineName::prebreak's chosen line end)
+    // is a hard break; before, it stayed inside a word and the space after the
+    // break went missing on the second line.
+    const size_t breakPos = remaining.find_first_of(" \n");
+    const bool hardBreak = breakPos != std::string::npos && remaining[breakPos] == '\n';
     std::string word;
 
-    if (spacePos == std::string::npos) {
+    if (breakPos == std::string::npos) {
       word = remaining;
       remaining.clear();
     } else {
-      word = remaining.substr(0, spacePos);
-      remaining.erase(0, spacePos + 1);
+      word = remaining.substr(0, breakPos);
+      remaining.erase(0, breakPos + 1);
     }
 
     std::string testLine = currentLine.empty() ? word : currentLine + " " + word;
@@ -2516,6 +2520,10 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
         lines.push_back(truncatedText(fontId, word.c_str(), maxWidth, style));
         return lines;
       }
+    }
+    if (hardBreak && static_cast<int>(lines.size()) < maxLines - 1) {
+      lines.push_back(currentLine);
+      currentLine.clear();
     }
   }
 

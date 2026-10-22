@@ -47,9 +47,12 @@ void showConfiguredPopup(OptionPopup& popup, const std::function<void()>& reques
                  // full-page render here.
                  // Quick Lock is never offered here (isQuickActionSlotActionAvailable
                  // filters it out) because unlocking needs a single physical shortcut.
+                 // Jester: the Orientation Menu popup is drawn over the framebuffer
+                 // too, which would still show this larger popup's frame around it.
                  if ((action == CrossPointSettings::SHORT_PWRBTN::SLEEP && sleepScreenNeedsUnderlyingFrame()) ||
                      (action == CrossPointSettings::SHORT_PWRBTN::SCREENSHOT &&
-                      !activityManager.canSnapshotForSleepOverlay())) {
+                      !activityManager.canSnapshotForSleepOverlay()) ||
+                     action == CrossPointSettings::SHORT_PWRBTN::ORIENTATION_MENU) {
                    (void)activityManager.requestUpdateAndWait();
                  }
                  if (actionHandler) {
