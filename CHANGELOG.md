@@ -8,6 +8,7 @@
 
 - The version reads Jester_v1.0.6; the firmware file is Jester_v1.0.6.bin.
 - While the screen refreshes, the processor runs at its low clock (10 MHz) instead of 160 MHz, since it only waits for the panel; it returns to full speed when the refresh ends, or at once on a button press. Off while Wi-Fi is on. Adapted from YACP.
+- Embedded Style books whose CSS has too many rules to keep in memory (about 130 or more, or fewer when free memory is low) index faster: the last 8 rules read from the card are kept, instead of reopening the CSS cache file for every element that uses one.
 - Default margins: 25 top and bottom, 25 left and right. Defaults apply to a new settings file; change them in Settings > Reader > Screen Margins, or delete `/.crosspoint/jester-settings.json` to get all defaults.
 
 ### Fixed

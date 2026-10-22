@@ -4,6 +4,7 @@
 #include <Arena.h>
 #include <ArenaVector.h>
 #include <Logging.h>
+#include <Memory.h>
 
 #include <algorithm>
 #include <array>
@@ -1166,12 +1167,46 @@ bool CssParser::lookupRule(std::string_view selector, CssStyle& outStyle) const 
   const uint32_t h = selectorHash(selector);
   auto it = std::lower_bound(cacheRuleOffsets_.begin(), cacheRuleOffsets_.end(), h,
                              [](const SelectorEntry& e, const uint32_t key) { return e.hash < key; });
+  if (it == cacheRuleOffsets_.end() || it->hash != h) return false;
+  const uint32_t secondaryHash = selectorSecondaryHash(selector);
+  if (findDiskRuleMemo(h, secondaryHash, selector.size(), outStyle)) return true;
   for (; it != cacheRuleOffsets_.end() && it->hash == h; ++it) {
     if (readRuleFromDiskAtOffset(it->offset, selector, outStyle)) {
+      rememberDiskRule(h, secondaryHash, selector.size(), outStyle);
       return true;
     }
   }
   return false;
+}
+
+bool CssParser::findDiskRuleMemo(const uint32_t hash, const uint32_t secondaryHash, const size_t selectorLen,
+                                 CssStyle& outStyle) const {
+  if (!diskRuleMemo_) return false;
+  for (uint8_t i = 0; i < diskRuleMemo_->count; ++i) {
+    const auto& entry = diskRuleMemo_->entries[i];
+    // Same identity test as lookupArenaRule().
+    if (entry.hash == hash && entry.secondaryHash == secondaryHash && entry.selectorLen == selectorLen) {
+      outStyle = entry.style;
+      return true;
+    }
+  }
+  return false;
+}
+
+void CssParser::rememberDiskRule(const uint32_t hash, const uint32_t secondaryHash, const size_t selectorLen,
+                                 const CssStyle& style) const {
+  if (!diskRuleMemo_) {
+    diskRuleMemo_ = makeUniqueNoThrow<DiskRuleMemo>();
+    if (!diskRuleMemo_) return;  // optional: lookups keep reading the card
+  }
+  auto& memo = *diskRuleMemo_;
+  auto& entry = memo.entries[memo.next];
+  entry.hash = hash;
+  entry.secondaryHash = secondaryHash;
+  entry.selectorLen = static_cast<uint16_t>(selectorLen);
+  entry.style = style;
+  memo.next = static_cast<uint8_t>((memo.next + 1) % DISK_RULE_MEMO_SIZE);
+  if (memo.count < DISK_RULE_MEMO_SIZE) ++memo.count;
 }
 
 bool CssParser::hasCache() const { return Storage.exists((cachePath + rulesCache).c_str()); }
@@ -1240,6 +1275,7 @@ CssParser::CacheStatus CssParser::inspectCache() const {
 }
 
 void CssParser::deleteCache() const {
+  diskRuleMemo_.reset();
   if (hasCache()) Storage.remove((cachePath + rulesCache).c_str());
   Storage.remove((cachePath + rulesCacheTmp).c_str());
   Storage.remove((cachePath + rulesCacheBackup).c_str());
@@ -1393,6 +1429,7 @@ bool CssParser::saveToCache(const bool complete) const {
 }
 
 bool CssParser::loadFromCache() {
+  diskRuleMemo_.reset();
   if (cachePath.empty()) {
     return false;
   }

@@ -4,6 +4,7 @@
 #include <HalStorage.h>
 
 #include <initializer_list>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -132,6 +133,7 @@ class CssParser {
     cacheIndexLoaded_ = false;
     cachedRuleCount_ = 0;
     cachePartial_ = false;
+    diskRuleMemo_.reset();
   }
 
   /**
@@ -251,6 +253,25 @@ class CssParser {
   mutable bool cacheIndexLoaded_ = false;
   mutable size_t cachedRuleCount_ = 0;
   mutable std::vector<SelectorEntry> cacheRuleOffsets_;
+  // Jester: the last rules read from the SD cache when the rule table did not
+  // fit in RAM. Neighbouring elements mostly repeat the same few selectors,
+  // and each disk read reopens the cache file through the whole path. Created
+  // on the first disk read, freed by clear() and loadFromCache().
+  struct DiskRuleMemoEntry {
+    uint32_t hash = 0;
+    uint32_t secondaryHash = 0;
+    uint16_t selectorLen = 0;
+    CssStyle style;
+  };
+  static constexpr uint8_t DISK_RULE_MEMO_SIZE = 8;
+  struct DiskRuleMemo {
+    DiskRuleMemoEntry entries[DISK_RULE_MEMO_SIZE];
+    uint8_t count = 0;
+    uint8_t next = 0;
+  };
+  mutable std::unique_ptr<DiskRuleMemo> diskRuleMemo_;
+  bool findDiskRuleMemo(uint32_t hash, uint32_t secondaryHash, size_t selectorLen, CssStyle& outStyle) const;
+  void rememberDiskRule(uint32_t hash, uint32_t secondaryHash, size_t selectorLen, const CssStyle& style) const;
 
   // Internal parsing helpers
   [[nodiscard]] bool processRuleBlockWithStyle(std::string_view selectorGroup, const CssStyle& style);
