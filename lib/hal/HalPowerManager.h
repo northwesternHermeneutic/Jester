@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <freertos/semphr.h>
 
+#include <atomic>
 #include <cassert>
 
 #include "HalGPIO.h"
@@ -24,6 +25,9 @@ extern HalPowerManager powerManager;  // Singleton
 class HalPowerManager {
   int normalFreq = 0;  // MHz
   bool isLowPower = false;
+  // Set while the panel controller is BUSY with a refresh (display busy-wait
+  // hooks). Allows the low CPU clock even under a Lock; see setPowerSaving().
+  std::atomic<bool> displayBusyWait{false};
 
   mutable int _batteryCachedPercent = 0;  // Last read battery percentage * 10 (0-1000); callers divide by 10 (ADC/X4
                                           // path only — I2C/X3 path stores 0-100 directly)
@@ -46,6 +50,12 @@ class HalPowerManager {
 
   // Control CPU frequency for power saving
   void setPowerSaving(bool enabled);
+
+  // Display busy-wait hooks (FreeInkDisplay::setBusyWaitHooks): the CPU only
+  // waits for the panel's BUSY line during a refresh, so it runs at
+  // LOW_POWER_FREQ until the refresh ends. No effect while Wi-Fi is on.
+  void beginDisplayBusyWait();
+  void endDisplayBusyWait();
 
   // Setup wake up GPIO and enter deep sleep
   // Should be called inside main loop() to handle the currentLockMode

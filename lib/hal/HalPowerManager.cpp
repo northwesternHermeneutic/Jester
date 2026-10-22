@@ -58,8 +58,12 @@ void HalPowerManager::setPowerSaving(bool enabled) {
   }
 
   const LockMode mode = currentLockMode;
+  // A Lock keeps the normal clock for rendering, except while the render only
+  // waits for the panel's BUSY line.
+  const bool mayUseLowFrequency =
+      enabled && (mode == None || displayBusyWait.load(std::memory_order_acquire));
 
-  if (mode == None && enabled && !isLowPower) {
+  if (mayUseLowFrequency && !isLowPower) {
     LOG_DBG("PWR", "Going to low-power mode");
     if (!setCpuFrequencyMhz(LOW_POWER_FREQ)) {
       LOG_DBG("PWR", "Failed to set CPU frequency = %d MHz", LOW_POWER_FREQ);
@@ -70,7 +74,7 @@ void HalPowerManager::setPowerSaving(bool enabled) {
     }
     isLowPower = true;
 
-  } else if ((!enabled || mode != None) && isLowPower) {
+  } else if (!mayUseLowFrequency && isLowPower) {
     LOG_DBG("PWR", "Restoring normal CPU frequency");
     if (!setCpuFrequencyMhz(normalFreq)) {
       LOG_DBG("PWR", "Failed to set CPU frequency = %d MHz", normalFreq);
@@ -192,6 +196,23 @@ bool HalPowerManager::getBatteryDiagnostics(BatteryDiagnostics& out) const {
   return true;
 }
 #endif
+
+// Display busy-wait CPU clock reduction adapted from Sichroteph/YACP commit
+// 6d1f10f4bae52d282a088f9b2e45aaac96da8377 (MIT).
+void HalPowerManager::beginDisplayBusyWait() {
+  if (normalFreq <= 0 || WiFi.getMode() != WIFI_MODE_NULL) {
+    return;
+  }
+  displayBusyWait.store(true, std::memory_order_release);
+  setPowerSaving(true);
+}
+
+void HalPowerManager::endDisplayBusyWait() {
+  if (!displayBusyWait.exchange(false, std::memory_order_acq_rel)) {
+    return;
+  }
+  setPowerSaving(false);
+}
 
 HalPowerManager::Lock::Lock() {
   xSemaphoreTake(powerManager.modeMutex, portMAX_DELAY);

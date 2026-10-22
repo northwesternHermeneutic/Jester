@@ -47,6 +47,8 @@ class HalDisplay {
   // Persistently invert panel output while leaving framebuffer drawing in its
   // normal logical colors.
   void setInverted(bool inverted);
+  // Run around long panel BUSY waits during refreshes (EpdBus::setBusyWaitHooks).
+  void setBusyWaitHooks(void (*beginHook)(), void (*endHook)());
   // Restore the controller's old-image plane from the saved Quick Resume frame.
   // Only supported panels may use a gentle differential first paint.
   bool restoreVisibleFrame();

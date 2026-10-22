@@ -1187,6 +1187,9 @@ void setupDisplayAndFonts(const bool seamless, const bool loadReaderResources, c
   display.begin();
 #else
   display.begin(seamless);
+  // Lower the CPU clock while a refresh only waits for the panel's BUSY line.
+  display.setBusyWaitHooks([] { powerManager.beginDisplayBusyWait(); },
+                           [] { powerManager.endDisplayBusyWait(); });
 #endif
   renderer.begin();
   display.setInverted(SETTINGS.screenInverted != 0);

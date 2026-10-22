@@ -87,6 +87,15 @@ void HalDisplay::setInverted(bool inverted) {
   einkDisplay.setInverted(inverted);
 }
 
+void HalDisplay::setBusyWaitHooks(void (*beginHook)(), void (*endHook)()) {
+#ifndef SIMULATOR
+  einkDisplay.setBusyWaitHooks(beginHook, endHook);
+#else
+  (void)beginHook;
+  (void)endHook;
+#endif
+}
+
 bool HalDisplay::restoreVisibleFrame() {
 #ifdef SIMULATOR
   return false;
