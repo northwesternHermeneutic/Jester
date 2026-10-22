@@ -58,7 +58,7 @@ Capture the whole text of a page like a screenshot, in a text file like a clippi
 - **Embedded Style** (publisher CSS) with less memory pressure; a chapter that runs short of memory rebuilds itself instead of stopping.
 - **Inline images**, and **long footnotes** readable to the end (previews up to 24 pages).
 - **One percentage format** everywhere, one decimal by default; short books show whole numbers. **Go to %** steps by 5% and 10%, or by 0.1% and 1% after a short power press.
-- **Landscape Flip** switches between the two landscape orientations. Orientation applies to every book unless a book is **Exempt from Global Orientation** (Book Options, last row; EPUB only).
+- **Landscape Flip** switches between the two landscape orientations. **Orientation Menu** opens a list of all four (Portrait, Landscape CCW, Landscape CW, Portrait 180°) to pick from; it works in books and on Home and can go on any button or in Quick Actions. Orientation applies to every book unless a book is **Exempt from Global Orientation** (Book Options, last row; EPUB only).
 - **Clean Screen**: three black-and-white refreshes clear ghosting, then the page is redrawn.
 
 ### Marking places

@@ -450,6 +450,7 @@ class EpubReaderActivity final : public Activity {
                                 bool dictionaryLookupFramebufferContainsPage = true,
                                 QuickLockTrigger quickLockTrigger = QuickLockTrigger::LongMenu);
   void openQuickActionsPopup();
+  void openOrientationMenu();  // Jester: Orientation Menu action
   void executeFootnoteQuickAction(bool suppressInitialPowerRelease = false);
   // Jester (feature 4): add or remove a dog ear on the current page; adding also
   // appends the page text to /DogEars/dogears-<book>.txt.

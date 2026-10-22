@@ -4930,6 +4930,9 @@ void EpubReaderActivity::executeReaderQuickAction(CrossPointSettings::LONG_PRESS
     case CrossPointSettings::LONG_MENU_DOG_EAR:
       toggleDogEar();
       break;
+    case CrossPointSettings::LONG_MENU_ORIENTATION_MENU:
+      openOrientationMenu();
+      break;
     case CrossPointSettings::LONG_MENU_QUICK_ACTIONS:
       openQuickActionsPopup();
       break;
@@ -4951,6 +4954,9 @@ bool EpubReaderActivity::handleShortcutAction(const uint8_t rawAction) {
     case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
       applyOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
       requestUpdate();
+      return true;
+    case CrossPointSettings::SHORT_PWRBTN::ORIENTATION_MENU:
+      openOrientationMenu();
       return true;
     case CrossPointSettings::SHORT_PWRBTN::IGNORE:
       return true;
@@ -5048,6 +5054,9 @@ bool EpubReaderActivity::handleShortcutAction(const CrossPointSettings::SHORT_PW
     case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
       applyOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
       requestUpdate();
+      return true;
+    case CrossPointSettings::SHORT_PWRBTN::ORIENTATION_MENU:
+      openOrientationMenu();
       return true;
     case CrossPointSettings::SHORT_PWRBTN::PAGE_TURN:
       requestManualPageTurn(true, "shortcut");
@@ -5154,6 +5163,22 @@ void EpubReaderActivity::openQuickActionsPopup() {
     mappedInput.setReaderTouchscreenOverride(true);
     quickActionsPopup.setCancelCallback([this] { mappedInput.setReaderTouchscreenOverride(false); });
   }
+}
+
+void EpubReaderActivity::openOrientationMenu() {
+  clearPendingManualPageTurns();
+  QuickActions::showOrientationPopup(quickActionsPopup, SETTINGS.orientation, [this](const uint8_t orientation) {
+    mappedInput.setReaderTouchscreenOverride(false);
+    // Same path as Landscape Flip: an exempt book keeps the change for itself,
+    // any other book saves it as the universal orientation (feature 7).
+    applyOrientation(orientation);
+    requestUpdate();
+  });
+  if (quickActionsPopup.isActive()) {
+    mappedInput.setReaderTouchscreenOverride(true);
+    quickActionsPopup.setCancelCallback([this] { mappedInput.setReaderTouchscreenOverride(false); });
+  }
+  requestUpdate();
 }
 
 void EpubReaderActivity::jumpToSavedLocation(const BookmarkResult& bm) {

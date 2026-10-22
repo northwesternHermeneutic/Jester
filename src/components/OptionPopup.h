@@ -497,8 +497,17 @@ class OptionPopup {
                          const bool suppressRelease) {
     active = false;
     suppressSelectionRelease(input, suppressRelease);
-    if (onSelectCallback) onSelectCallback(selectedIndex);
+    runSelectCallback();
     requestUpdate();
+  }
+
+  // The popup is closed when a selection runs, so its callback is moved out
+  // first: the callback may show() this popup again (Quick Actions opening the
+  // Orientation Menu), which replaces onSelectCallback while it is running.
+  void runSelectCallback() {
+    auto callback = std::move(onSelectCallback);
+    onSelectCallback = nullptr;
+    if (callback) callback(selectedIndex);
   }
 
   void confirm(MappedInputManager& input, const std::function<void()>& requestUpdate, const bool suppressRelease) {
@@ -512,7 +521,7 @@ class OptionPopup {
     if (isDisabled(selectedIndex)) return;
     active = false;
     suppressSelectionRelease(input, suppressRelease);
-    if (onSelectCallback) onSelectCallback(selectedIndex);
+    runSelectCallback();
     const bool skipUpdate = skipPostSelectionUpdate_;
     skipPostSelectionUpdate_ = false;
     if (!skipUpdate) requestUpdate();

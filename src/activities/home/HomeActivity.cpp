@@ -2086,6 +2086,18 @@ bool HomeActivity::handleShortcutAction(const CrossPointSettings::SHORT_PWRBTN a
     return true;
   }
 
+  if (action == CrossPointSettings::SHORT_PWRBTN::ORIENTATION_MENU) {
+    // Jester: outside a book only the universal reader orientation changes
+    // (Home itself stays portrait), as Landscape Flip does here.
+    QuickActions::showOrientationPopup(quickActionsPopup, SETTINGS.orientation, [](const uint8_t orientation) {
+      if (SETTINGS.orientation == orientation) return;
+      SETTINGS.orientation = orientation;
+      if (!SETTINGS.saveToFile()) LOG_ERR("HOME", "Failed to save orientation");
+    });
+    requestUpdate();
+    return true;
+  }
+
   if (action != CrossPointSettings::SHORT_PWRBTN::QUICK_ACTIONS) {
     return false;
   }
@@ -2109,7 +2121,8 @@ bool HomeActivity::handleShortcutAction(const CrossPointSettings::SHORT_PWRBTN a
       },
       [](const auto selectedAction) {
         return isPowerButtonActionAvailableOutsideReader(selectedAction) ||
-               selectedAction == CrossPointSettings::SHORT_PWRBTN::FILE_BROWSER;
+               selectedAction == CrossPointSettings::SHORT_PWRBTN::FILE_BROWSER ||
+               selectedAction == CrossPointSettings::SHORT_PWRBTN::ORIENTATION_MENU;
       });
   return true;
 }

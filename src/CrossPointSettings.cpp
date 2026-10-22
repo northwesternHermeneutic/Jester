@@ -227,7 +227,8 @@ bool isValidQuickActionSlot(const uint8_t action) {
          action == CrossPointSettings::TOGGLE_FRONTLIGHT || action == CrossPointSettings::TOGGLE_TOUCHSCREEN ||
          action == CrossPointSettings::PREVIOUS_PAGE || action == CrossPointSettings::NEARBY_POSITION_SYNC ||
          action == CrossPointSettings::LIBRARY || action == CrossPointSettings::DOG_EAR ||
-         action == CrossPointSettings::CLEAN_SCREEN || action == CrossPointSettings::LANDSCAPE_FLIP;
+         action == CrossPointSettings::CLEAN_SCREEN || action == CrossPointSettings::LANDSCAPE_FLIP ||
+         action == CrossPointSettings::ORIENTATION_MENU;
 }
 
 uint8_t migrateTiltDirectionValue(const uint8_t direction) {

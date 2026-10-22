@@ -84,6 +84,7 @@ class TxtReaderActivity final : public Activity {
   void rebuildTextLayout();
   void openReaderMenu();
   bool applyReaderOrientation(uint8_t orientation);
+  void openOrientationMenu();  // Jester: Orientation Menu action
 #if CROSSINK_APP_CAP_TOUCH
   bool handlePinchFontResize();
   void resetPinchFontGesture();

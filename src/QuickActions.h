@@ -69,7 +69,7 @@ inline constexpr std::array<StrId, CrossPointSettings::QUICK_ACTION_SLOT_ACTION_
 
 // Shared display order for shortcut pickers. The values remain the persisted
 // SHORT_PWRBTN IDs; only their presentation order is centralized here.
-inline constexpr std::array<CrossPointSettings::SHORT_PWRBTN, 34> shortcutActionOrder = {
+inline constexpr std::array<CrossPointSettings::SHORT_PWRBTN, 35> shortcutActionOrder = {
     CrossPointSettings::IGNORE,
     CrossPointSettings::SLEEP,
     CrossPointSettings::PAGE_TURN,
@@ -81,6 +81,7 @@ inline constexpr std::array<CrossPointSettings::SHORT_PWRBTN, 34> shortcutAction
     CrossPointSettings::FORCE_REFRESH,
     CrossPointSettings::CLEAN_SCREEN,
     CrossPointSettings::LANDSCAPE_FLIP,
+    CrossPointSettings::ORIENTATION_MENU,
     CrossPointSettings::TOGGLE_FONT,
     CrossPointSettings::TOGGLE_GUIDE_DOTS,
     CrossPointSettings::TOGGLE_FOCUS_READING,
@@ -132,6 +133,7 @@ inline bool isActionAvailable(const uint8_t action) {
   if (isActionRemovedInJester(action)) return false;
   if (action == CrossPointSettings::DOG_EAR) return true;  // feature 4
   if (action == CrossPointSettings::LANDSCAPE_FLIP) return true;  // feature 7
+  if (action == CrossPointSettings::ORIENTATION_MENU) return true;
   if (action == CrossPointSettings::CLEAN_SCREEN) return true;
   if (action == CrossPointSettings::PREVIOUS_PAGE || action == CrossPointSettings::LIBRARY) return true;
   if (action == CrossPointSettings::QUICK_ACTIONS || action == CrossPointSettings::QUICK_LOCK) return true;
@@ -157,6 +159,7 @@ inline StrId actionLabel(const uint8_t action) {
   if (action == CrossPointSettings::DOG_EAR) return StrId::STR_DOG_EAR;
   if (action == CrossPointSettings::CLEAN_SCREEN) return StrId::STR_CLEAN_SCREEN;
   if (action == CrossPointSettings::LANDSCAPE_FLIP) return StrId::STR_LANDSCAPE_FLIP;
+  if (action == CrossPointSettings::ORIENTATION_MENU) return StrId::STR_ORIENTATION_MENU;
   if (action == CrossPointSettings::QUICK_ACTIONS) return StrId::STR_QUICK_ACTIONS;
   if (action == CrossPointSettings::TOGGLE_FRONTLIGHT) return StrId::STR_TOGGLE_FRONTLIGHT;
   if (action == CrossPointSettings::TOGGLE_TOUCHSCREEN) return StrId::STR_TOGGLE_TOUCHSCREEN;
@@ -328,4 +331,10 @@ using ActionFilter = std::function<bool(CrossPointSettings::SHORT_PWRBTN)>;
 
 void showConfiguredPopup(OptionPopup& popup, const std::function<void()>& requestUpdate,
                          ActionHandler actionHandler = {}, ActionFilter actionFilter = {});
+
+// Jester: the Orientation Menu action. Lists Portrait, Landscape CCW, Landscape
+// CW and Portrait 180° with the current orientation selected; onPick receives
+// the chosen CrossPointSettings::ORIENTATION value. Safe to call from another
+// popup's selection callback (Quick Actions > Orientation Menu reuses it).
+void showOrientationPopup(OptionPopup& popup, uint8_t currentOrientation, std::function<void(uint8_t)> onPick);
 }  // namespace QuickActions

@@ -293,6 +293,16 @@ void XtcReaderActivity::loop() {
     return;
   }
 
+  // Jester: hold Select opens Quick Actions (the default) here too; before,
+  // the release opened the reader menu instead.
+  if (longPressMenuAction == CrossPointSettings::LONG_MENU_QUICK_ACTIONS &&
+      mappedInput.isPressed(MappedInputManager::Button::Confirm) && mappedInput.getHeldTime() >= LONG_PRESS_MENU_MS) {
+    longPressMenuHandled = true;
+    mappedInput.suppressNextConfirmRelease();
+    handleShortcutAction(CrossPointSettings::SHORT_PWRBTN::QUICK_ACTIONS);
+    return;
+  }
+
   if (longPressMenuAction == CrossPointSettings::LONG_MENU_LIBRARY && mappedInput.getHeldTime() >= LONG_PRESS_MENU_MS &&
       (mappedInput.isPressed(MappedInputManager::Button::Confirm) ||
        mappedInput.wasReleased(MappedInputManager::Button::Confirm))) {
@@ -1072,6 +1082,8 @@ bool XtcReaderActivity::executeLongPressBackAction() {
       return false;
     case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_QUICK_LOCK:
       return handleGlobalPowerButtonAction(CrossPointSettings::SHORT_PWRBTN::QUICK_LOCK, QuickLockTrigger::LongBack);
+    case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_QUICK_ACTIONS:
+      return handleShortcutAction(CrossPointSettings::SHORT_PWRBTN::QUICK_ACTIONS);
     default:
       return false;
   }

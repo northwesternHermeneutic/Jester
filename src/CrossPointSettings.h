@@ -292,6 +292,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     DOG_EAR = JESTER_ACTION_FIRST,
     CLEAN_SCREEN = 193,
     LANDSCAPE_FLIP = 194,
+    ORIENTATION_MENU = 195,
     JESTER_ACTION_END
   };
   static constexpr bool isJesterShortcutAction(const uint8_t action) {
@@ -341,6 +342,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     CHORD_DOG_EAR = CHORD_JESTER_FIRST,
     CHORD_CLEAN_SCREEN = 193,
     CHORD_LANDSCAPE_FLIP = 194,
+    CHORD_ORIENTATION_MENU = 195,
     CHORD_JESTER_END
   };
   static constexpr bool isJesterChordAction(const uint8_t action) {
@@ -440,6 +442,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
     // Jester long-press actions: reserved block, same rule as SHORT_PWRBTN.
     LONG_MENU_JESTER_FIRST = 192,
     LONG_MENU_DOG_EAR = LONG_MENU_JESTER_FIRST,
+    LONG_MENU_ORIENTATION_MENU = 193,
   };
 
   // Clipping storage mode
@@ -620,8 +623,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t hyphenationEnabled = 1;  // Jester default (feature 9)
 
   // Reader screen margins. Legacy single-axis settings initialize both values.
-  uint8_t screenMarginVertical = 30;  // Jester default (feature 9; 30 since build 26)
-  uint8_t screenMarginHorizontal = 35;  // Jester default (feature 9; 35 since build 26)
+  uint8_t screenMarginVertical = 25;    // Jester default (feature 9; 25 since v1.0.6)
+  uint8_t screenMarginHorizontal = 25;  // Jester default (feature 9; 25 since v1.0.6)
   // Show EPUB publisher pagebreak labels in the reader margin when present.
   uint8_t publisherPageNumbers = 0;
   // OPDS browser settings

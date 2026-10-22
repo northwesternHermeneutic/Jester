@@ -1,3 +1,18 @@
+## [Jester v1.0.6]
+
+### Added
+
+- Orientation Menu, a new action for any button, Power + Up or Quick Actions: it opens a list of Portrait, Landscape CCW, Landscape CW and Portrait 180°, with the current orientation selected. In a book the choice applies like Landscape Flip (every book, or only this book when it is Exempt from Global Orientation); on Home it sets the orientation books open in. Landscape Flip stays available.
+
+### Changed
+
+- The version reads Jester_v1.0.6; the firmware file is Jester_v1.0.6.bin.
+- Default margins: 25 top and bottom, 25 left and right. Defaults apply to a new settings file; change them in Settings > Reader > Screen Margins, or delete `/.crosspoint/jester-settings.json` to get all defaults.
+
+### Fixed
+
+- In text files (including the Dog Ears and Clippings text files) and XTC books, holding Select opens Quick Actions, the default, instead of the reader menu. Hold Back set to Quick Actions works there too.
+
 ## [Jester v1.0.5]
 
 ### Changed

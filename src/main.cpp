@@ -779,6 +779,8 @@ CrossPointSettings::SHORT_PWRBTN chordPowerAction(const ButtonShortcutController
       return Power::CLEAN_SCREEN;
     case Chord::LandscapeFlip:
       return Power::LANDSCAPE_FLIP;
+    case Chord::OrientationMenu:
+      return Power::ORIENTATION_MENU;
     case Chord::FileTransfer:
       return Power::FILE_TRANSFER;
     case Chord::CalibreWireless:

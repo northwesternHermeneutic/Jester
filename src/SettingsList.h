@@ -469,6 +469,8 @@ inline uint8_t shortcutRawValue(const ShortcutOptionCatalog catalog, const Cross
           return Chord::CHORD_CLEAN_SCREEN;
         case Action::LANDSCAPE_FLIP:
           return Chord::CHORD_LANDSCAPE_FLIP;
+        case Action::ORIENTATION_MENU:
+          return Chord::CHORD_ORIENTATION_MENU;
         case Action::TOGGLE_TILT_PAGE_TURN:
           return SHORTCUT_OPTION_UNAVAILABLE;
         default:
@@ -529,6 +531,8 @@ inline uint8_t shortcutRawValue(const ShortcutOptionCatalog catalog, const Cross
           return LongPress::LONG_MENU_LIBRARY;
         case Action::DOG_EAR:
           return LongPress::LONG_MENU_DOG_EAR;
+        case Action::ORIENTATION_MENU:
+          return LongPress::LONG_MENU_ORIENTATION_MENU;
         case Action::PAGE_TURN:
         case Action::PREVIOUS_PAGE:
         case Action::NEARBY_POSITION_SYNC:

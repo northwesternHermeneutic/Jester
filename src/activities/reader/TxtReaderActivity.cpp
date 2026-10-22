@@ -277,6 +277,21 @@ void TxtReaderActivity::loop() {
     return;
   }
 
+  // Jester: hold Select opens Quick Actions (the default) or the Orientation
+  // Menu here too; before, the release opened the reader menu instead. The
+  // popups select on a press edge, so the held Select cannot pick an option.
+  if ((SETTINGS.longPressMenuAction == CrossPointSettings::LONG_MENU_QUICK_ACTIONS ||
+       SETTINGS.longPressMenuAction == CrossPointSettings::LONG_MENU_ORIENTATION_MENU) &&
+      mappedInput.isPressed(MappedInputManager::Button::Confirm) && mappedInput.getHeldTime() >= LONG_PRESS_MENU_MS) {
+    longPressMenuHandled = true;
+    mappedInput.suppressNextConfirmRelease();
+    if (SETTINGS.longPressMenuAction == CrossPointSettings::LONG_MENU_QUICK_ACTIONS)
+      handleShortcutAction(CrossPointSettings::SHORT_PWRBTN::QUICK_ACTIONS);
+    else
+      openOrientationMenu();
+    return;
+  }
+
   if (SETTINGS.longPressMenuAction == CrossPointSettings::LONG_MENU_LIBRARY &&
       mappedInput.getHeldTime() >= LONG_PRESS_MENU_MS &&
       (mappedInput.isPressed(MappedInputManager::Button::Confirm) ||
@@ -544,8 +559,9 @@ bool TxtReaderActivity::supportsQuickAction(const CrossPointSettings::SHORT_PWRB
     case CrossPointSettings::SHORT_PWRBTN::LIBRARY:
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_FRONTLIGHT:
     case CrossPointSettings::SHORT_PWRBTN::TOGGLE_TOUCHSCREEN:
-    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:  // Jester (feature 7)
-    case CrossPointSettings::SHORT_PWRBTN::CLEAN_SCREEN:    // Jester (feature 15)
+    case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:    // Jester (feature 7)
+    case CrossPointSettings::SHORT_PWRBTN::ORIENTATION_MENU:  // Jester
+    case CrossPointSettings::SHORT_PWRBTN::CLEAN_SCREEN:      // Jester (feature 15)
       return true;
     default:
       return false;
@@ -556,6 +572,9 @@ bool TxtReaderActivity::executeReaderShortcutAction(const CrossPointSettings::SH
   switch (action) {
     case CrossPointSettings::SHORT_PWRBTN::LANDSCAPE_FLIP:
       return applyReaderOrientation(ReaderUtils::landscapeFlipOrientation(SETTINGS.orientation));
+    case CrossPointSettings::SHORT_PWRBTN::ORIENTATION_MENU:
+      openOrientationMenu();
+      return true;
     case CrossPointSettings::SHORT_PWRBTN::PREVIOUS_PAGE:
       if (currentPage > 0) {
         currentPage--;
@@ -669,11 +688,28 @@ bool TxtReaderActivity::executeLongPressBackAction() {
     case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_LIBRARY:
       activityManager.goToLibrary();
       return true;
+    case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_QUICK_ACTIONS:
+      return handleShortcutAction(CrossPointSettings::SHORT_PWRBTN::QUICK_ACTIONS);
+    case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_ORIENTATION_MENU:
+      openOrientationMenu();
+      return true;
     case CrossPointSettings::LONG_PRESS_MENU_ACTION::LONG_MENU_CREATE_CLIPPING:
       return false;
     default:
       return false;
   }
+}
+
+void TxtReaderActivity::openOrientationMenu() {
+  QuickActions::showOrientationPopup(quickActionsPopup, SETTINGS.orientation, [this](const uint8_t orientation) {
+    mappedInput.setReaderTouchscreenOverride(false);
+    if (orientation != SETTINGS.orientation) applyReaderOrientation(orientation);
+  });
+  if (quickActionsPopup.isActive()) {
+    mappedInput.setReaderTouchscreenOverride(true);
+    quickActionsPopup.setCancelCallback([this] { mappedInput.setReaderTouchscreenOverride(false); });
+  }
+  requestUpdate();
 }
 
 bool TxtReaderActivity::handleShortcutAction(const uint8_t action) {

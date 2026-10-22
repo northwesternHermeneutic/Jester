@@ -61,4 +61,21 @@ void showConfiguredPopup(OptionPopup& popup, const std::function<void()>& reques
              });
   requestUpdate();
 }
+
+void showOrientationPopup(OptionPopup& popup, const uint8_t currentOrientation, std::function<void(uint8_t)> onPick) {
+  static constexpr uint8_t orientations[] = {CrossPointSettings::PORTRAIT, CrossPointSettings::LANDSCAPE_CCW,
+                                             CrossPointSettings::LANDSCAPE_CW, CrossPointSettings::INVERTED};
+  static constexpr StrId labels[] = {StrId::STR_PORTRAIT, StrId::STR_LANDSCAPE_CCW, StrId::STR_LANDSCAPE_CW,
+                                     StrId::STR_ORIENTATION_INVERTED};
+  int current = 0;
+  for (int i = 0; i < static_cast<int>(std::size(orientations)); ++i) {
+    if (orientations[i] == currentOrientation) current = i;
+  }
+  popup.show(StrId::STR_ORIENTATION, labels, static_cast<int>(std::size(labels)), current,
+             [onPick = std::move(onPick)](const int selected) {
+               if (onPick && selected >= 0 && selected < static_cast<int>(std::size(orientations))) {
+                 onPick(orientations[selected]);
+               }
+             });
+}
 }  // namespace QuickActions
