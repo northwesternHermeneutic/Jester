@@ -1,4 +1,4 @@
-## [Jester v1.0.6]
+## [Jester v1.5]
 
 ### Added
 
@@ -8,7 +8,8 @@
 
 ### Changed
 
-- The version reads Jester_v1.0.6; the firmware file is Jester_v1.0.6.bin.
+- The version reads Jester_v1.5; the firmware file is Jester_v1.5.bin. (Version 1.0.6 was never released; its changes are part of 1.5.)
+- New defaults (apply to a new settings file; delete `/.crosspoint/jester-settings.json` to get them): portrait orientation, Embedded Style on, hold side Up = Orientation Menu, Quick Actions Orientation Menu / Create Clipping / Library / Create Hotspot / Clean Screen, Library hides finished books and text files, finished books are removed from the recent list and moved to `/Read/`.
 - While the screen refreshes, the processor runs at its low clock (10 MHz) instead of 160 MHz, since it only waits for the panel; it returns to full speed when the refresh ends, or at once on a button press. Off while Wi-Fi is on. Adapted from YACP.
 - Embedded Style books whose CSS has too many rules to keep in memory (about 130 or more, or fewer when free memory is low) index faster: the last 8 rules read from the card are kept, instead of reopening the CSS cache file for every element that uses one.
 - A finished book leaves Home's continue-reading tile to the next most recently opened book that is not finished. Marking it unfinished brings it back.
@@ -22,6 +23,7 @@
 
 - Two-line names in the Library, Favorites and Browse Files keep the space between words on the second line ("Ernest Vincent Wright", not "VincentWright"). Found in the eink-qemu emulator.
 - Quick Actions > Orientation Menu no longer leaves the edge of the larger Quick Actions box drawn around the orientation list.
+- Confirming Mark as Finished on the End of Book screen no longer also opens the screen's first suggested book: a button release swallowed after a menu choice now stays swallowed for every part of the screen that reads it in that moment (found in the emulator).
 - In text files (including the Dog Ears and Clippings text files) and XTC books, holding Select opens Quick Actions, the default, instead of the reader menu. Hold Back set to Quick Actions works there too.
 
 ## [Jester v1.0.5]

@@ -561,14 +561,14 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // X4 Pro capacitive Home-key actions. Values below SHORT_PWRBTN_COUNT map
   // directly to the matching power-button shortcut action.
   uint8_t homeButtonTapAction = HOME_BUTTON_BACK_HOME;
-  uint8_t homeButtonDoubleTapAction = HOME_BUTTON_TOGGLE_FRONTLIGHT;
+  uint8_t homeButtonDoubleTapAction = HOME_BUTTON_BACK_HOME;  // Jester default (v1.5); the X4 has no Home key
   uint8_t homeButtonLongPressAction = HOME_BUTTON_READER_MENU;
   // Home-key devices can lock the capacitive Home key while a reader page is
   // active. Reader menus temporarily override this without changing the value.
   uint8_t homeButtonInReaderEnabled = 1;
   // EPUB reading orientation settings
   // 0 = portrait (default), 1 = landscape clockwise, 2 = inverted, 3 = landscape counter-clockwise
-  uint8_t orientation = LANDSCAPE_CCW;  // Jester default (feature 9)
+  uint8_t orientation = PORTRAIT;  // Jester default (v1.5; landscape CCW before)
   // Jester, not persisted: while a book exempt from the global orientation is
   // open, saves write this global orientation instead of `orientation`.
   uint8_t savedOrientationOverride = ORIENTATION_COUNT;
@@ -582,7 +582,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Jester defaults (feature 10, v1.0.4): short Up/Down turn pages, long Up
   // flips landscape, long Down creates a clipping.
   uint8_t sideButtonUpShort = PREVIOUS_PAGE;
-  uint8_t sideButtonUpLong = LANDSCAPE_FLIP;
+  uint8_t sideButtonUpLong = ORIENTATION_MENU;  // Jester default (v1.5)
   uint8_t sideButtonDownShort = PAGE_TURN;
   uint8_t sideButtonDownLong = CREATE_CLIPPING;
   // Jester (feature 20): front Left/Right long-press actions (side-button catalog).
@@ -650,7 +650,7 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Quick-return from footnotes when a footnote shortcut is active.
   uint8_t pwrBtnFootnoteBack = 0;  // Jester default (v1.0.4)
   // Use book's embedded CSS styles for EPUB rendering (1 = enabled, 0 = disabled)
-  uint8_t embeddedStyle = 0;  // Jester default (feature 9)
+  uint8_t embeddedStyle = 1;  // Jester default (v1.5; off before)
   // EPUB section indexing policy. The current chapter keeps its active build.
   uint8_t indexingMethod = INDEXING_INCREMENTAL;  // Jester default (feature 9)
   // Focus Reading - emphasizes the first part of words with bold
@@ -680,17 +680,17 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t libraryShowGenre = 0;   // Jester default (v1.0.4)
   uint8_t libraryShowEpub = 1;
   uint8_t libraryShowXtc = 1;
-  uint8_t libraryShowTxt = 1;
+  uint8_t libraryShowTxt = 0;  // Jester default (v1.5)
   uint8_t libraryShowMarkdown = 1;
-  uint8_t libraryHideFinishedBooks = 0;
+  uint8_t libraryHideFinishedBooks = 1;  // Jester default (v1.5)
   // Hide file extensions in the file browser right-side value column (0 = show, 1 = hide)
   uint8_t hideFileExtension = 0;
   // File browser display row style (0 = one-line theme list, 1 = two-line compact display)
   uint8_t fileBrowserDisplay = FILE_BROWSER_DISPLAY_2_LINES;  // Jester default (feature 18)
   // Remove a book from the Recent Books list when its End-of-Book screen is reached (0 = off, 1 = on)
-  uint8_t removeReadBooksFromRecents = 0;
+  uint8_t removeReadBooksFromRecents = 1;  // Jester default (v1.5)
   // Move epub to /Read/ folder on SD card when marked as finished (0 = disabled, 1 = enabled)
-  uint8_t moveFinishedToReadFolder = 0;
+  uint8_t moveFinishedToReadFolder = 1;  // Jester default (v1.5)
   // Automatically write a dated global reading-stats backup before sleep when an RTC is available (0 = off, 1 = on).
   uint8_t autoBackupStats = 1;
   // Idle threshold for reading stats, stored in 10-second units to fit uint8_t.
@@ -705,7 +705,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   // Five reusable reader commands and their single owning shortcut. Keep these
   // adjacent so old settings files simply retain their default-initialized tail.
   // Jester default Quick Actions (feature 10, v1.0.4).
-  uint8_t quickActionSlots[5] = {LOOKUP_WORD, DOG_EAR, LIBRARY, CREATE_HOTSPOT, CLEAN_SCREEN};
+  // Jester default (v1.5)
+  uint8_t quickActionSlots[5] = {ORIENTATION_MENU, CREATE_CLIPPING, LIBRARY, CREATE_HOTSPOT, CLEAN_SCREEN};
   // Raw QuickActions::Trigger::LongMenu (static_assert in QuickActions.h). Must agree
   // with longPressMenuAction so two gestures never claim the Quick Actions menu.
   uint8_t quickActionsTrigger = 4;  // Jester default (feature 10, v1.0.4)

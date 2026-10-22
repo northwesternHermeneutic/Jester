@@ -2,7 +2,7 @@
 
 > **Jester is a personal, vibe coded fork of [CrossInk](https://github.com/uxjulia/CrossInk)** (itself a fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)) for the original **Xteink X4** (ESP32-C3, PlatformIO environment `default`). It is based on CrossInk v1.6.0, takes selected changes from CrossInk v1.6.1, keeps the v1.6.0 menus and navigation to improve UX for the original X4 with a focus on enabling one handed use, and adds various features.
 
-Current version: **1.0.5**
+Current version: **1.5**
 
 ## Supported Devices
 - XTEINK X4
@@ -92,7 +92,8 @@ Top and bottom bars with Battery, Chapter Page Count, Stable Page Number, Book P
 ### Home, Library and Favorites
 
 - **Belacqua** (default theme): the logo, the current book, then Library, Favorites, Bookmarks & Clippings, File Transfer, Browse Files and Settings. Classic and Lyra remain available.
-- **Library** opens on the Sort control. From a book, Back moves to Switch Library, then through the top bar, and leaves after Refresh; hold Back to leave at once. Series and genre lines are off by default (Library settings).
+- **Library** opens on the Sort control. From a book, Back moves to Switch Library, then through the top bar, and leaves after Refresh; hold Back to leave at once. Series and genre lines are off by default (Library settings). The Library is sorted by Date Added, and text files are not listed by default.
+- **Finishing a book**: at the end of a book Jester asks whether to mark it finished. Finished books are hidden from the Library (Library settings), removed from the recent list and moved to `/Read/` (Settings > System > Files & Cache), and Home's tile moves on to the next book.
 - **Multiple libraries**: make any folder a library from its long-press menu in Browse Files. Folders can be excluded, and **Library Index Limit** (default 200 books) keeps the most recently added. After adding books with a computer, use Refresh.
 - **Favorites**: up to 36 books; hold Home to change the sort (recently added, title, author).
 - File names and titles wrap to two lines, hyphenating long words.
@@ -105,11 +106,11 @@ Top and bottom bars with Battery, Chapter Page Count, Stable Page Number, Book P
 | Hold front Right | Dog Ear |
 | Hold Select | Quick Actions |
 | Hold Back | Footnotes |
-| Hold side Up | Landscape Flip |
+| Hold side Up | Orientation Menu |
 | Hold side Down | Create Clipping |
 | Power + Up | Refresh Screen |
 
-Quick Actions holds Look Up Word, Dog Ear, Library, Create Hotspot and Clean Screen. Quick-return from Footnotes is off. All of these can be changed in Settings > Controls.
+Quick Actions holds Orientation Menu, Create Clipping, Library, Create Hotspot and Clean Screen. Quick-return from Footnotes is off. All of these can be changed in Settings > Controls.
 
 ### System
 
@@ -134,7 +135,7 @@ Quick Actions holds Look Up Word, Dog Ear, Library, Create Hotspot and Clean Scr
 | Side-button actions | Short and long per button, plus front long presses | Short and long per button | Layout and one long press |
 | Inline images | Yes | Yes | No |
 | Dog Ears, Favorites, Unify Bookmarks | Yes | No | No |
-| Landscape Flip, Clean Screen, per-book orientation | Yes | No | No |
+| Orientation Menu, Landscape Flip, Clean Screen, per-book orientation | Yes | No | No |
 | Sleep folders for Home, portrait and landscape | Yes | No | No |
 | Publisher page numbers | Status bar item | Page margin | Page margin |
 | Reading stats, time left, focus reading, guide dots, auto page turn | Removed | Yes | Yes |

@@ -10,7 +10,24 @@ TEST(ReleaseSuppressionTest, SuppressesOnlyTheMatchingBackReleaseFrame) {
 
   suppression.expireAfterReleaseFrame({.backReleased = true});
   EXPECT_TRUE(suppression.consumeBackRelease());
+  // Every reader of the same release frame sees it suppressed (Jester).
+  EXPECT_TRUE(suppression.consumeBackRelease());
+
+  // A later release is a new user action.
+  suppression.expireAfterReleaseFrame({.backReleased = true});
   EXPECT_FALSE(suppression.consumeBackRelease());
+}
+
+TEST(ReleaseSuppressionTest, ConfirmReleaseStaysSwallowedForTheWholeFrame) {
+  ReleaseSuppression suppression;
+  suppression.suppressConfirm();
+
+  suppression.expireAfterReleaseFrame({.confirmReleased = true});
+  EXPECT_TRUE(suppression.consumeConfirmRelease());
+  EXPECT_TRUE(suppression.consumeConfirmRelease());
+
+  suppression.expireAfterReleaseFrame({.confirmReleased = true});
+  EXPECT_FALSE(suppression.consumeConfirmRelease());
 }
 
 TEST(ReleaseSuppressionTest, StaleBackSuppressionExpiresWithoutAConsumer) {
@@ -80,9 +97,16 @@ TEST(ReleaseSuppressionTest, NavigationHoldSwallowsOnlyItsOwnMenuOrBackRelease) 
                                                  : ReleaseSuppression::FrameState{.backReleased = true});
     if (fromMenu) {
       EXPECT_TRUE(suppression.consumeConfirmRelease());
-      EXPECT_FALSE(suppression.consumeConfirmRelease());
+      EXPECT_TRUE(suppression.consumeConfirmRelease());  // same frame (Jester)
     } else {
       EXPECT_TRUE(suppression.consumeBackRelease());
+      EXPECT_TRUE(suppression.consumeBackRelease());  // same frame (Jester)
+    }
+    suppression.expireAfterReleaseFrame(fromMenu ? ReleaseSuppression::FrameState{.confirmReleased = true}
+                                                 : ReleaseSuppression::FrameState{.backReleased = true});
+    if (fromMenu) {
+      EXPECT_FALSE(suppression.consumeConfirmRelease());
+    } else {
       EXPECT_FALSE(suppression.consumeBackRelease());
     }
   }
