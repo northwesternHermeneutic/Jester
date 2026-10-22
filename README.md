@@ -187,7 +187,7 @@ Jester builds on the work of these projects. All are MIT-licensed unless noted.
 - **[witchhunt-reader](https://github.com/jpirnay/witchhunt-reader)** by Jens Pirnay: streaming chapter anchors to the SD card (`d4547ae6`), and the ideas behind Unify Bookmarks (its global bookmark catalogue) and the Publisher Page Number item (printed-page labels).
 - **[inx](https://github.com/obijuankenobiii/inx)**: the on-demand, versioned book-state file that Favorites is modelled on.
 - **[casper](https://github.com/tweakerinc/casper)**: lessons on capturing a page's text safely (dog ears) and on avoiding wasted Home work.
-- **[YACP](https://github.com/Sichroteph/YACP)** by Sichroteph, via CrossInk: no-op write suppression and per-fragment layout checks.
+- **[YACP](https://github.com/Sichroteph/YACP)** by Sichroteph: the low processor clock during screen refreshes, and, via CrossInk, no-op write suppression and per-fragment layout checks.
 - **[IBM Plex Serif](https://github.com/IBM/plex)** by IBM (SIL Open Font License 1.1): the source of the built-in Jester Serif. The licence reserves the name "Plex", so the converted font carries another name; it is not endorsed by IBM.
 - **[Noto Serif](https://github.com/notofonts/latin-greek-cyrillic)** and **Noto Sans Symbols 2** (SIL Open Font License 1.1): Greek and IPA characters in Jester Serif, and UI symbols.
 
