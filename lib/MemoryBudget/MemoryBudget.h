@@ -115,6 +115,12 @@ inline bool hasHeapForEpubTextLayoutStart(const HeapSnapshot heap) {
   return heap.freeHeap >= EPUB_TEXT_LAYOUT_MIN_FREE;
 }
 
+// Jester: the same check without a full snapshot. ESP.getMaxAllocHeap() walks
+// every heap block under the heap lock; the layout parser asks before every
+// element and text run, and that walk was ~15% of a long chapter build in
+// eink-qemu. Keep this in step with hasHeapForEpubTextLayoutStart().
+inline bool hasFreeHeapForEpubTextLayoutStart() { return ESP.getFreeHeap() >= EPUB_TEXT_LAYOUT_MIN_FREE; }
+
 inline bool hasHeapForDictionarySdFont(const HeapSnapshot heap) {
   return hasHeap(heap, DICTIONARY_SD_FONT_MIN_FREE, DICTIONARY_SD_FONT_MIN_MAX_ALLOC);
 }

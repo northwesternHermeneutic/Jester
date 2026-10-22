@@ -15,6 +15,7 @@
 - The Library's default sort is Date Added (it was Recently Opened, which showed no books on a new card). Applies to a new settings file.
 - The File Transfer hotspot is called Jester-Reader (was CrossPoint-Reader). Join the new network once on your phone; the address stays http://crosspoint.local/ or http://192.168.4.1/.
 - Fewer card lookups for reading statistics: a book's cache folder is read once instead of looking for five possible stats files, and Home and the reader no longer load the device-wide statistics, which Jester does not show. This speeds up opening books, Home, and the Library with Hide Finished Books on.
+- Chapter layout does less bookkeeping: the low-memory check before each element reads only the free-heap counter instead of walking the whole heap, settings lookups no longer take a lock on every access, and Latin text skips the CJK line-break table. Found by profiling a long Ulysses chapter in the eink-qemu emulator.
 - Default margins: 25 top and bottom, 25 left and right. Defaults apply to a new settings file; change them in Settings > Reader > Screen Margins, or delete `/.crosspoint/jester-settings.json` to get all defaults.
 
 ### Fixed

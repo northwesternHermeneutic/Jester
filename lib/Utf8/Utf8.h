@@ -50,6 +50,7 @@ int utf8SafeTruncateBuffer(const char* buf, int len);
 // word boundaries per character; Hangul is space-delimited, so layout keeps Hangul words whole
 // (see utf8IsHangul) and splits one without a hyphen only through the hyphenation path.
 inline bool utf8IsCjkBreakable(const uint32_t cp) {
+  if (cp < 0x1100) return false;  // Jester: Latin, Greek, Cyrillic fast path (per character in layout)
   return (cp >= 0x1100 && cp <= 0x11FF)        // Hangul Jamo
          || (cp >= 0x3000 && cp <= 0x303F)     // CJK Symbols and Punctuation
          || (cp >= 0x3040 && cp <= 0x309F)     // Hiragana

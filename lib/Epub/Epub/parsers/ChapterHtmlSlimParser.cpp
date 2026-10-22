@@ -421,6 +421,11 @@ bool ChapterHtmlSlimParser::shouldAbortForLowMemory(const char* stage) {
   if (lowMemoryAbort) {
     return true;
   }
+  // Called per element and text run: only take the full snapshot (which walks
+  // the heap for the largest block) once free heap is already short.
+  if (MemoryBudget::hasFreeHeapForEpubTextLayoutStart()) {
+    return false;
+  }
 
   auto heap = MemoryBudget::snapshot();
   if (MemoryBudget::hasHeapForEpubTextLayoutStart(heap)) {

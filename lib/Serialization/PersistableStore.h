@@ -88,6 +88,7 @@ class PersistableStore : public PersistableStoreBase {
  protected:
   PersistableStore() = default;
   ~PersistableStore() = default;
+  static inline T* instancePtr_ = nullptr;
 
  public:
   // Delete copy constructor and assignment
@@ -103,7 +104,14 @@ class PersistableStore : public PersistableStoreBase {
   }
 
   static T& getInstance() {
+    // Jester: the ESP32-C3 build (rv32imc, no atomics) cannot inline the guard
+    // test of a function-local static, so every SETTINGS access called
+    // __cxa_guard_acquire (~4% of a chapter build in eink-qemu). Keep the
+    // guarded static for the first, thread-safe construction and serve later
+    // calls from a constant-initialized pointer.
+    if (T* const cached = instancePtr_) return *cached;
     static T instance;
+    instancePtr_ = &instance;
     return instance;
   }
 
