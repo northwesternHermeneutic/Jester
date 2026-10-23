@@ -23,6 +23,7 @@
 
 - Two-line names in the Library, Favorites and Browse Files keep the space between words on the second line ("Ernest Vincent Wright", not "VincentWright"). Found in the eink-qemu emulator.
 - Quick Actions > Orientation Menu no longer leaves the edge of the larger Quick Actions box drawn around the orientation list.
+- Opening the Orientation Menu (or any list) by holding a direction button no longer moves the selection while that button is still held or when it is let go: hold side Up showed Portrait 180° selected instead of the current orientation (found in the emulator).
 - Confirming Mark as Finished on the End of Book screen no longer also opens the screen's first suggested book: a button release swallowed after a menu choice now stays swallowed for every part of the screen that reads it in that moment (found in the emulator).
 - In text files (including the Dog Ears and Clippings text files) and XTC books, holding Select opens Quick Actions, the default, instead of the reader menu. Hold Back set to Quick Actions works there too.
 

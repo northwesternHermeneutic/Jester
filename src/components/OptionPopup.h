@@ -246,10 +246,24 @@ class OptionPopup {
       layoutValid = false;
       requestUpdate();
     };
-    buttonNavigator.onPreviousRelease([&movePrevious] { movePrevious(false); });
-    buttonNavigator.onNextRelease([&moveNext] { moveNext(false); });
-    buttonNavigator.onPreviousContinuous([&movePrevious] { movePrevious(true); });
-    buttonNavigator.onNextContinuous([&moveNext] { moveNext(true); });
+    // Jester: a direction button still held from the gesture that opened the
+    // popup (hold side Up = Orientation Menu) must not move the selection. Its
+    // hold already exceeds the repeat delay, so the first frame would step at
+    // once, and a front button's release would step again. Navigation resumes
+    // after every such button has been released.
+    if (captureHeldNavigation_) {
+      captureHeldNavigation_ = false;
+      navigationHeldOnOpen_ = anyNavigationPressed(input);
+    }
+    if (navigationHeldOnOpen_ && !anyNavigationPressed(input) && !anyNavigationReleased(input)) {
+      navigationHeldOnOpen_ = false;
+    }
+    if (!navigationHeldOnOpen_) {
+      buttonNavigator.onPreviousRelease([&movePrevious] { movePrevious(false); });
+      buttonNavigator.onNextRelease([&moveNext] { moveNext(false); });
+      buttonNavigator.onPreviousContinuous([&movePrevious] { movePrevious(true); });
+      buttonNavigator.onNextContinuous([&moveNext] { moveNext(true); });
+    }
 
     if (input.wasPressed(MappedInputManager::Button::Confirm)) {
       if (confirmationMode && !footerFocused) {
@@ -450,6 +464,18 @@ class OptionPopup {
   std::function<void()> onCancelCallback;
   Note popupNote;
   bool skipPostSelectionUpdate_ = false;
+  bool captureHeldNavigation_ = false;
+  bool navigationHeldOnOpen_ = false;
+
+  static bool anyNavigationPressed(const MappedInputManager& input) {
+    return input.isPressed(MappedInputManager::Button::Up) || input.isPressed(MappedInputManager::Button::Down) ||
+           input.isPressed(MappedInputManager::Button::Left) || input.isPressed(MappedInputManager::Button::Right);
+  }
+  static bool anyNavigationReleased(const MappedInputManager& input) {
+    return input.wasReleased(MappedInputManager::Button::Up) || input.wasReleased(MappedInputManager::Button::Down) ||
+           input.wasReleased(MappedInputManager::Button::Left) ||
+           input.wasReleased(MappedInputManager::Button::Right);
+  }
   int primaryOptionIndex = -1;
   int dividerAfterOption = -1;
   bool selectionArrow = false;
@@ -465,6 +491,8 @@ class OptionPopup {
     disabledOptions.assign(ownedStrings.size(), false);
     footerFocused = false;
     skipPostSelectionUpdate_ = false;
+    captureHeldNavigation_ = true;
+    navigationHeldOnOpen_ = false;
     if (ownedStrings.empty()) {
       active = false;
       onSelectCallback = nullptr;
